@@ -399,7 +399,8 @@ function hg.ExplodeHead(ent)
 	if !IsValid(ent) then return end
 
 	local ply = ent:IsRagdoll() and hg.RagdollOwner(ent) or ent
-	if ply:Alive() then ply:Kill() end
+	if ply:IsPlayer() and ply:Alive() then ply:Kill() end
+	if ent:IsNPC() and ent.organism then ent.organism.shock = 100 end
 
 	timer.Simple(0, function()
 		local ent = ent:IsRagdoll() and ent or ent:GetNWEntity("RagdollDeath")
@@ -954,7 +955,6 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 
 		timer.Simple(0.01, function()
 			if !org then return end
-			PrintTable(org.dmgstack)
 			if !org.dmgstack then return end
 			if !org.dmgstack[hitgroup] then return end
 			if !org.dmgstack[hitgroup][1] then return end
