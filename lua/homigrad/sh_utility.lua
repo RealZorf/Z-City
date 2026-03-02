@@ -2169,6 +2169,14 @@ local IsValid = IsValid
 				ent.armors["head"] = "cmb_helmet"
 				ent:SyncArmor()
 			end,
+			["npc_metropolice"] = function(ent)
+
+				--;; Армор
+				ent.armors = {}
+				ent.armors["torso"] = "metrocop_armor"
+				ent.armors["head"] = "metrocop_helmet"
+				ent:SyncArmor()
+			end
 		}
 
 		local nameNPCs = {

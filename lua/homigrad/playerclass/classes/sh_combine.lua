@@ -887,6 +887,16 @@ if CLIENT then
         end
     end)
 
+    hook.Add("ZC_DisableShootTinnitus","NoCombineTinnitus",function(lply)
+        if lply.PlayerClassName ~= "Combine" then return end
+        return true
+    end)
+
+    hook.Add("ZC_BodyTemperature","CombineSuitWarming",function(ply, org, timeValue, changeRate, MaxWarmMul, warmLoseMul)
+        if ply.PlayerClassName ~= "Combine" then return end
+        return changeRate, MaxWarmMul + 0.5, warmLoseMul - 0.4
+    end)
+
     hook.Add("PreDrawHalos","PNV_Light",function()
         local ply = LocalPlayer()
         if ply.PlayerClassName ~= "Combine" then return end

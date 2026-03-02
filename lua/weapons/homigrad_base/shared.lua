@@ -672,9 +672,12 @@ function SWEP:EmitShoot()
 	local nearDist = (GetViewEntity() == ply or GetViewEntity():GetPos():Distance( self:GetPos() ) < 150)
 
 	if GetGlobalBool("hg_shoot_tinnitus", false) and nearDist and !self.Supressor and !hadEarProtection then
-		lply.TinnitusFactor = (lply.TinnitusFactor or 0) + ( (self.Primary.Force * (self.NumBullet or 1) ) / 3) + insideVal
-		if lply.TinnitusFactor > 32 then
-			lply:AddTinnitus(lply.TinnitusFactor / 100)
+		local result = hook.Run("ZC_DisableShootTinnitus",lply,insideVal)
+		if !result then
+			lply.TinnitusFactor = (lply.TinnitusFactor or 0) + ( (self.Primary.Force * (self.NumBullet or 1) ) / 3) + insideVal
+			if lply.TinnitusFactor > 32 then
+				lply:AddTinnitus(lply.TinnitusFactor / 100)
+			end
 		end
 	end
 
