@@ -164,6 +164,8 @@ local function send_organism(org, ply)
 	sendtable.blindness = org.blindness
 	sendtable.critical = org.critical
 	sendtable.incapacitated = org.incapacitated
+	sendtable.berserkActive2 = org.berserkActive2
+	sendtable.noradrenalineActive = org.noradrenalineActive
 
 	sendtable.superfighter = org.superfighter
 
