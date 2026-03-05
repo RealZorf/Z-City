@@ -24,8 +24,11 @@ if CLIENT then
 
 	net.Receive("unload_ammo",function()
 		local wep = net.ReadEntity()
-
-		wep:AttachAnim()
+		if wep.AnimList["unload"] then
+			wep:PlayAnim("unload", wep.UnloadAnimTime)
+		else
+			wep:AttachAnim()
+		end
 		if wep.Unload then
 			wep:Unload()
 		end

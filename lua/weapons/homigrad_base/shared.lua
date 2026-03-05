@@ -2338,9 +2338,9 @@ function SWEP:PlayAnim(anim, data, cycling, callback, reverse, sendtoclient)
         self.callback = callback
     end
 
-	if self.AnimsEvents and self.AnimsEvents[self.seq] then
+	if self.AnimsEvents and (self.AnimsEvents[anim] or self.AnimsEvents[self.seq]) then
 		local Time = time
-		for k,v in pairs(self.AnimsEvents[self.seq]) do
+		for k,v in pairs(self.AnimsEvents[anim] or self.AnimsEvents[self.seq]) do
 			self.VM_TimerEvents = self.VM_TimerEvents or {}
 
 			local TimerName = "VM_Events_ZC-Base" .. self:EntIndex() .. self.seq .. k
