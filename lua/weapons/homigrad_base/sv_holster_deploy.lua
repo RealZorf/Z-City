@@ -69,20 +69,23 @@ function SWEP:Holster_End()
 	--self.endedholster = false
 end
 
+local gamemod = engine.ActiveGamemode()
 local hg_slings = ConVarExists("hg_slings") and GetConVar("hg_slings") or CreateConVar("hg_slings", 0, FCVAR_SERVER_CAN_EXECUTE + FCVAR_ARCHIVE, "Toggle sling system", 0, 1)
 hook.Add("PlayerSwitchInFake","slingDrop",function(ply,oldWeapon,newWeapon)
 	if not hg_slings:GetBool() then return end
 	if oldWeapon == newWeapon then return end
-	local inv = ply:GetNetVar("Inventory")
+	if zb.CROUND and zb.CROUND == "hmcd" or gamemod == "sandbox" then
+		local inv = ply:GetNetVar("Inventory")
 
-	if SERVER and not oldWeapon.bigNoDrop and oldWeapon.weaponInvCategory == 1 and not inv["Weapons"]["hg_sling"] then
-		timer.Simple(0,function()
-			if oldWeapon:GetOwner() == ply then
-				hg.drop(ply, oldWeapon, newWeapon)
-			end
-		end)
-		
-		if not IsValid(ply.FakeRagdoll) then return true end
+		if SERVER and not oldWeapon.bigNoDrop and oldWeapon.weaponInvCategory == 1 and not inv["Weapons"]["hg_sling"] then
+			timer.Simple(0,function()
+				if oldWeapon:GetOwner() == ply then
+					hg.drop(ply, oldWeapon, newWeapon)
+				end
+			end)
+			
+			if not IsValid(ply.FakeRagdoll) then return true end
+		end
 	end
 end)
 

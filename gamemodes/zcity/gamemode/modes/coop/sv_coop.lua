@@ -231,15 +231,15 @@ function MODE:ShouldRoundEnd()
 end
 
 function MODE:RoundStart()
-    for _,ply in player.Iterator() do
+    for _, ply in player.Iterator() do
         if ply.PlayerClassName == "Gordon" then
-            for k,ent in ipairs(ents.FindInSphere( ply:GetPos(), 512 )) do
+            for k, ent in ipairs(ents.FindInSphere( ply:GetPos(), 512 )) do
                 if RemoveGordonWeapons[ent:GetClass()] and not IsValid(ent:GetOwner()) then
                     SafeRemoveEntity(ent)
                 end
             end
         else
-            for k,v in ipairs(ply:GetWeapons()) do
+            for k, v in ipairs(ply:GetWeapons()) do
                 if v:GetClass() == "weapon_bugbait" then
                     ply:StripWeapon("weapon_bugbait")
                 end
