@@ -1,5 +1,9 @@
 local MODE = MODE
 
+local defenseSpawnMinPlayerDistanceSqr = 550 * 550
+local defenseSpawnVisibilityDot = 0.2
+local defenseSpawnStepDelay = 0.8
+
 
  local _OrigSpawn = SpawnZBaseNPC
  function SpawnZBaseNPC(ply, npcClass, pos, weaponClass)
@@ -26,6 +30,42 @@ local MODE = MODE
 
     return npc
  end
+
+function MODE:IsSpawnVisibleToAnyPlayer(spawnPos)
+    local targetPos = spawnPos + Vector(0, 0, 48)
+
+    for _, ply in player.Iterator() do
+        if not (IsValid(ply) and ply:Alive() and ply:Team() ~= TEAM_SPECTATOR) then
+            continue
+        end
+
+        local eyePos = ply:EyePos()
+        local toSpawn = targetPos - eyePos
+        local distSqr = toSpawn:LengthSqr()
+
+        if distSqr <= defenseSpawnMinPlayerDistanceSqr then
+            return true
+        end
+
+        local direction = toSpawn:GetNormalized()
+        if ply:EyeAngles():Forward():Dot(direction) < defenseSpawnVisibilityDot then
+            continue
+        end
+
+        local trace = util.TraceLine({
+            start = eyePos,
+            endpos = targetPos,
+            mask = MASK_BLOCKLOS,
+            filter = ply
+        })
+
+        if not trace.Hit or trace.Fraction >= 0.98 then
+            return true
+        end
+    end
+
+    return false
+end
 
 function MODE:FindValidSpawnPoint(center, radius)
     local attempts = 10
@@ -60,10 +100,79 @@ function MODE:FindValidSpawnPoint(center, radius)
 
         if ceilingTrace.Hit then continue end
 
+        if self:IsSpawnVisibleToAnyPlayer(spawnPos) then continue end
+
         return spawnPos
     end
 
     return nil 
+end
+
+function MODE:IsValidNavMeshSpawn(spawnPos)
+    if not spawnPos then
+        return false
+    end
+
+    if bit.band(util.PointContents(spawnPos), CONTENTS_WATER) == CONTENTS_WATER then
+        return false
+    end
+
+    local hullTrace = util.TraceHull({
+        start = spawnPos,
+        endpos = spawnPos,
+        mins = Vector(-16, -16, 0),
+        maxs = Vector(16, 16, 72),
+        mask = MASK_PLAYERSOLID
+    })
+
+    if hullTrace.Hit then
+        return false
+    end
+
+    if self:IsSpawnVisibleToAnyPlayer(spawnPos) then
+        return false
+    end
+
+    return true
+end
+
+function MODE:FindNavMeshSpawnPoint(center, minRadius, maxRadius)
+    local areas = navmesh.GetAllNavAreas() or {}
+    if #areas == 0 then
+        return nil
+    end
+
+    minRadius = minRadius or 0
+    maxRadius = maxRadius or 4000
+
+    local minRadiusSqr = minRadius * minRadius
+    local maxRadiusSqr = maxRadius * maxRadius
+    local candidates = {}
+
+    for _, area in ipairs(areas) do
+        if area:IsUnderwater() then
+            continue
+        end
+
+        local spawnPos = area:GetCenter() + Vector(0, 0, 10)
+
+        if center then
+            local distSqr = center:DistToSqr(spawnPos)
+            if distSqr < minRadiusSqr or distSqr > maxRadiusSqr then
+                continue
+            end
+        end
+
+        if self:IsValidNavMeshSpawn(spawnPos) then
+            candidates[#candidates + 1] = spawnPos
+        end
+    end
+
+    if #candidates == 0 then
+        return nil
+    end
+
+    return candidates[math.random(#candidates)]
 end
 
 
@@ -130,7 +239,7 @@ end
 
 
 function MODE:SpawnWave()
-    local spawnPoints = zb.GetMapPoints("NPC_DEFENSE_SPAWN")
+    local spawnPoints = self.GetDefenseAnchorPoints and self:GetDefenseAnchorPoints() or {}
     if not spawnPoints or #spawnPoints == 0 then
         return
     end
@@ -142,10 +251,13 @@ function MODE:SpawnWave()
     
     self.NPCCount = 0
     self.DefenseWaveEntities = {}
+    self.WaveSpawnInProgress = true
     
     local currentWave = waveDefinitions[self.Wave]
-    local spawnRadius = 70
-    local spawnedNPCs = {}
+    local spawnRadius = 2500
+    local spawnQueue = {}
+    self.SpawnBatchID = (self.SpawnBatchID or 0) + 1
+    local spawnBatchID = self.SpawnBatchID
     
 
     local hasBoss = false
@@ -176,51 +288,107 @@ function MODE:SpawnWave()
     
     for _, npcDef in ipairs(currentWave) do
         for i = 1, npcDef.count do
+            spawnQueue[#spawnQueue + 1] = npcDef
+        end
+    end
+
+    local totalPlannedSpawns = #spawnQueue
+
+    if totalPlannedSpawns <= 0 then
+        self.WaveSpawnInProgress = false
+        return
+    end
+
+    for queueIndex, npcDef in ipairs(spawnQueue) do
+        local queuedIndex = queueIndex
+        local queuedNpcDef = npcDef
+        local timerName = "defense_spawn_" .. spawnBatchID .. "_" .. queuedIndex
+
+        self:CreateTimer(timerName, (queuedIndex - 1) * defenseSpawnStepDelay, 1, function()
+            if self.SpawnBatchID ~= spawnBatchID then
+                return
+            end
+
             local point = spawnPoints[math.random(#spawnPoints)]
-            local spawnPos = self:FindValidSpawnPoint(point.pos, spawnRadius)
+            local center = point.pos or point
+            local spawnPos = self:FindNavMeshSpawnPoint(center, 250, spawnRadius)
+
+            if not spawnPos then
+                spawnPos = self:FindNavMeshSpawnPoint(nil, 0, 0)
+            end
+
+            if not spawnPos then
+                spawnPos = self:FindValidSpawnPoint(center, 300)
+            end
             
-            if not spawnPos then 
-                continue 
+            if not spawnPos then
+                if queuedIndex == totalPlannedSpawns then
+                    self.WaveSpawnInProgress = false
+
+                    if self.NPCCount <= 0 and self:IsWaveActive() then
+                        self:EndWave()
+
+                        if self.Wave and self.TotalWaves and self.Wave < self.TotalWaves then
+                            timer.Simple(1, function()
+                                if type(self.StartNewWave) == "function" then
+                                    self:StartNewWave()
+                                end
+                            end)
+                        end
+                    end
+                end
+
+                return
             end
             
             local npc
             
-            local t = npcDef.type
+            local t = queuedNpcDef.type
             if     string.sub(t, 1, 3) == "zb_"
                 or string.sub(t, 1, 3) == "ej_"
                 or string.sub(t, 1, 5) == "beta_"
             then
-                npc = SpawnZBaseNPC(nil, npcDef.type, spawnPos, npcDef.weapon)
-            elseif string.sub(npcDef.type, 1, 10) == "terminator" or string.find(npcDef.type, "sent_vj_") then
-                npc = ents.Create(npcDef.type)
-                if not IsValid(npc) then continue end
+                npc = SpawnZBaseNPC(nil, queuedNpcDef.type, spawnPos, queuedNpcDef.weapon)
+            elseif string.sub(queuedNpcDef.type, 1, 10) == "terminator" or string.find(queuedNpcDef.type, "sent_vj_") then
+                npc = ents.Create(queuedNpcDef.type)
+                if not IsValid(npc) then
+                    if queuedIndex == totalPlannedSpawns then
+                        self.WaveSpawnInProgress = false
+                    end
+
+                    return
+                end
                 npc:SetPos(spawnPos)
                 npc:Spawn()
                 
                 npc.IsDefenseWaveNPC = true
             else
-                npc = ents.Create(npcDef.type)
+                npc = ents.Create(queuedNpcDef.type)
                 if not IsValid(npc) then 
-                    continue 
+                    if queuedIndex == totalPlannedSpawns then
+                        self.WaveSpawnInProgress = false
+                    end
+
+                    return
                 end
                 
                 npc:SetPos(spawnPos)
                 
-                if npcDef.model then
-                    npc:SetModel(npcDef.model)
+                if queuedNpcDef.model then
+                    npc:SetModel(queuedNpcDef.model)
                 end
                 
-                if npcDef.keyvalues then
-                    for key, value in pairs(npcDef.keyvalues) do
+                if queuedNpcDef.keyvalues then
+                    for key, value in pairs(queuedNpcDef.keyvalues) do
                         npc:SetKeyValue(key, value)
                     end
                 end
                 
-                if npcDef.aggressive then
+                if queuedNpcDef.aggressive then
                     npc:SetKeyValue("aggressivebehavior", "1")
                     npc:SetKeyValue("spawnflags", "256") 
                     
-                    if npcDef.type == "npc_zombie" or npcDef.type == "npc_fastzombie" or npcDef.type == "npc_poisonzombie" then
+                    if queuedNpcDef.type == "npc_zombie" or queuedNpcDef.type == "npc_fastzombie" or queuedNpcDef.type == "npc_poisonzombie" then
                         npc:SetKeyValue("incominghate", "1")
                     end
                 end
@@ -228,17 +396,27 @@ function MODE:SpawnWave()
                 npc:Spawn()
                 npc:Activate()
                 
-                if npcDef.weapon and npcDef.weapon ~= "" and not npcDef.default_weapon and 
-                   (npcDef.type == "npc_combine_s" or npcDef.type == "npc_metropolice") then
-                    npc:Give(npcDef.weapon)
+                if queuedNpcDef.weapon and queuedNpcDef.weapon ~= "" and not queuedNpcDef.default_weapon and 
+                   (queuedNpcDef.type == "npc_combine_s" or queuedNpcDef.type == "npc_metropolice") then
+                    npc:Give(queuedNpcDef.weapon)
                 end
             end
 
             if not IsValid(npc) then 
-                continue 
+                if queuedIndex == totalPlannedSpawns then
+                    self.WaveSpawnInProgress = false
+                end
+
+                return
             end
             
-            if npc:GetClass() == "zb_temporary_ent" then continue end
+            if npc:GetClass() == "zb_temporary_ent" then
+                if queuedIndex == totalPlannedSpawns then
+                    self.WaveSpawnInProgress = false
+                end
+
+                return
+            end
             
             npc.IsDefenseWaveNPC = true
             npc.DefenseNPCCountedAsDead = false
@@ -246,16 +424,14 @@ function MODE:SpawnWave()
             
             self.DefenseWaveEntities[npc.DefenseEntityID] = npc
             
-            print("[DEFENSE] Spawned NPC: " .. npcDef.type .. ", EntIndex: " .. npc:EntIndex())
+            print("[DEFENSE] Spawned NPC: " .. queuedNpcDef.type .. ", EntIndex: " .. npc:EntIndex())
             
-            table.insert(spawnedNPCs, { entity = npc, def = npcDef })
-            
-            if npcDef.health and not (string.sub(npcDef.type, 1, 3) == "zb_") then
-                npc:SetHealth(npcDef.health)
-                npc:SetMaxHealth(npcDef.health)
+            if queuedNpcDef.health and not (string.sub(queuedNpcDef.type, 1, 3) == "zb_") then
+                npc:SetHealth(queuedNpcDef.health)
+                npc:SetMaxHealth(queuedNpcDef.health)
             end
 
-            if npcDef.type == "npc_turret_floor" and npcDef.no_target then
+            if queuedNpcDef.type == "npc_turret_floor" and queuedNpcDef.no_target then
                 timer.Simple(0.5, function()
                     if IsValid(npc) then
                         npc:Fire("Enable")
@@ -266,26 +442,36 @@ function MODE:SpawnWave()
             
             
             self:AssignNPCTarget(npc)
-            self.NPCCount = self.NPCCount + 1
-        end
-    end
-    
 
-    for _, spawnedNPC in ipairs(spawnedNPCs) do
-        local npc = spawnedNPC.entity
-        local npcDef = spawnedNPC.def
-        
-        if IsValid(npc) and npcDef.relationship then
-            local targetClass = npcDef.relationship.class
-            local disposition = npcDef.relationship.disposition
-            
-            for _, targetNPC in ipairs(ents.FindByClass(targetClass)) do
-                if IsValid(targetNPC) then
-                    npc:AddEntityRelationship(targetNPC, disposition, 99)
-                    targetNPC:AddEntityRelationship(npc, disposition, 99)
+            if queuedNpcDef.relationship then
+                local targetClass = queuedNpcDef.relationship.class
+                local disposition = queuedNpcDef.relationship.disposition
+
+                for _, targetNPC in ipairs(ents.FindByClass(targetClass)) do
+                    if IsValid(targetNPC) then
+                        npc:AddEntityRelationship(targetNPC, disposition, 99)
+                        targetNPC:AddEntityRelationship(npc, disposition, 99)
+                    end
                 end
             end
-        end
+
+            self.NPCCount = self.NPCCount + 1
+            if queuedIndex == totalPlannedSpawns then
+                self.WaveSpawnInProgress = false
+
+                if self.NPCCount <= 0 and self:IsWaveActive() then
+                    self:EndWave()
+
+                    if self.Wave and self.TotalWaves and self.Wave < self.TotalWaves then
+                        timer.Simple(1, function()
+                            if type(self.StartNewWave) == "function" then
+                                self:StartNewWave()
+                            end
+                        end)
+                    end
+                end
+            end
+        end)
     end
     
     print("[DEFENSE] Wave " .. self.Wave .. " started with " .. self.NPCCount .. " NPCs")
@@ -308,7 +494,7 @@ function MODE:OnNPCKilled(npc, attacker, inflictor)
     if npc.IsDefenseWaveNPC then
         self.NPCCount = math.max(0, self.NPCCount - 1)
     
-        if self.NPCCount <= 0 then
+        if self.NPCCount <= 0 and not self.WaveSpawnInProgress then
             self:EndWave() 
             
 

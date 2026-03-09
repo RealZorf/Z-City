@@ -171,90 +171,92 @@ DEFENSE_WAVE_DEFINITIONS = {
     EXTENDED = {
         [1] = {
             {type = "npc_metropolice", weapon = "weapon_hk_usp", health = 90, count = 4, default_weapon = false},
-           {type = "zb_myt_cmb_shield", weapon = "weapon_hk_usp", health = 95, count = 2, default_weapon = true}
+            {type = "npc_manhack", count = 3, health = 35}
         },
         [2] = {
-            {type = "zb_metropolice_elite", weapon = "weapon_deagle", health = 100, count = 4, default_weapon = false},
-            {type = "zb_myt_cmb_shield", weapon = "weapon_mp7", health = 100, count = 4, default_weapon = false}
+            {type = "npc_metropolice", weapon = "weapon_mp7", health = 90, count = 4, default_weapon = false},
+            {type = "npc_combine_s", weapon = "weapon_mp7", health = 110, count = 4, default_weapon = false}
         },
         [3] = {
-            {type = "zb_metropolice_elite", weapon = "weapon_mp7", health = 120, count = 10, default_weapon = false},
+            {type = "npc_combine_s", weapon = "weapon_mp7", health = 120, count = 8, default_weapon = false},
+            {type = "npc_manhack", count = 4, health = 35}
         },
         [4] = {
-            {type = "zb_metropolice_elite", weapon = "weapon_deagle", health = 120, count = 3, default_weapon = false},
             {type = "npc_combine_s", weapon = "weapon_mp7", health = 120, count = 5, default_weapon = false},
-            {type = "npc_manhack", count = 4}
+            {type = "npc_combine_s", weapon = "weapon_spas12", health = 120, count = 3, default_weapon = false},
+            {type = "npc_clawscanner", count = 2, health = 50}
         },
         [5] = {
-            {type = "npc_combine_s", weapon = "weapon_mp7", health = 120, count = 8, default_weapon = false},
-            {type = "npc_manhack", count = 2}
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 130, count = 6, default_weapon = false},
+            {type = "npc_combine_s", weapon = "weapon_spas12", health = 130, count = 4, default_weapon = false},
+            {type = "npc_manhack", count = 3, health = 35}
         },
         [6] = {
-            {type = "beta_unit_synth_soldier", weapon = "", health = 1000, count = 1, boss = true},
-            {type = "npc_combine_s", weapon = "weapon_osipr", health = 100, count = 7, default_weapon = false},
-            {type = "ej_combine_sniper", count = 2, weapon = "weapon_combinesniper", relationship = {class = "npc_combine_s", disposition = D_LI}}
+            {type = "npc_hunter", weapon = "", health = 900, count = 1, boss = true},
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 130, count = 6, default_weapon = false},
+            {type = "npc_turret_floor", count = 1, no_target = true, health = 220}
         },
         [7] = {
-            {type = "npc_combine_s", weapon = "weapon_osipr", health = 110, count = 5, default_weapon = false},
-            {type = "npc_combine_s", weapon = "weapon_spas12", health = 110, count = 3, default_weapon = false},
-            {type = "zb_myt_cmb_wallham", count = 2, health = 200, weapon = "weapon_m249", default_weapon = true}
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 140, count = 6, model = "models/Combine_Super_Soldier.mdl", default_weapon = false},
+            {type = "npc_combine_s", weapon = "weapon_spas12", health = 140, count = 4, model = "models/Combine_Super_Soldier.mdl", default_weapon = false},
+            {type = "npc_manhack", count = 4, health = 35}
         },
         [8] = {
-            {type = "npc_combine_s", weapon = "weapon_osipr", health = 110, count = 5, default_weapon = false},
-            {type = "npc_combine_s", weapon = "weapon_spas12", health = 110, count = 5, default_weapon = false},
-            {type = "zb_manhack", count = 2}
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 140, count = 6, default_weapon = false},
+            {type = "npc_combine_s", weapon = "weapon_spas12", health = 140, count = 4, default_weapon = false},
+            {type = "npc_turret_floor", count = 2, no_target = true, health = 220}
         },
         [9] = {
-            {type = "beta_unit_combine_sniper", weapon = "weapon_combinesniper", health = 130, count = 3   },
-            {type = "zb_myt_cmb_wallham", weapon = "weapon_osipr", health = 150, count = 5, default_weapon = false},
-            {type = "zb_myt_cmb_pain", weapon = "weapon_mp7", health = 130, count = 3, default_weapon = false}
+            {type = "npc_hunter", weapon = "", health = 700, count = 2},
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 150, count = 6, model = "models/Combine_Super_Soldier.mdl", default_weapon = false},
+            {type = "npc_clawscanner", count = 3, health = 50}
         },
         [10] = {
-            {type = "beta_unit_synth_brown", weapon = "weapon_osipr", health = 90, count = 5, default_weapon = true},
-            {type = "beta_unit_synth_brown", weapon = "weapon_osipr", health = 90, count = 5, default_weapon = true}
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 155, count = 8, model = "models/Combine_Super_Soldier.mdl", default_weapon = false},
+            {type = "npc_manhack", count = 5, health = 35},
+            {type = "npc_turret_floor", count = 1, no_target = true, health = 220}
         },
         [11] = {
-            {type = "beta_unit_combine_assassin", weapon = "weapon_deagle", health = 100, count = 3, default_weapon = true},
-            {type = "zb_myt_cmb_wallham", weapon = "weapon_osipr", health = 200, count = 9, default_weapon = false}
+            {type = "npc_hunter", weapon = "", health = 800, count = 3},
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 160, count = 8, model = "models/Combine_Super_Soldier.mdl", default_weapon = false}
         },
         [12] = {
-            {type = "zb_combine_juggernaut", weapon = "weapon_m60", health = 2500, count = 1, boss = true},
-            {type = "beta_unit_synth_brown", weapon = "weapon_osipr", health = 90, count = 10, weapondefault = true},
-            {type = "beta_unit_combine_sniper", weapon = "weapon_m98b", health = 100, count = 4,
-             default_weapon = false}
+            {type = "npc_hunter", weapon = "", health = 1200, count = 2, boss = true},
+            {type = "npc_combine_s", weapon = "weapon_osipr", health = 170, count = 10, model = "models/Combine_Super_Soldier.mdl", default_weapon = false},
+            {type = "npc_turret_floor", count = 2, no_target = true, health = 220}
         }
     },
     
     ZOMBIE = {
         [1] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 100, count = 8, aggressive = true},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 150, count = 5}
+            {type = "npc_zombie", weapon = "", health = 120, count = 8, aggressive = true},
+            {type = "npc_headcrab", weapon = "", health = 25, count = 6}
         },
         [2] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 125, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 175, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 200, count = 4}
+            {type = "npc_zombie", weapon = "", health = 130, count = 8},
+            {type = "npc_fastzombie", weapon = "", health = 95, count = 5},
+            {type = "npc_headcrab_fast", weapon = "", health = 20, count = 6}
         },
         [3] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 200, count = 5},
-            {type = "npc_vj_l4d_com_m_riot", weapon = "", health = 225, count = 5},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 180, count = 7}
+            {type = "npc_zombie", weapon = "", health = 150, count = 8},
+            {type = "npc_fastzombie", weapon = "", health = 105, count = 6},
+            {type = "npc_zombine", weapon = "", health = 170, count = 3}
         },
         [4] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 250, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 200, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 225, count = 8}
+            {type = "npc_poisonzombie", weapon = "", health = 280, count = 2},
+            {type = "npc_fastzombie", weapon = "", health = 115, count = 7},
+            {type = "npc_headcrab_poison", weapon = "", health = 35, count = 6}
         },
         [5] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 250, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 275, count = 6},
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 400, count = 8, aggressive = true}
+            {type = "npc_poisonzombie", weapon = "", health = 320, count = 3},
+            {type = "npc_fastzombie", weapon = "", health = 125, count = 8},
+            {type = "npc_zombine", weapon = "", health = 190, count = 5, aggressive = true}
         },
         [6] = {
-            {type = "sent_vj_l4d_cominf", weapon = "", health = 300, count = 8},
-            {type = "npc_vj_l4d_com_m_mudmen", weapon = "", health = 500, count = 8},
-            {type = "npc_vj_l4d_com_m_mudmen", weapon = "", health = 450, count = 7, aggressive = true},
-            {type = "npc_vj_l4d_com_m_mudmen", weapon = "", health = 1000, count = 2, aggressive = true}
+            {type = "npc_poisonzombie", weapon = "", health = 500, count = 4, boss = true},
+            {type = "npc_fastzombie", weapon = "", health = 135, count = 10},
+            {type = "npc_zombine", weapon = "", health = 220, count = 6, aggressive = true},
+            {type = "npc_headcrab_black", weapon = "", health = 35, count = 6}
         }
     }
 }

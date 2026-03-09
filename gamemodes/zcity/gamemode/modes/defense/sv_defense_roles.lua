@@ -180,15 +180,27 @@ end
 
 function MODE:GetPlySpawn(ply)
     if self.SpawnPoints and #self.SpawnPoints > 0 then
-        ply:SetPos(self.SpawnPoints[#self.SpawnPoints].pos)
-        if #self.SpawnPoints > 1 then 
-            table.remove(self.SpawnPoints)
+        local spawnIndex = #self.SpawnPoints
+        local spawnPoint = self.SpawnPoints[spawnIndex]
+        local spawnPos = self.GetGroundedPlayerSpawn and self:GetGroundedPlayerSpawn(spawnPoint) or spawnPoint.pos
+
+        ply:SetPos(spawnPos)
+        ply:SetLocalVelocity(vector_origin)
+
+        if spawnPoint.ang then
+            ply:SetEyeAngles(Angle(0, spawnPoint.ang.y, 0))
         end
+
+        if #self.SpawnPoints > 1 then 
+            table.remove(self.SpawnPoints, spawnIndex)
+        end
+
+        return spawnPos
     end
 end
 
 function MODE:GiveEquipment()
-    self.SpawnPoints = zb.GetMapPoints("PLY_DEFENSE_SPAWN")
+    self.SpawnPoints = self.GetUsualPlayerSpawnPoints and self:GetUsualPlayerSpawnPoints() or {}
     if not self.SpawnPoints then
         self.SpawnPoints = {}
     end

@@ -367,7 +367,7 @@ local function RespawnDeadPlayers(requester)
     end
     
 
-    local spawnPoints = zb.GetMapPoints("PLY_DEFENSE_SPAWN")
+    local spawnPoints = MODE.GetUsualPlayerSpawnPoints and MODE:GetUsualPlayerSpawnPoints() or {}
     if not spawnPoints or #spawnPoints == 0 then
         if IsValid(requester) then
             requester:ChatPrint("No spawn points available!")
@@ -443,12 +443,18 @@ local function RespawnDeadPlayers(requester)
         if IsValid(ply) and not ply:Alive() and ply:Team() != TEAM_SPECTATOR then
 
             local spawnPoint = spawnPoints[math.random(#spawnPoints)]
+            local spawnPos = MODE.GetGroundedPlayerSpawn and MODE:GetGroundedPlayerSpawn(spawnPoint) or spawnPoint.pos
             
 
             ply:Spawn()
             
 
-            ply:SetPos(spawnPoint.pos)
+            ply:SetPos(spawnPos)
+            ply:SetLocalVelocity(vector_origin)
+
+            if spawnPoint.ang then
+                ply:SetEyeAngles(Angle(0, spawnPoint.ang.y, 0))
+            end
             
 
             ply:SetSuppressPickupNotices(true)

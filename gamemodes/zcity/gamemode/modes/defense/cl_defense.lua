@@ -641,7 +641,7 @@ local function CreateVoteMenu()
         button.SelectedFrac = 0
         
   
-        local isDisabled = (index == 3) 
+        local isDisabled = false
         
         button.Paint = function(self, w, h)
             local baseColor = modeDescriptions[index].color
@@ -869,9 +869,6 @@ net.Receive("defense_submit_vote", function(len, ply)
     
     local vote = net.ReadInt(4)
     if vote < 1 or vote > 3 then return end
-    
-
-    if vote == 3 then return end
     
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" or not MODE.VoteInProgress then return end

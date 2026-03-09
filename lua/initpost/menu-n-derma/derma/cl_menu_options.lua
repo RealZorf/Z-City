@@ -148,6 +148,25 @@ function hg.GetConVarType(convar)
 
     return "string"
 end
+
+local function SetConVarValue(convar, value)
+    if not convar then
+        return
+    end
+
+    local name = convar.GetName and convar:GetName()
+    if not name or name == "" then
+        return
+    end
+
+    if isbool(value) then
+        RunConsoleCommand(name, value and "1" or "0")
+        return
+    end
+
+    RunConsoleCommand(name, tostring(value))
+end
+
 local clr_1 = Color(255,255,255,104)
 local clr_2 = Color(122,122,122,104)
 local clr_3 = Color(28,28,28)
@@ -221,10 +240,11 @@ function hg.CreateButton(buttonData, convarName, ParentPanel, yPos)
         
         function toggle:DoClick()
             if convar then
-                convar:SetBool(not convar:GetBool())
+                local newValue = not convar:GetBool()
+                SetConVarValue(convar, newValue)
 
                 surface.PlaySound('glide/headlights_on.wav')
-                targetProgress = convar:GetBool() and 1 or 0
+                targetProgress = newValue and 1 or 0
             end
         end
         
@@ -241,11 +261,11 @@ function hg.CreateButton(buttonData, convarName, ParentPanel, yPos)
         slider:SetMin(min)
         slider:SetMax(max)
         slider:SetDecimals(decimals)
-        slider:SetValue(convar:GetInt())
+        slider:SetValue(decimals > 0 and convar:GetFloat() or convar:GetInt())
         
         function slider:OnValueChanged(val)
             if convar then
-                convar:SetInt(math.Round(val))
+                SetConVarValue(convar, decimals > 0 and math.Round(val, decimals) or math.Round(val))
             end
         end
         
@@ -282,7 +302,7 @@ function hg.CreateButton(buttonData, convarName, ParentPanel, yPos)
         
         function textEntry:OnValueChange(val)
             if convar then
-                convar:SetString(val)
+                SetConVarValue(convar, val)
             end
         end
     end

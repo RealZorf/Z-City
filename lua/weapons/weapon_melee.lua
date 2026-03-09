@@ -1751,6 +1751,8 @@ end
 
 function SWEP:NPCThink()
     local npc = self:GetOwner()
+    if not IsValid(npc) or not npc:IsNPC() then return end
+
     self:SetWeaponHoldType("melee")
     
     if npc:GetClass() == "npc_metropolice" then
@@ -1764,7 +1766,7 @@ function SWEP:NPCThink()
     end
     
     local enemy = npc:GetEnemy()
-    if not enemy then return end
+    if not IsValid(enemy) then return end
 
     local dist = enemy:GetPos():Distance(npc:GetPos())
 

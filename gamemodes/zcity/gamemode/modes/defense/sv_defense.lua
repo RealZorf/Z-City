@@ -19,6 +19,30 @@ MODE.LootSpawn = true
 MODE.ForBigMaps = true
 MODE.Chance = 0.02
 
+local defenseDefaultPlayerSpawns = {
+    "info_player_deathmatch", "info_player_combine", "info_player_rebel",
+    "info_player_counterterrorist", "info_player_terrorist", "info_player_axis",
+    "info_player_allies", "gmod_player_start", "info_player_teamspawn",
+    "ins_spawnpoint", "aoc_spawnpoint", "dys_spawn_point", "info_player_pirate",
+    "info_player_viking", "info_player_knight", "diprip_start_team_blue", "diprip_start_team_red",
+    "info_player_red", "info_player_blue", "info_player_coop", "info_player_human", "info_player_zombie",
+    "info_player_zombiemaster", "info_player_fof", "info_player_desperado", "info_player_vigilante", "info_survivor_rescue"
+}
+
+local defensePlayerSpawnHullMins = Vector(-16, -16, 0)
+local defensePlayerSpawnHullMaxs = Vector(16, 16, 72)
+local defensePlayerSpawnOffsets = {
+    vector_origin,
+    Vector(24, 0, 0),
+    Vector(-24, 0, 0),
+    Vector(0, 24, 0),
+    Vector(0, -24, 0),
+    Vector(24, 24, 0),
+    Vector(-24, 24, 0),
+    Vector(24, -24, 0),
+    Vector(-24, -24, 0)
+}
+
 
 
 util.AddNetworkString("defense_start_vote")
@@ -92,6 +116,7 @@ end
 
 function MODE:EndWave()
     self.WaveActive = false
+    self.WaveSpawnInProgress = false
     self:ClearAllTimers()
 
     net.Start("StopWaveMusic")
@@ -135,11 +160,90 @@ function MODE:EndWave()
     end
 end
 
+function MODE:GetGroundedPlayerSpawn(spawnPoint)
+    if not spawnPoint or not spawnPoint.pos then
+        return nil
+    end
+
+    local basePos = spawnPoint.pos
+    local groundTrace = util.TraceLine({
+        start = basePos + Vector(0, 0, 64),
+        endpos = basePos - Vector(0, 0, 512),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    if groundTrace.Hit and not groundTrace.HitSky then
+        basePos = groundTrace.HitPos + Vector(0, 0, 4)
+    end
+
+    for _, offset in ipairs(defensePlayerSpawnOffsets) do
+        local candidate = basePos + offset
+        local hullTrace = util.TraceHull({
+            start = candidate,
+            endpos = candidate,
+            mins = defensePlayerSpawnHullMins,
+            maxs = defensePlayerSpawnHullMaxs,
+            filter = player.GetAll(),
+            mask = MASK_PLAYERSOLID
+        })
+
+        if not hullTrace.Hit then
+            return candidate
+        end
+    end
+
+    return basePos
+end
+
+function MODE:GetUsualPlayerSpawnPoints()
+    local points = zb.GetMapPoints("Spawnpoint") or {}
+
+    if #points > 0 then
+        local newPoints = {}
+        table.CopyFromTo(points, newPoints)
+        return newPoints
+    end
+
+    local spawnPoints = {}
+
+    for _, ent in ipairs(ents.FindByClass("info_player_start")) do
+        spawnPoints[#spawnPoints + 1] = {
+            pos = ent:GetPos(),
+            ang = ent:GetAngles()
+        }
+    end
+
+    for _, className in ipairs(defenseDefaultPlayerSpawns) do
+        for _, ent in ipairs(ents.FindByClass(className)) do
+            spawnPoints[#spawnPoints + 1] = {
+                pos = ent:GetPos(),
+                ang = ent:GetAngles()
+            }
+        end
+    end
+
+    return spawnPoints
+end
+
+function MODE:GetDefenseAnchorPoints()
+    local npcSpawnPoints = zb.GetMapPoints("NPC_DEFENSE_SPAWN") or {}
+    if #npcSpawnPoints > 0 then
+        return npcSpawnPoints
+    end
+
+    local defensePoints = zb.GetMapPoints("DEFENSE_POINT") or {}
+    if #defensePoints > 0 then
+        return defensePoints
+    end
+
+    return self:GetUsualPlayerSpawnPoints()
+end
+
 function MODE:CanLaunch()
-	local points = zb.GetMapPoints( "PLY_DEFENSE_SPAWN" )
-	local points2 = zb.GetMapPoints( "NPC_DEFENSE_SPAWN" )
+    local points = self:GetUsualPlayerSpawnPoints()
+    local navAreas = navmesh.GetAllNavAreas() or {}
     
-    return false--(#points > 0) and (#points2 > 0)
+    return (#points > 0) and (#navAreas > 0)
 end
 
 function MODE:Intermission()
@@ -151,7 +255,7 @@ function MODE:Intermission()
     self:ClearAllTimers() 
     game.CleanUpMap()
 
-    self.SpawnPoints = zb.GetMapPoints("PLY_DEFENSE_SPAWN")
+    self.SpawnPoints = self:GetUsualPlayerSpawnPoints()
     if not self.SpawnPoints then
         self.SpawnPoints = {}
     end
@@ -210,16 +314,12 @@ function MODE:EndVoting()
     local selectedModes = {}
     
     for mode, votes in pairs(self.VoteResults) do
-        if mode == 3 then continue end
-        
         if votes > highestVotes then
             highestVotes = votes
         end
     end
     
     for mode, votes in pairs(self.VoteResults) do
-        if mode == 3 then continue end
-        
         if votes == highestVotes then
             table.insert(selectedModes, mode)
         end
@@ -231,10 +331,6 @@ function MODE:EndVoting()
     end
     
 
-    if selectedMode == 3 then
-        selectedMode = 1 
-    end
-    
     if selectedMode == 1 then
         self.CurrentSubMode = "STANDARD"
         self.TotalWaves = 6
@@ -242,7 +338,7 @@ function MODE:EndVoting()
         self.CurrentSubMode = "EXTENDED"
         self.TotalWaves = 12
     elseif selectedMode == 3 then
-        self.CurrentSubMode = "STANDARD" 
+        self.CurrentSubMode = "ZOMBIE"
         self.TotalWaves = 6
     end
     
@@ -445,7 +541,7 @@ function MODE:RoundThink()
         end
         
 
-        if self.NPCCount <= 0 and self:IsWaveActive() then
+        if self.NPCCount <= 0 and self:IsWaveActive() and not self.WaveSpawnInProgress then
             print("[DEFENSE] Wave Ended: No NPCs remaining!")
             self:EndWave()
             
@@ -524,8 +620,6 @@ net.Receive("defense_submit_vote", function(len, ply)
     local vote = net.ReadInt(4)
     if vote < 1 or vote > 3 then return end
 
-    if vote == 3 then return end
-    
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" or not MODE.VoteInProgress then return end
     
@@ -558,8 +652,6 @@ net.Receive("defense_change_vote", function(len, ply)
     local newVote = net.ReadInt(4)
     
     if newVote < 1 or newVote > 3 then return end
-    
-    if newVote == 3 then return end
     
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" or not MODE.VoteInProgress then return end
