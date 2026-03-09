@@ -365,7 +365,7 @@ local function register()
         scripted_ents.Register(ENT, "ent_zcity_colthes_" .. k)
     end
 end
-
+if CLIENT and !steamworks.ShouldMountAddon("3670069780") then return end -- anyway client not abile to see it when no
 hook.Add("Think","remove-me-clothes",function()
     register()
     hook.Remove("Think","remove-me-clothes")
