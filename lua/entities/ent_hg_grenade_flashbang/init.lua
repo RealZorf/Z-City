@@ -27,17 +27,17 @@ function ENT:Explode()
     hg.EmitAISound(SelfPos, 512, 16, 1)
 
 
-    net.Start("projectileFarSound")
+    --[[net.Start("projectileFarSound")
         net.WriteString(self.SoundMain)
         net.WriteString(self.SoundFar)
         net.WriteVector(SelfPos)
         net.WriteEntity(self)
         net.WriteBool(self:WaterLevel() > 0)
         net.WriteString("")
-    net.Broadcast()
+    net.Broadcast()--]]
     
-    self:EmitSound(self.SoundMain, 145, 85, 1, CHAN_WEAPON)
-    self:EmitSound(self.SoundFar, 140, 85, 0.9, CHAN_WEAPON)
+    --self:EmitSound(self.SoundMain, 100, 100, 1, CHAN_WEAPON)
+    --self:EmitSound(self.SoundFar, 140, 100, 1, CHAN_WEAPON)
     
     timer.Simple(0.05, function()
         if IsValid(self) then
@@ -51,7 +51,10 @@ function ENT:Explode()
         end
     end)
 
-    EmitSound(self.SoundMain, SelfPos, self:EntIndex() + 100, CHAN_STATIC, 1, 140, nil, math.random(75, 85))
+    EmitSound(self.SoundMain, SelfPos, self:EntIndex() + 100, CHAN_STATIC, 1, 70, nil, 100)
+    EmitSound(self.SoundMain, SelfPos, self:EntIndex() + 101, CHAN_STATIC, 1, 70, nil, 100)
+    EmitSound(self.SoundMain, SelfPos, self:EntIndex() + 102, CHAN_STATIC, 1, 70, nil, 100)
+    EmitSound(self.SoundFar, SelfPos, self:EntIndex() + 103, CHAN_STATIC, 1, 140, nil, 100)
     
     EmitSound("snd_jack_fireworkpop5.wav", SelfPos, self:EntIndex() + 200, CHAN_VOICE, 1, 150, nil, math.random(100, 110))
     

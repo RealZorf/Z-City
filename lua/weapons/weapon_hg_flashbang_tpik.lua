@@ -142,8 +142,8 @@ SWEP.ItemsBones = {
 	["Pin"] = {59,60,61},
 }
 SWEP.SpoonSounds = {
-	[1] = {"grenades/grenade_flash_start_outdoor_distant.wav", 100, 100, false, 0.2},
-	[2] = {"grenades/grenade_flash_start_indoor_distant.wav", 70, 100, true}
+	[1] = {"snd_jack_spoonfling.ogg", 65},
+	[2] = {"m9/m9_fp.wav", 70, 200, true}
 }
 
 SWEP.spoon = "models/weapons/arc9/darsu_eft/skobas/m18_skoba.mdl"
