@@ -318,9 +318,9 @@ end
 function SWEP:IsSprinting()
 	local ply = self:GetOwner()
 	if hg_aimtoshoot:GetBool() then
-		return not ply:IsNPC() and (self:KeyDown(IN_SPEED) and ply:GetVelocity():LengthSqr() > 28900) or not self:KeyDown(IN_ATTACK2) and not IsValid(ply.FakeRagdoll)
+		return not ply:IsNPC() and (self:KeyDown(IN_SPEED) and ply:GetVelocity():LengthSqr() > 150 * 150) or not self:KeyDown(IN_ATTACK2) and not IsValid(ply.FakeRagdoll)
 	else
-		return not ply:IsNPC() and self:KeyDown(IN_SPEED) and ply:GetVelocity():LengthSqr() > 28900 and not IsValid(ply.FakeRagdoll)
+		return not ply:IsNPC() and self:KeyDown(IN_SPEED) and ply:GetVelocity():LengthSqr() > 150 * 150 and not IsValid(ply.FakeRagdoll)
 	end
 end
 
@@ -1511,32 +1511,37 @@ hg.postureFunctions2 = {
 	end,
 	[3] = function(self,ply,force)
 		if self:IsZoom() and not force then return end
-		local isLocal = self:IsLocal2()
+		local isLocal = true--self:IsLocal2()
 		local pistolRun = self:IsPistolHoldType() or self.CanEpicRun
 
 		local epicRunZ = self.EpicRunPos and self.EpicRunPos[3]
 		local epicRunY = self.EpicRunPos and self.EpicRunPos[2]
 		local epicRunX = self.EpicRunPos and self.EpicRunPos[1]
 
-		local running = ply:GetVelocity():LengthSqr() > 150 * 150
+		local posturehold = !self:IsSprinting()
+		local running = posturehold or ply:GetVelocity():LengthSqr() > 150 * 150
+		
+		if !running then return end
 
-		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - 3 + (pistolRun and (isLocal and (epicRunZ or (running and 6 or 2)) or 4) or (isLocal and -2 or -6 + (ply:GetNWFloat("InLegKick", 0) and 5 or 0)) )
-		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - 5 + (pistolRun and (isLocal and (epicRunY or (running and 6 or 4)) or 8 + (ply:GetNWFloat("InLegKick", 0) and -5 or 0)) or (isLocal and 8 or 2 + (ply:GetNW2Float("InLegKick", 0) and 8 or 0)) ) + 3 * math.Clamp(-ply:EyeAngles()[1] / 20, self:IsPistolHoldType() and -2 or -2, 0)
-		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + 3 + (pistolRun and (isLocal and (epicRunX or 2) or 0) or 0)
+		local runmul = posturehold and 1 or math.Clamp((ply:GetVelocity():Length() - 150) / 300, 0, 1) * (1 - math.sin((self.reload and (self.reload - CurTime()) / self.StaminaReloadTime or 1) * math.pi))
+		
+		self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - (3 + (pistolRun and (isLocal and (epicRunZ or (running and 6 or 2)) - 6 or 4) or (isLocal and -2 or -6 + (ply:GetNWFloat("InLegKick", 0) and 5 or 0)) )) * runmul
+		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] - (-7 + (pistolRun and (isLocal and (epicRunY or (running and 6 or 4)) + 3 or 8 + (ply:GetNWFloat("InLegKick", 0) and -5 or 0)) or (isLocal and 8 or 2 + (ply:GetNW2Float("InLegKick", 0) and 8 or 0)) ) + 3 * math.Clamp(-ply:EyeAngles()[1] / 20, self:IsPistolHoldType() and -1 or -1, 0)) * runmul
+		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + (3 + (pistolRun and (isLocal and (epicRunX or 2) or 0) - 2 or 0)) * runmul
 		
 		if not pistolRun then
-			self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + -9
-			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + -6
-			self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + -3
-			self.AdditionalAngPreLerp:Add(angPostureHighReady)
+			self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + -9 * runmul
+			self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + -6 * runmul
+			self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] + -3 * runmul
+			self.AdditionalAngPreLerp:Add(angPostureHighReady * runmul)
 			if running and (isLocal or SERVER) then
-				self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + 4
-				self.AdditionalAngPreLerp:Add(angRunning)
+				self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + 4 * runmul
+				self.AdditionalAngPreLerp:Add(angRunning * runmul)
 			end
 		end
 
 		--self.weaponAng:Add((self:IsPistolHoldType() and angPosture7) or (ply:IsFlagSet(FL_ANIMDUCKING) and angPosture8 or angPosture4))
-		self.AdditionalAngPreLerp:Add( (self:IsPistolHoldType() or self.CanEpicRun) and angPosture3pistol or angPosture3)
+		self.AdditionalAngPreLerp:Add(((self:IsPistolHoldType() or self.CanEpicRun) and angPosture3pistol or angPosture3) * runmul)
 		
 	end,
 	[4] = function(self,ply,force)
@@ -1699,7 +1704,8 @@ function SWEP:GetAdditionalValues()
 		if ply.posture and ply.posture >= 7 then
 			ply.posture = 2
 		end
-		self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - (isSprinting(ply) and 10 or 4) * (isSprinting(ply) and 1.2 or math.Clamp((-ply:EyeAngles()[1] + 90) / 45, 0.2, 1))
+		
+		--self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - (isSprinting(ply) and 10 or 4) * (isSprinting(ply) and 1.2 or math.Clamp((-ply:EyeAngles()[1] + 90) / 45, 0.2, 1))
 	end
 
 	local huya = false//animpos > (self:IsPistolHoldType() and 0.7 or 0.39)
@@ -1728,7 +1734,7 @@ function SWEP:GetAdditionalValues()
 
 	local posture = ((animpos < 0.2 and self:IsSprinting()) or animpos > (self:IsPistolHoldType() and 0.5 or 0.2)) and (self:IsPistolHoldType() and 3 or 4) or ply.posture
 
-	local func = hg.postureFunctions2[ply:GetNWFloat("InLegKick", 0) > CurTime() and "legkicking" or self.reload and 0 or (self:IsSprinting() or huya) and (self:GetButtstockAttack() - CurTime() < -1) and ((ply.posture == 3 and 3) or (ply.posture == 3 and 3) or (self:IsPistolHoldType() and 3 or 3)) or ply.posture] or funcNil
+	local func = hg.postureFunctions2[ply:GetNWFloat("InLegKick", 0) > CurTime() and "legkicking" and 0 or (self:IsSprinting() or huya) and (self:GetButtstockAttack() - CurTime() < -1) and ((ply.posture == 3 and 3) or (ply.posture == 3 and 3) or (self:IsPistolHoldType() and 3 or 3)) or ply.posture] or funcNil
 
 	if not self.inspect then
 		func(self, ply, huya)
@@ -1872,16 +1878,16 @@ function SWEP:GetAdditionalValues()
 	--// Sprint anim
 	if CLIENT and self:IsLocal() and owner:IsOnGround() and not self.reload then
 		local runMul = vellen / owner:GetRunSpeed()
-		if runMul >= 0.32 then
+		--if runMul >= 0.32 then
 			if not self:IsPistolHoldType() and not self.CanEpicRun then
-				self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - y * 3 * runMul
-				self.AdditionalAngPreLerp[1] = self.AdditionalAngPreLerp[1] - y * 3 * -2 * runMul
-				self.AdditionalAngPreLerp[3] = self.AdditionalAngPreLerp[3] - y * 3 * -6 * runMul
+				self.AdditionalPosPreLerp[3] = self.AdditionalPosPreLerp[3] - y * 1 * runMul
+				self.AdditionalAngPreLerp[1] = self.AdditionalAngPreLerp[1] + y * 2 * runMul
+				self.AdditionalAngPreLerp[3] = self.AdditionalAngPreLerp[3] + y * 6 * runMul
 			--[[else
 				self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] - y * 2 * runMul * -1
 				self.AdditionalAngPreLerp[2] = self.AdditionalAngPreLerp[2] - y * 6 * runMul]]
 			end
-		end
+		--end
 	end
 
 	if CLIENT and self:IsLocal2() then
