@@ -13,6 +13,71 @@ hg.ConVars = hg.ConVars or {}
 local hg_bulletholesfps = CreateConVar("hg_bulletholesfps", "0", FCVAR_ARCHIVE + FCVAR_NOTIFY + FCVAR_REPLICATED, "How much fps should the view inside bullet holes be (0 = max)", 0, 300)
 local hg_bulletholes = CreateConVar("hg_bulletholes", "0", FCVAR_ARCHIVE + FCVAR_NOTIFY + FCVAR_REPLICATED, "Enable R6S bulletholes feature", 0, 1)
 
+hook.Add("PostRender", "sadasdsad", function()
+    if !hg_bulletholes:GetBool() then return end
+    local holes = GetNetVar("BulletHoles")
+    local view = render.GetViewSetup()
+
+    if !holes then return end
+    local any = false
+
+    for i = 1, #holes do
+        local tbl = holes[i]
+
+        if !tbl.pos1 then continue end
+        local normf = tbl.dir:Forward()
+        local dot = (tbl.pos1 - view.origin):GetNormalized():Dot(normf)
+        --if dot < 0 then continue end
+        local dot2 = view.angles:Forward():Dot(normf)
+
+        tbl.dot = dot
+        tbl.dot2 = dot2
+
+        if dot > 0.5 and dot2 > 0.5 then
+            any = true
+        end
+    end
+    
+    if any and timershit < CurTime() then
+        timershit = CurTime() + ((hg_bulletholesfps:GetInt() == 0) and 0 or (1 / hg_bulletholesfps:GetInt()))
+        
+        local tr = {
+            start = view.origin,
+            endpos = view.angles:Forward() * 8000,
+            mins = -vecHull,
+            maxs = vecHull,
+            filter = {lply},
+        }
+        
+        local trace = util.TraceHull(tr)
+        local pos = trace.HitPos
+    
+        local len = (view.origin - pos):Length() + 25
+        
+        render.PushRenderTarget( rt )
+        
+        drawing = true
+        
+        render.RenderView({
+            znear = len,
+            //origin = pos + view.angles:Forward() * add,
+            drawhud = false,
+            drawmonitors = false,
+            drawviewer = false,
+            drawviewmodel = false,
+            viewid = VIEW_MONITOR,
+            --x = 500,
+            --y = 250,
+            --w = 1000,
+            --h = 500,
+        })
+        
+        drawing = false
+    
+        render.PopRenderTarget()
+    end
+end)
+
 hook.Add("PreDrawEffects","bulletholes-test",function()
     if !hg_bulletholes:GetBool() then return end
     local holes = GetNetVar("BulletHoles")
@@ -43,7 +108,6 @@ hook.Add("PreDrawEffects","bulletholes-test",function()
 
     render.SetColorMaterial()
     
-    local any = false
     for i = 1, #holes do
         local tbl = holes[i]
         local ent = tbl[6]
@@ -104,61 +168,6 @@ hook.Add("PreDrawEffects","bulletholes-test",function()
         end
         
         render.DrawQuad(tbl.pos1, tbl.pos2, tbl.pos3, tbl.pos4, coltransparent)
-    end
-
-    for i = 1, #holes do
-        local tbl = holes[i]
-
-        if !tbl.pos1 then continue end
-        local normf = tbl.hitnormal:Forward()
-        local dot = (tbl.pos1 - view.origin):GetNormalized():Dot(tbl.dir:Forward())
-        --if dot < 0 then continue end
-        local dot2 = view.angles:Forward():Dot(-normf)
-        
-        if dot > 0.5 and dot2 > 0.5 then
-            any = true
-            
-            break
-        end
-    end
-    
-    if any and timershit < CurTime() then
-        timershit = CurTime() + ((hg_bulletholesfps:GetInt() == 0) and 0 or (1 / hg_bulletholesfps:GetInt()))
-        
-        local tr = {
-            start = view.origin,
-            endpos = view.angles:Forward() * 1000,
-            mins = -vecHull,
-            maxs = vecHull,
-            filter = {lply},
-        }
-        
-        trace = util.TraceHull(tr)
-        local pos = trace.HitPos
-    
-        local len = (view.origin - pos):Length() + 5
-
-        render.PushRenderTarget( rt )
-
-        drawing = true
-        
-        render.RenderView({
-            znear = len,
-            //origin = pos + view.angles:Forward() * add,
-            drawhud = false,
-            drawmonitors = false,
-            drawviewer = false,
-            drawviewmodel = false,
-            viewid = VIEW_MONITOR,
-            --x = 500,
-            --y = 250,
-            --w = 1000,
-            --h = 500,
-        })
-    
-        drawing = false
-    
-        render.PopRenderTarget()
     end
 
     render.SetStencilReferenceValue( 1 )
