@@ -151,16 +151,16 @@ local function callbackBullet(self, tr, dmg, force, bullet, penetration)
 				local hitPos2, dir2 = WorldToLocal(hitPos, dir:Angle(), ent:GetPos(), ent:GetAngles())
 				local _, hitNormal2 = WorldToLocal(hitPos, hitNormal:Angle(), ent:GetPos(), ent:GetAngles())
 				
-				local size = bullet.Diameter / 25.4 * math.Rand(2, 4) * math.Rand(1, (self.NumBullet or 1))
+				local size = bullet.Diameter / 25.4 * 3
 				local dontadd = false
 				for i = 1, #hg.bulletholes do
 					if hitPos2:IsEqualTol(hg.bulletholes[i][1], size * 1.414) then --sqrt of 2, cuz it's a square
 						local lerp = size / (hg.bulletholes[i][5] + size)
 						--hg.bulletholes[i][1] = LerpVector(lerp, hitPos2, hg.bulletholes[i][1])
-						--hg.bulletholes[i][5] = math.min(3, (size + hg.bulletholes[i][5]) * 0.9)
+						hg.bulletholes[i][5] = math.min(3, (size + hg.bulletholes[i][5]) * 0.9)
 						
 						if hg.bulletholes[i + 1] then
-							--hg.bulletholes[i + 1][5] = math.min(3, (size + hg.bulletholes[i + 1][5]) * 0.9)
+							hg.bulletholes[i + 1][5] = math.min(3, (size + hg.bulletholes[i + 1][5]) * 0.9)
 						end
 
 						dontadd = true

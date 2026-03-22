@@ -31,10 +31,11 @@ hook.Add("PostRender", "sadasdsad", function()
         local dot2 = view.angles:Forward():Dot(normf)
 
         tbl.dot = dot
-        tbl.dot2 = dot2
-
+        
         if dot > 0.5 and dot2 > 0.5 then
-            any = true
+            center:Add(pos)
+            cntr = cntr + 1
+            add = math.max(add, (tbl[3]) * 1)
         end
     end
     
@@ -138,10 +139,10 @@ hook.Add("PreDrawEffects","bulletholes-test",function()
                 continue
             end
 
-            pos1:Add(hitnormal:Forward() * 0.01)
-            pos2:Add(hitnormal:Forward() * 0.01)
-            pos3:Add(hitnormal:Forward() * 0.01)
-            pos4:Add(hitnormal:Forward() * 0.01)
+            pos1:Add(hitnormal:Forward() * 0.1)
+            pos2:Add(hitnormal:Forward() * 0.1)
+            pos3:Add(hitnormal:Forward() * 0.1)
+            pos4:Add(hitnormal:Forward() * 0.1)
 
             local addthing = hitnormal:Forward() * 0.09
 
@@ -191,7 +192,7 @@ hook.Add("PreDrawEffects","bulletholes-test",function()
             render.DrawQuad(tbl.pos41, tbl.pos8, tbl.pos7, tbl.pos31, color_black)
             render.DrawQuad(tbl.pos31, tbl.pos7, tbl.pos6, tbl.pos21, color_black)
         else
-            local mul = 0.1
+            local mul = 0.2
             render.DrawQuad(tbl.pos1 - normf * mul, tbl.pos2 - normf * mul, tbl.pos3 - normf * mul, tbl.pos4 - normf * mul, color_black)
         end
     end
