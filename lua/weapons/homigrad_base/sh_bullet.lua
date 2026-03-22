@@ -151,7 +151,7 @@ local function callbackBullet(self, tr, dmg, force, bullet, penetration)
 				local hitPos2, dir2 = WorldToLocal(hitPos, dir:Angle(), ent:GetPos(), ent:GetAngles())
 				local _, hitNormal2 = WorldToLocal(hitPos, hitNormal:Angle(), ent:GetPos(), ent:GetAngles())
 				
-				local size = bullet.Diameter / 25.4 * math.Rand(2, 4)
+				local size = bullet.Diameter / 25.4 * math.Rand(2, 4) * math.Rand(1, (self.NumBullet or 1))
 				local dontadd = false
 				for i = 1, #hg.bulletholes do
 					if hitPos2:IsEqualTol(hg.bulletholes[i][1], size * 1.414) then --sqrt of 2, cuz it's a square

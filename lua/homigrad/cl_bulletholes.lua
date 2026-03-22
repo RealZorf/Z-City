@@ -192,7 +192,7 @@ hook.Add("PreDrawEffects","bulletholes-test",function()
             render.DrawQuad(tbl.pos41, tbl.pos8, tbl.pos7, tbl.pos31, color_black)
             render.DrawQuad(tbl.pos31, tbl.pos7, tbl.pos6, tbl.pos21, color_black)
         else
-            local mul = 0.05
+            local mul = 0.1
             render.DrawQuad(tbl.pos1 - normf * mul, tbl.pos2 - normf * mul, tbl.pos3 - normf * mul, tbl.pos4 - normf * mul, color_black)
         end
     end
