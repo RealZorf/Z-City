@@ -66,6 +66,7 @@ if not game.IsDedicated() then
 	hg.settings:AddOpt("Serverside gameplay","hg_healanims", "Heal & food animations")
 	hg.settings:AddOpt("Serverside gameplay","hg_aimtoshoot", "DarkRP-like shoot system (aim to shoot)")
 	hg.settings:AddOpt("Serverside gameplay","hg_slings", "Sling system")
+    hg.settings:AddOpt("Serverside gameplay","homicide_traitoramount", "Homicide: Traitor Amount", nil, nil, "int")
 end
 --hg_appearance_access_for_all
 --hg_furcity
