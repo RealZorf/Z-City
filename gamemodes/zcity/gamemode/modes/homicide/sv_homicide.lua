@@ -1078,6 +1078,8 @@ function MODE:SubModes()
 	return modes
 end
 
+local homicide_traitoramount = ConVarExists("homicide_traitoramount") and GetConVar("homicide_traitoramount") or CreateConVar("homicide_traitoramount", 1, FCVAR_SERVER_CAN_EXECUTE + FCVAR_ARCHIVE, "Homicide Only: Determine how many traitors should innocents face in homicide.", 1, 20)
+
 function MODE:Intermission()
 	game.CleanUpMap()
 
