@@ -173,8 +173,6 @@ if SERVER then
 
 	function SWEP:Deploy()
 		self:SetHudFrequency(self.Frequency)
-		self.isOn = self.isOn or false
-		self:SetIsOn(self.isOn)
 		self:SetInUsing(false)
 	end
 
@@ -397,6 +395,8 @@ if CLIENT then
 end
 
 function SWEP:Initialize()
+	self.isOn = true
+	self:SetIsOn(self.isOn)
 	self:SetHold(self.HoldType)
 	if SERVER then
 		self.isOn = false
