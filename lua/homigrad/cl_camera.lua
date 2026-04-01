@@ -504,7 +504,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	realangle = realangle or lply:EyeAngles()
 
 	if GetCoolCameraBool() then
-		view.angles = realangle + GetViewPunchAngles() * 0.2 + vpang
+		view.angles = realangle + GetViewPunchAngles() * 0.4 + vpang
 		view.angles[3] = view.angles[3] - GetViewPunchAngles4()[3]
 		angles = view.angles
 	end

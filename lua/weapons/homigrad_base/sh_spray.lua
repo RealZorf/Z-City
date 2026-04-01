@@ -33,6 +33,8 @@ SWEP.sprayAngles = Angle(0,0,0)
 
 SWEP.weaponSway = Angle(0,0,0)
 
+local hg_coolcamera = ConVarExists("hg_coolcamera") and GetConVar("hg_coolcamera") or CreateConVar("hg_coolcamera", 0, FCVAR_ARCHIVE + FCVAR_REPLICATED, "Cool camera movement", 0, 1)
+
 function SWEP:PrimarySpread()
 	self.Primary.Force2 = (hg.ammotypeshuy[self.Primary.Ammo] and hg.ammotypeshuy[self.Primary.Ammo].BulletSettings and hg.ammotypeshuy[self.Primary.Ammo].BulletSettings.Force) or self.Primary.Force
 	self:SetLastShootTime(CurTime())
@@ -100,7 +102,7 @@ function SWEP:PrimarySpread()
 			
 			local angpopa = angrand2 * mul
 			angpopa[3] = 0
-			ViewPunch(angpopa)-- ^ ((not self.Primary.Automatic and 0.5 or 1)))
+			ViewPunch(angpopa * (hg_coolcamera:GetBool() and 3 or 1))-- ^ ((not self.Primary.Automatic and 0.5 or 1)))
 			spray = spray + angRand * 2 * (self.randmul or 1)
 		end
 

@@ -19,12 +19,18 @@ local hg_coolcameralerpmult = ConVarExists("hg_coolcameralerpmult") and GetConVa
 function GetCoolCameraBool()
 	return hg_coolcamera:GetBool() and !lply:InVehicle()
 end
+local vpangs
+
+hook.Add("CreateMove", "asdasdas22", function(cmd)
+	if hg.InGame() then return end
+
+	hook.Run("InputMouseApply", cmd, 0, 0, (realanglelerp or Angle()) + (vpangs or Angle()))
+end)
 
 local diff = Angle()
 hook.Add("InputMouseApply", "fakeCameraAngles", function(cmd, x, y, angle)
 	local tbl = {}
 	local cc = GetCoolCameraBool()
-	local vpangs
 	if cc then
 		realanglelerp = realanglelerp or angle
 		vpangs = GetViewPunchAngles2() * 1 + GetViewPunchAngles() * 1 + GetViewPunchAngles3() * 1 + GetViewPunchAngles4() * 1
@@ -69,7 +75,7 @@ hook.Add("InputMouseApply", "fakeCameraAngles", function(cmd, x, y, angle)
 		angle = realanglelerp + vpangs
 		if !IsValid(lply.FakeRagdoll) then angle[1] = math.Clamp(angle[1], -89, 89) end
 		realangle = realangle + diff
-		diff = LerpAngleFT(0.01, diff, angle_zero)
+		diff = LerpAngleFT(0.02 / game.GetTimeScale(), diff, angle_zero)
 		cmd:SetViewAngles(angle)
 	else
 		cmd:SetViewAngles(angle)
