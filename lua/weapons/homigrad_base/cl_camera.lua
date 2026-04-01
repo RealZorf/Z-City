@@ -206,7 +206,7 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 
 	randomPosL = LerpFT(0.05 * (inpain and 25 - (24 * painmul) or 1), randomPosL, randomPos)
 	
-	scopedLerpAddvec = LerpVectorFT(((false or self.shot2 == 1) and 1 or 0.05) * (cocking and 0.25 or 1) * (inpain and 1 or 1), scopedLerpAddvec, (cocking and 1 or 1) * (justzoomed and 0.5 or 1) * (self.shot2 == 1 and 0.5 or 1) * 3 * randomPosL * slowlyZooming)
+	scopedLerpAddvec = LerpVectorFT(((false or self.shot2 == 1) and 1 or 0.02) * (cocking and 0.25 or 1) * (inpain and 1 or 1), scopedLerpAddvec, (cocking and 1 or 1) * (justzoomed and 0.5 or 1) * (self.shot2 == 1 and 0.5 or 1) * 3 * randomPosL * slowlyZooming)
 	if !hg_oldsights:GetBool() then
 		if not (ply:IsSuperAdmin() and hg_setzoompos:GetBool()) then
 			posZoom:Add(scopedLerpAddvec)
@@ -282,7 +282,7 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	--local shootLerp = self.Anim_RecoilLerp
 	--view.fov = Lerp(shootLerp,view.fov,view.fov - 5 * self.Penetration / 15)
 	local outputPos, outputAng
-	local animpos = (self.AdditionalAng or Angle(0, 0, 0))[2] / 20 + (self.AdditionalAng2 or Angle(0, 0, 0))[2] / 20 --:GetAnimShoot2()
+	local animpos = (self.AdditionalAng or Angle(0, 0, 0))[2] / 20 + (self.AdditionalAng2 or Angle(0, 0, 0))[2] / 20 - self.AdditionalPos2[2] / 10 --:GetAnimShoot2()
 	local eyeSpray = -(-self.EyeSpray)
 	local mult = (hg.GunPositions[ply] and hg.GunPositions[ply][1] and (hg.GunPositions[ply][1] / 4 + 1) / 2 + 1 or 1) / 2
 	
@@ -293,7 +293,13 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	//angIdle:Add(-angle_difference*2)
 	//angZoom:Add(-angle_difference*1)
 
+	local mulhuy = (self:IsPistolHoldType() or self.PistolKinda) and 2 or (((ply.posture == 1 and not self:IsZoom()) or ply.posture == 7 or ply.posture == 8) and 2 or 0.75)
+	local shit = 0.2 * mulhuy / game.GetTimeScale()
+	local animpos3 = self:GetAnimShoot2(shit, true) / shit
+	local shit2 = (1 / self.weight) * (self.NumBullet or 3) / 3
+
 	angZoom:Add(self.prankang or angle_zero)
+	posZoom:Add(VectorRand(-0.1, 0.1) * animpos3 * shit2)
 
 	local fraction2 = math.ease.InCubic(self:GetAnimPos_Shoot2(self.lastShoot or 0, 1))
 	

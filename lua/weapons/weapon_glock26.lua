@@ -47,7 +47,7 @@ SWEP.IconOverride = "entities/weapon_pwb_glock17.png"
 SWEP.Primary.ClipSize = 10
 SWEP.Primary.DefaultClip = 10
 
-SWEP.weight = 0.1
+SWEP.weight = 1
 SWEP.lengthSub = 20
 
 SWEP.Ergonomics = 2

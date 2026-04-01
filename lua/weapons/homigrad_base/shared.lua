@@ -1733,8 +1733,9 @@ function SWEP:GetAdditionalValues()
 	self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + animpos * -10
 	self.AdditionalPosPreLerp[2] = self.AdditionalPosPreLerp[2] + animpos * -20
 
-	if self:IsClient() and self:IsZoom() then
-		self.ZoomAnimLerp = LerpFT(0.05,self.ZoomAnimLerp or 0,self.k > 0.2 and self.k < 0.6 and 1 or 0)
+	if self:IsLocal2() and self:IsZoom() then
+		self.k = self.k or 0
+		self.ZoomAnimLerp = LerpFT(0.05, self.ZoomAnimLerp or 0, self.k > 0.2 and self.k < 0.6 and 1 or 0)
 		self.AdditionalPosPreLerp[1] = self.AdditionalPosPreLerp[1] + math.ease.InOutBack(self.ZoomAnimLerp) * 3
 		self.AdditionalAngPreLerp[3] = self.AdditionalAngPreLerp[3] + math.ease.InOutBack(self.ZoomAnimLerp) * 2
 		if self.k > 0.7 and self.k < 0.75 then
@@ -1952,11 +1953,21 @@ function SWEP:GetAdditionalValues()
 	
 	if not suiciding and !self.norecoil then
 		local mulhuy = (self:IsPistolHoldType() or self.PistolKinda) and 2 or (((ply.posture == 1 and not self:IsZoom()) or ply.posture == 7 or ply.posture == 8) and 2 or 0.75)
-		local animpos = self:GetAnimShoot2(0.09 * mulhuy / host_timescale(), true) * 0.5
-		animpos = animpos * 0.3 * mulhuy * (self:IsPistolHoldType() and 1 or 1)
+		local animpos = self:GetAnimShoot2(0.09 * mulhuy / host_timescale(), true)
+		local shit = 0.2 * mulhuy / host_timescale()
+		local animpos3 = self:GetAnimShoot2(shit, true) / shit
+		
+		animpos = animpos * 0.15 * mulhuy * (self:IsPistolHoldType() and 1 or 1)
 		animpos = animpos * math.min((self.Primary.Force2 or self.Primary.Force) / 40,3) * ((self.NumBullet or 1) * 3 or 1) * (self.animposmul or 1) // * 4
 
-		self.AdditionalPos2 = self.AdditionalPos2 - (self.AdditionalAng + self.AdditionalAng2):Forward() * animpos * 7
+		self.AdditionalPos2 = self.AdditionalPos2 - (self.AdditionalAng + self.AdditionalAng2):Forward() * animpos * 9
+		local shit2 = (1 / self.weight) * (self.NumBullet or 3) / 3
+		self.AdditionalPos2[2] = self.AdditionalPos2[2] + math.sin(animpos3) * 1 * shit2
+		self.AdditionalPos2[1] = self.AdditionalPos2[1] + math.sin(animpos3) * -1 * shit2
+		self.AdditionalAng2[2] = self.AdditionalAng2[2] + math.sin(animpos3) * -2 * shit2
+		
+		self.AdditionalPos2:Add(VectorRand(-0.1, 0.1) * animpos3 * shit2)
+
 		//self.AdditionalPos2[3] = self.AdditionalPos2[3] + animpos * ply.offsetView[2] * 0.2
 		
 		if self.podkid or self:IsPistolHoldType() then
