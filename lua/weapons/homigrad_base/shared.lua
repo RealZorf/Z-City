@@ -1966,7 +1966,7 @@ function SWEP:GetAdditionalValues()
 		self.AdditionalPos2[1] = self.AdditionalPos2[1] + math.sin(animpos3) * -1 * shit2
 		self.AdditionalAng2[2] = self.AdditionalAng2[2] + math.sin(animpos3) * -2 * shit2
 		
-		self.AdditionalPos2:Add(VectorRand(-0.1, 0.1) * animpos3 * shit2)
+		self.AdditionalPos2:Add(VectorRand(-0.07, 0.07) * animpos3 * shit2)
 
 		//self.AdditionalPos2[3] = self.AdditionalPos2[3] + animpos * ply.offsetView[2] * 0.2
 		

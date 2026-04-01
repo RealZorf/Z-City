@@ -282,7 +282,7 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	--local shootLerp = self.Anim_RecoilLerp
 	--view.fov = Lerp(shootLerp,view.fov,view.fov - 5 * self.Penetration / 15)
 	local outputPos, outputAng
-	local animpos = (self.AdditionalAng or Angle(0, 0, 0))[2] / 20 + (self.AdditionalAng2 or Angle(0, 0, 0))[2] / 20 - self.AdditionalPos2[2] / 10 --:GetAnimShoot2()
+	local animpos = (self.AdditionalAng or Angle(0, 0, 0))[2] / 20 + (self.AdditionalAng2 or Angle(0, 0, 0))[2] / 20 - self.AdditionalPos2[2] / 15 --:GetAnimShoot2()
 	local eyeSpray = -(-self.EyeSpray)
 	local mult = (hg.GunPositions[ply] and hg.GunPositions[ply][1] and (hg.GunPositions[ply][1] / 4 + 1) / 2 + 1 or 1) / 2
 	
@@ -299,7 +299,7 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	local shit2 = (1 / self.weight) * (self.NumBullet or 3) / 3
 
 	angZoom:Add(self.prankang or angle_zero)
-	posZoom:Add(VectorRand(-0.1, 0.1) * animpos3 * shit2)
+	posZoom:Add(VectorRand(-0.05, 0.05) * animpos3 * shit2)
 
 	local fraction2 = math.ease.InCubic(self:GetAnimPos_Shoot2(self.lastShoot or 0, 1))
 	
