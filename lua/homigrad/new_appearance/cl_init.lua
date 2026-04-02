@@ -67,7 +67,7 @@ local function OnlyGetAppearance()
 
     net.SendToServer()
 
-	if not tbl and not forced_random then PrintAppearanceLoadError(reason) end
+	if not tbl and not forced_random and reason then lply:ChatPrint("[Appearance] file load failed - " .. reason) end
 end
 
 net.Receive("OnlyGet_Appearance", OnlyGetAppearance)
