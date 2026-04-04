@@ -32,7 +32,7 @@ if CLIENT then
     end)
 
     surface.CreateFont("timer_Font", {
-        font = "Banchshift Bold", 
+        font = "Bahnschrift", 
         size = 68, 
         extended = true, 
         weight = 650,
@@ -41,7 +41,7 @@ if CLIENT then
     })
 
     surface.CreateFont("timer_Font1", {
-        font = "Banchshift Bold", 
+        font = "Bahnschrift", 
         size = 72/3, 
         extended = true, 
         weight = 650,
