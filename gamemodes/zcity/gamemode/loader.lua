@@ -54,6 +54,25 @@ local function addModeHook( MODE, hookName, func )
 	end )
 end
 
+local function addModeHook( MODE, hookName, func )
+	zb.modesHooks[MODE.name] = zb.modesHooks[MODE.name] or {}
+	zb.modesHooks[MODE.name][hookName] = func
+
+	hook.Add( hookName, "zb_modehook_" .. hookName, function( ... )
+		local Current = zb.CROUND_MAIN or zb.CROUND or "tdm"
+
+		local modeHooks = zb.modesHooks[Current]
+		if modeHooks and modeHooks[hookName] then
+			local ModeTable = zb.modes[Current]
+			local a, b, c, d, e, f = modeHooks[hookName]( ModeTable, ... )
+
+			if a ~= nil then
+				return a, b, c, d, e, f
+			end
+		end
+	end )
+end
+
 local function InitMode()
 	if table.IsEmpty(MODE) then return end
 
