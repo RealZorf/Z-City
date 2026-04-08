@@ -462,8 +462,6 @@ function SWEP:ThinkAdd()
 	if self.ReadyToThrow and 
 		(self.NoSpoon or ( ( ( self.IsLowThrow and self:KeyDown(IN_ATTACK) ) or not self.IsLowThrow and self:KeyDown(IN_ATTACK2) ) ))
 		and not self.InThrowing and not self.SpoonTime then
-		if self.wait and self.wait > CurTime() then return end
-		self.wait = CurTime() + 1
 		self.SpoonTime = CurTime()
 		self:CreateSpoon(self:GetOwner())
 		self.Spoon = false
