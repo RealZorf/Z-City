@@ -398,9 +398,9 @@ function SWEP:Initialize()
 	self.isOn = true
 	self:SetIsOn(self.isOn)
 	self:SetHold(self.HoldType)
-	if SERVER then
-		self.isOn = false
-	end
+	-- if SERVER then
+	-- 	self.isOn = false
+	-- end
 end
 
 function SWEP:SecondaryAttack()

@@ -446,6 +446,8 @@ function SWEP:ThinkAdd()
 	end
 
 	if self.ReadyToThrow and ( ( self.IsLowThrow and not self:KeyDown(IN_ATTACK2) ) or not self.IsLowThrow and not self:KeyDown(IN_ATTACK) ) and not self.InThrowing then
+		if self.wait and self.wait > CurTime() then return end
+		self.wait = CurTime() + 1
 		self:PlayAnim(self.IsLowThrow and "attack2" or "attack")
 		self.InThrowing = true
 		self:SetShowGrenade(false)
@@ -460,6 +462,8 @@ function SWEP:ThinkAdd()
 	if self.ReadyToThrow and 
 		(self.NoSpoon or ( ( ( self.IsLowThrow and self:KeyDown(IN_ATTACK) ) or not self.IsLowThrow and self:KeyDown(IN_ATTACK2) ) ))
 		and not self.InThrowing and not self.SpoonTime then
+		if self.wait and self.wait > CurTime() then return end
+		self.wait = CurTime() + 1
 		self.SpoonTime = CurTime()
 		self:CreateSpoon(self:GetOwner())
 		self.Spoon = false
