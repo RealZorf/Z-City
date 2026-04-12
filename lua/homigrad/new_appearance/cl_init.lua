@@ -29,7 +29,7 @@ local function PrintAppearanceLoadError(reason)
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
 
-	ply:ChatPrint("[Appearance] file load failed - " .. (reason or "unknown error"))
+	--ply:ChatPrint("[Appearance] file load failed - " .. (reason or "unknown error"))
 end
 
 function hg.Appearance.GetAppearanceList()
