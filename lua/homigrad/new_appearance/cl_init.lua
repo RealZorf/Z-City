@@ -29,7 +29,7 @@ local function PrintAppearanceLoadError(reason)
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
 
-	--ply:ChatPrint("[Appearance] file load failed - " .. (reason or "unknown error"))
+	print("[Appearance] file load failed - " .. (reason or "unknown error"))
 end
 
 function hg.Appearance.GetAppearanceList()
@@ -67,7 +67,7 @@ local function OnlyGetAppearance()
 
     net.SendToServer()
 
-	if not tbl and not forced_random and reason then lply:ChatPrint("[Appearance] file load failed - " .. reason) end
+	if not tbl and not forced_random and reason then print("[Appearance] file load failed - " .. reason) end
 end
 
 net.Receive("OnlyGet_Appearance", OnlyGetAppearance)
