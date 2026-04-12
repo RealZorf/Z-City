@@ -299,6 +299,8 @@ if CLIENT then
             ["riot"] = true,
             ["gwars"] = true,
             ["criresp"] = true,
+            ["lastmanstanding"] = true,
+            ["sandbox"] = true,
         }
         
         for i, mode in SortedPairsByMemberValue(zb.availableModes,"canlaunch",true) do
@@ -308,7 +310,7 @@ if CLIENT then
             table.insert(modeItems, modeBtn)
             
             modeBtn:SetCursor("hand")
-            modeBtn:SetTooltip("Click to select/unselect mode")
+            modeBtn:SetTooltip((mode.description and mode.description != "" and (mode.description .. "\n\nClick to select/unselect mode")) or "Click to select/unselect mode")
             
             local inQueue = false
             for _, queuedModeKey in ipairs(zb.RoundList) do

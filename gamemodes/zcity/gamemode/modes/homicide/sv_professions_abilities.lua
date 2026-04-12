@@ -49,7 +49,7 @@ end)
 hook.Add("PlayerPostThink", "HMCD_Professions_Abilities", function(ply)
 	if(MODE.RoleChooseRoundTypes[MODE.Type])then
 		if(ply:Alive())then
-			if(ply.Profession == "doctor")then
+			if(ply.Profession == "medic")then
 				if(ply:KeyDown(IN_SPEED))then
 					if(ply:KeyPressed(IN_USE))then
 						local aim_ent, other_ply = MODE.GetPlayerTraceToOther(ply)

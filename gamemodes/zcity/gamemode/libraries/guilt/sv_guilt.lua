@@ -10,6 +10,65 @@ zb.GuiltSQL = zb.GuiltSQL or {}
 zb.GuiltSQL.PlayerInstances = zb.GuiltSQL.PlayerInstances or {}
 
 local hg_developer = ConVarExists("hg_developer") and GetConVar("hg_developer") or CreateConVar("hg_developer",0,FCVAR_SERVER_CAN_EXECUTE,"Toggle developer mode (enables damage traces)",0,1)
+local KARMA_SUICIDE_REFUND_RATE = 0.1
+local KARMA_SUICIDE_REFUND_WINDOW = 30
+local PLAYER_KARMA_CAPS = {
+    superadmin = 99999,
+    headadmin = 99999,
+    developer = 99999,
+    special = 500,
+    operator = 300,
+    booster = 250
+}
+
+zb.GuiltRoundId = zb.GuiltRoundId or 0
+
+local function IsHomicideRound(rnd)
+    return rnd and (rnd.name == "hmcd" or rnd.name == "fear" or rnd.base == "hmcd")
+end
+
+local function GetPlayerKarmaCap(ply)
+    if not IsValid(ply) or not ply:IsPlayer() then return zb.MaxKarma end
+
+    local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
+    if PLAYER_KARMA_CAPS[userGroup] then
+        return PLAYER_KARMA_CAPS[userGroup]
+    end
+
+    return zb.MaxKarma
+end
+
+local function IsRefundableWrongKill(attacker, victim, rnd)
+    if not IsValid(attacker) or not attacker:IsPlayer() then return false end
+    if not IsValid(victim) or not victim:IsPlayer() then return false end
+    if attacker == victim then return false end
+    if not IsHomicideRound(rnd) then return false end
+    if attacker:Team() == TEAM_SPECTATOR or victim:Team() == TEAM_SPECTATOR then return false end
+
+    return not attacker.isTraitor and not victim.isTraitor
+end
+
+local function GetBiggestAttacker(victim)
+    local mostHarm, biggestAttacker = 0, nil
+
+    for attacker, attackerHarm in pairs(zb.HarmDone[victim] or {}) do
+        if not IsValid(attacker) then continue end
+        if mostHarm < attackerHarm then
+            mostHarm = attackerHarm
+            biggestAttacker = attacker
+        end
+    end
+
+    return biggestAttacker, mostHarm
+end
+
+local function ResetRoundRefundState(ply)
+    if not IsValid(ply) then return end
+
+    ply.GuiltWrongKillLossThisRound = 0
+    ply.GuiltSuicideRefundUsed = false
+    ply.GuiltSuicideDamageAt = 0
+end
 
 hook.Add("DatabaseConnected", "GuiltCreateData", function()
 	local query
@@ -112,6 +171,11 @@ end
 
 hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, harm) 
     local Attacker, Victim = dmgInfo:GetAttacker(), ply
+    local rnd = CurrentRound()
+
+    if IsValid(Attacker) and Attacker == Victim and Attacker:IsPlayer() and Attacker.suiciding and IsHomicideRound(rnd) then
+        Attacker.GuiltSuicideDamageAt = CurTime()
+    end
     
     --[[if !IsValid(Attacker) and dmgInfo:GetInflictor().steamid then
         local steamid = dmgInfo:GetInflictor().steamid
@@ -122,6 +186,9 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     if not IsValid(Attacker) or not Attacker:IsPlayer() then return end
     if not IsValid(Victim) or not (Victim:IsPlayer() or (Victim.organism.fakePlayer and Victim.organism.alive)) then return end
 	if Victim:IsNPC() or Victim:IsNextBot() then return end
+
+    Victim = hg.GetCurrentCharacter(Victim) or Victim
+    Victim = hg.RagdollOwner(Victim) or Victim
 
     local id = Victim:IsPlayer() and Victim:SteamID() or Victim:EntIndex()
     local id2 = Attacker:IsPlayer() and Attacker:SteamID() or Attacker:EntIndex()
@@ -175,11 +242,6 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
         //Attacker:AddFrags(1) -- better make it a system that counts kills and gives frags at the end of the round
     end
 
-    Victim = hg.GetCurrentCharacter(Victim) or Victim
-    Victim = hg.RagdollOwner(Victim) or Victim
-
-    local rnd, cround = CurrentRound()
-    
     if rnd.GuiltDisabled or GetConVar("zb_dev"):GetBool() then return end
 
     if Attacker == Victim then return end
@@ -222,7 +284,7 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     
     local guiltadd = amt * 60
     Attacker.Guilt = (Attacker.Guilt or 0) + guiltadd
-    Attacker.Karma = math.Clamp((Attacker.Karma or 100) - add * math.max(((1 - (zb.GuiltTable[Victim][Attacker] or 0)) / 1),0), -60, zb.MaxKarma)
+    Attacker.Karma = math.Clamp((Attacker.Karma or 100) - add * math.max(((1 - (zb.GuiltTable[Victim][Attacker] or 0)) / 1),0), -60, GetPlayerKarmaCap(Attacker))
 
     zb.HarmDoneKarma[Victim][Attacker] = zb.HarmDoneKarma[Victim][Attacker] + add
 
@@ -303,7 +365,7 @@ hook.Add("Player Think", "karmagain", function(ply)
     if (ply.KarmaGainThink or 0) > CurTime() then return end
     ply.KarmaGainThink = CurTime() + 120
 
-    ply.Karma = math.Clamp(ply.Karma + (ply.Karma > 100 and 0.1 or (ply.KarmaGain or 0.75)), 0, zb.MaxKarma)// * (1 + ply:HasPurchase("zpremium")), 0, zb.MaxKarma)
+    ply.Karma = math.Clamp(ply.Karma + (ply.Karma > 100 and 0.1 or (ply.KarmaGain or 0.75)), 0, GetPlayerKarmaCap(ply))// * (1 + ply:HasPurchase("zpremium")), 0, zb.MaxKarma)
     
     ply:SetNetVar("Karma", ply.Karma)
     //ply:guilt_SetValue( ply.Karma or 100 )
@@ -370,12 +432,16 @@ hook.Add("ZB_EndRound","savevalues",function()
 end)
 
 hook.Add("ZB_StartRound","NO_HARM",function()
+    zb.GuiltRoundId = (zb.GuiltRoundId or 0) + 1
+
     for i,ply in player.Iterator() do
         if (ply.Guilt or 0) < 1 then
             ply.KarmaGain = math.Clamp((ply.KarmaGain or 0.75) + 0.25, 0.75, 1.5)
         else
             ply.KarmaGain = 0.75
         end
+
+        ResetRoundRefundState(ply)
 
         //ply:guilt_SetValue( ply.Karma or 100 )
     end
@@ -404,14 +470,67 @@ concommand.Add("hg_setkarma",function(ply,cmd,args)
     
     local lenargs = #args
     local newply = player.GetListByName(lenargs > 1 and args[1] or ply:Name())[1]
+    if not IsValid(newply) then return end
 
-    newply.Karma = tonumber(lenargs > 1 and args[2] or args[1])
-    newply:SetNetVar("Karma",ply.Karma)
-    //newply:guilt_SetValue( ply.Karma or 100 )
+    local requestedKarma = tonumber(lenargs > 1 and args[2] or args[1])
+    if not requestedKarma then return end
+
+    newply.Karma = math.Clamp(requestedKarma, -60, GetPlayerKarmaCap(newply))
+    newply:SetNetVar("Karma", newply.Karma)
+    newply:guilt_SetValue(newply.Karma)
 end)
 
 util.AddNetworkString("open_guilt_menu")
 util.AddNetworkString("forgive_player")
+
+hook.Add("PlayerInitialSpawn", "GuiltRefundInit", function(ply)
+    ResetRoundRefundState(ply)
+end)
+
+hook.Add("PlayerDeath", "GuiltTrackWrongKillLoss", function(victim)
+    timer.Simple(0, function()
+        if not IsValid(victim) then return end
+
+        local rnd = CurrentRound()
+        if not IsHomicideRound(rnd) then return end
+
+        local attacker = GetBiggestAttacker(victim)
+        if not IsRefundableWrongKill(attacker, victim, rnd) then return end
+
+        local harm = zb.HarmDoneKarma[victim] and zb.HarmDoneKarma[victim][attacker] or 0
+        if harm <= 0 then return end
+
+        attacker.GuiltWrongKillLossThisRound = (attacker.GuiltWrongKillLossThisRound or 0) + harm
+    end)
+end)
+
+hook.Add("PlayerDeath", "GuiltRefundOnSuicide", function(ply)
+    local suicideDamageAt = ply.GuiltSuicideDamageAt or 0
+    ply.GuiltSuicideDamageAt = 0
+
+    timer.Simple(0, function()
+        if not IsValid(ply) then return end
+
+        local rnd = CurrentRound()
+        if not IsHomicideRound(rnd) then return end
+        if ply.GuiltSuicideRefundUsed then return end
+        if suicideDamageAt <= 0 or suicideDamageAt + KARMA_SUICIDE_REFUND_WINDOW < CurTime() then return end
+
+        local lostKarma = ply.GuiltWrongKillLossThisRound or 0
+        if lostKarma <= 0 then return end
+
+        local refund = lostKarma * KARMA_SUICIDE_REFUND_RATE
+        if refund <= 0 then return end
+
+        ply.GuiltSuicideRefundUsed = true
+        ply.Karma = math.Clamp((ply.Karma or 100) + refund, 0, GetPlayerKarmaCap(ply))
+        ply:SetNetVar("Karma", ply.Karma)
+        ply.GuiltPendingRefundAmount = refund
+        ply.GuiltPendingRefundRound = (zb.GuiltRoundId or 0) + 1
+
+        ply:ChatPrint("You regained " .. math.Round(refund, 2) .. " karma from your round penalties.")
+    end)
+end)
 
 net.Receive("open_guilt_menu",function(len, ply)
     if ply:Alive() then return end
@@ -428,9 +547,13 @@ net.Receive("forgive_player", function(len, ply)
     local harm = zb.HarmDoneKarma[ply][ent]
     if not harm then return end
 
-    ent.Karma = math.Clamp(ent.Karma + harm, 0, zb.MaxKarma)
+    if IsRefundableWrongKill(ent, ply, CurrentRound()) then
+        ent.GuiltWrongKillLossThisRound = math.max((ent.GuiltWrongKillLossThisRound or 0) - harm, 0)
+    end
+
+    ent.Karma = math.Clamp(ent.Karma + harm, 0, GetPlayerKarmaCap(ent))
     ent:SetNetVar("Karma",ent.Karma)
-    //ent:guilt_SetValue((ent.Karma or 100))
+    ent:guilt_SetValue(ent.Karma)
 
     zb.HarmDone[ply][ent] = 0
     zb.HarmDoneKarma[ply][ent] = 0
@@ -443,6 +566,21 @@ hook.Add("Player Spawn", "GuiltKnown",function(ply)
     if ply.Karma then
         ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
     end
+end)
+
+hook.Add("Player Spawn", "GuiltRefundReminder", function(ply)
+    if (ply.GuiltPendingRefundRound or 0) ~= (zb.GuiltRoundId or 0) then return end
+
+    local refund = ply.GuiltPendingRefundAmount or 0
+    if refund <= 0 then
+        ply.GuiltPendingRefundRound = nil
+        ply.GuiltPendingRefundAmount = nil
+        return
+    end
+
+    ply:ChatPrint("You regained " .. math.Round(refund, 2) .. " karma because 10% of the karma you lost last round for killing innocents was refunded after your suicide.")
+    ply.GuiltPendingRefundRound = nil
+    ply.GuiltPendingRefundAmount = nil
 end)
 
 hook.Add("ZC_SomeoneGetFallBy","IdiotsMustBeKilled",function(Attacker,Victim)

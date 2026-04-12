@@ -170,6 +170,10 @@ hook.Add("PlayerCanHearPlayersVoice", "RealisticVoice", function(listener,speake
 		if speak then hook.Run( "StartVoice", speaker, listener ) else hook.Run( "EndVoice", speaker, listener )  end
 	end
 
+	if hg.IsMouthDuctTaped and hg.IsMouthDuctTaped(speaker) then
+		return false, false
+	end
+
 	local Hook = hook.Run("HG_PlayerCanHearPlayersVoice", listener, speaker )
 	if Hook ~= nil then
 		return Hook

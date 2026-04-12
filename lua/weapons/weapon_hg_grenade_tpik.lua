@@ -446,8 +446,6 @@ function SWEP:ThinkAdd()
 	end
 
 	if self.ReadyToThrow and ( ( self.IsLowThrow and not self:KeyDown(IN_ATTACK2) ) or not self.IsLowThrow and not self:KeyDown(IN_ATTACK) ) and not self.InThrowing then
-		if self.wait and self.wait > CurTime() then return end
-		self.wait = CurTime() + 1
 		self:PlayAnim(self.IsLowThrow and "attack2" or "attack")
 		self.InThrowing = true
 		self:SetShowGrenade(false)

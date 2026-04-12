@@ -66,7 +66,6 @@ if not game.IsDedicated() then
 	hg.settings:AddOpt("Serverside gameplay","hg_healanims", "Heal & food animations")
 	hg.settings:AddOpt("Serverside gameplay","hg_aimtoshoot", "DarkRP-like shoot system (aim to shoot)")
 	hg.settings:AddOpt("Serverside gameplay","hg_slings", "Sling system")
-    hg.settings:AddOpt("Serverside gameplay","homicide_traitoramount", "Homicide: Traitor Amount", nil, nil, "int")
 end
 --hg_appearance_access_for_all
 --hg_furcity
@@ -176,6 +175,9 @@ local clr_5 = Color(30, 29, 29, 30)
 local clr_6 = Color(255, 255, 255, 100)
 local clr_7 = Color(255, 255, 255, 200)
 local clr_8 = Color(70, 130, 180)
+local clr_entry_bg = Color(255, 255, 255, 245)
+local clr_entry_border = Color(150, 170, 195, 255)
+local clr_entry_text = Color(12, 18, 28, 255)
 function hg.CreateButton(buttonData, convarName, ParentPanel, yPos)
     local convar = GetConVar(convarName)
 
@@ -293,12 +295,12 @@ function hg.CreateButton(buttonData, convarName, ParentPanel, yPos)
         
     
         textEntry.Paint = function(self, w, h)
-            surface.SetDrawColor(30, 30, 30, 255)
+            surface.SetDrawColor(clr_entry_bg)
             surface.DrawRect(0, 0, w, h)
-            surface.SetDrawColor(60, 60, 60, 255)
+            surface.SetDrawColor(clr_entry_border)
             surface.DrawOutlinedRect(0, 0, w, h)
             
-            self:DrawTextEntryText(color_white, clr_8, color_white)
+            self:DrawTextEntryText(clr_entry_text, clr_8, clr_entry_text)
         end
         
         function textEntry:OnValueChange(val)

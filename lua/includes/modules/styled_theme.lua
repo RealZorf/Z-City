@@ -29,11 +29,11 @@ do
     colors.buttonText = Color( 255, 255, 255, 255 )
     colors.buttonTextDisabled = Color( 180, 180, 180, 255 )
 
-    colors.entryBackground = Color( 20, 20, 20, 255 )
-    colors.entryBorder = Color( 80, 80, 80, 255 )
+    colors.entryBackground = Color( 255, 255, 255, 245 )
+    colors.entryBorder = Color( 150, 170, 195, 255 )
     colors.entryHighlight = colors.accent
-    colors.entryPlaceholder = Color( 150, 150, 150, 255 )
-    colors.entryText = Color( 255, 255, 255, 255 )
+    colors.entryPlaceholder = Color( 110, 120, 135, 255 )
+    colors.entryText = Color( 12, 18, 28, 255 )
 end
 
 --[[

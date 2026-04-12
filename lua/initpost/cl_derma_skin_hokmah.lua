@@ -1,8 +1,8 @@
 --\\
 	HOKMAH_VGUI = HOKMAH_VGUI or {}
-	HOKMAH_VGUI.MainColor = Color(130, 130 ,130)
-	HOKMAH_VGUI.SecondaryColor = Color(155,0,0,240)
-	HOKMAH_VGUI.BackgroundColor = Color(165,165,165)
+	HOKMAH_VGUI.MainColor = Color(125, 205, 255)
+	HOKMAH_VGUI.SecondaryColor = Color(38, 110, 168, 240)
+	HOKMAH_VGUI.BackgroundColor = Color(8, 18, 34)
 --//
 
 --; Adapted from Helix
@@ -25,6 +25,14 @@ local gradientUp = surface.GetTextureID("vgui/gradient-u")
 local gradientLeft = surface.GetTextureID("vgui/gradient-l")
 -- local gradientRadial = Material("helix/gui/radial-gradient.png")
 local defaultBackgroundColor = Color(30, 30, 30, 200)
+local textEntryBackground = Color(255, 255, 255, 245)
+local textEntryBackgroundFocus = Color(255, 255, 255, 255)
+local textEntryBackgroundDisabled = Color(225, 232, 240, 220)
+local textEntryBorder = Color(150, 170, 195, 255)
+local textEntryText = Color(12, 18, 28, 255)
+local textEntryPlaceholder = Color(110, 120, 135, 255)
+local textEntryCursor = Color(12, 18, 28, 255)
+local textEntryHighlight = Color(125, 205, 255, 120)
 
 local SKIN = {}
 derma.DefineSkin("Hokmah", "Hokmah skin.", SKIN)
@@ -37,13 +45,13 @@ SKIN.Colours = table.Copy(derma.SkinList.Default.Colours)
 
 SKIN.Colours.Info = Color(100, 185, 255)
 SKIN.Colours.Success = Color(64, 185, 85)
-SKIN.Colours.Error = Color(255, 100, 100)
+SKIN.Colours.Error = Color(125, 205, 255)
 SKIN.Colours.Warning = Color(230, 180, 0)
 SKIN.Colours.MenuLabel = color_white
 SKIN.Colours.DarkerBackground = Color(0, 0, 0, 77)
 
-SKIN.Colours.Outline = Color(155, 0, 0, 255)
-SKIN.Colours.Background = Color(0, 0, 0, 205)
+SKIN.Colours.Outline = Color(125, 205, 255, 255)
+SKIN.Colours.Background = Color(8, 18, 34, 205)
 
 SKIN.Colours.SegmentedProgress = {}
 SKIN.Colours.SegmentedProgress.Bar = Color(64, 185, 85)
@@ -60,6 +68,10 @@ SKIN.Colours.Button.Down = Color(180, 180, 180)
 SKIN.Colours.Button.Disabled = Color(0, 0, 0, 100)
 
 SKIN.Colours.Label.Default = color_white
+SKIN.colTextEntryText = textEntryText
+SKIN.colTextEntryTextHighlight = textEntryHighlight
+SKIN.colTextEntryTextCursor = textEntryCursor
+SKIN.colTextEntryTextPlaceholder = textEntryPlaceholder
 
 function SKIN.tex.Menu_Strip(x, y, width, height, color)
 	surface.SetDrawColor(0, 0, 0, 200)
@@ -323,15 +335,15 @@ local color_red = Color(50, 50, 50)
 function SKIN:PaintTextEntry( panel, w, h )
 	if ( panel.m_bBackground ) then
 		if ( panel:GetDisabled() ) then
-			surface.SetDrawColor(30, 30, 30, 100)
+			surface.SetDrawColor(textEntryBackgroundDisabled)
 		elseif ( panel:HasFocus() ) then
-			surface.SetDrawColor(150, 150, 150, 100)
+			surface.SetDrawColor(textEntryBackgroundFocus)
 		else
-			surface.SetDrawColor(130, 130, 130, 100)
+			surface.SetDrawColor(textEntryBackground)
 		end
 		
 		surface.DrawRect(0, 0, w, h)
-		surface.SetDrawColor(0, 0, 0, 150)
+		surface.SetDrawColor(textEntryBorder)
 		surface.DrawOutlinedRect(0, 0, w, h)
 	end
 
@@ -531,7 +543,7 @@ function SKIN:PaintPropertySheet( panel, width, height )
 	surface.SetDrawColor(30, 30, 30, 150)
 	surface.DrawRect(0, 0, width, height)
 
-	surface.SetDrawColor(255, 0, 0, 150)
+	surface.SetDrawColor(ColorAlpha(HOKMAH_VGUI.MainColor, 170))
 	surface.DrawOutlinedRect(0, 0, width, height)
 end
 
@@ -548,7 +560,7 @@ function SKIN:PaintActiveTab( panel, w, h )
 
 	surface.SetDrawColor(30, 30, 30, 150)
 	surface.DrawRect(0, 0, w, h*0.8)
-	surface.SetDrawColor(255, 0, 0, 150)
+	surface.SetDrawColor(ColorAlpha(HOKMAH_VGUI.MainColor, 200))
 	surface.DrawOutlinedRect(0, 0, w, h*0.8,1)
 
 end
@@ -621,12 +633,12 @@ function SKIN:PaintChatboxBackground(panel, width, height)
 end
 
 function SKIN:PaintChatboxEntry(panel, width, height)
-	surface.SetDrawColor(0, 0, 0, 66)
+	surface.SetDrawColor(textEntryBackground)
 	surface.DrawRect(0, 0, width, height)
 
-	panel:DrawTextEntryText(color_white, HOKMAH_VGUI.MainColor, color_white)
+	panel:DrawTextEntryText(textEntryText, textEntryHighlight, textEntryCursor)
 
-	surface.SetDrawColor(color_black)
+	surface.SetDrawColor(textEntryBorder)
 	surface.DrawOutlinedRect(0, 0, width, height)
 end
 

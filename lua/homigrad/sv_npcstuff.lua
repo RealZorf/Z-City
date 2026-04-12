@@ -83,7 +83,11 @@ local math_random, math_Rand = math.random, math.Rand
 		local class = ent:GetClass()
 		local loot = lootNPCs[class]
 
-		rag:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		timer.Simple(0, function()
+			if IsValid(rag) then
+				rag:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+			end
+		end)
 		if IsValid(ent) and IsValid(rag) and ent:IsNPC() and loot then
 			rag.inventory = {}
 			rag.inventory.Weapons = {}
@@ -145,180 +149,180 @@ local math_random, math_Rand = math.random, math.Rand
 --//
 
 --\\ Zombies & barnacles twitching (inspired by workshop addon)
-	-- local ZT_Scale = 0.7
+	local ZT_Scale = 0.7
 
-	-- local zombieClasses = {
-	-- 	"npc_zombie",
-	-- 	"npc_zombine",
-	-- 	"npc_zombie_torso",
-	-- 	"npc_fastzombie",
-	-- 	"npc_fastzombie_torso",
-	-- 	"npc_poisonzombie"
-	-- }
-	-- local headcrabClasses = {
-	-- 	"npc_headcrab",
-	-- 	"npc_headcrab_fast",
-	-- 	"npc_headcrab_black"
-	-- }
-	-- local barnacleClass = "npc_barnacle"
+	local zombieClasses = {
+		"npc_zombie",
+		"npc_zombine",
+		"npc_zombie_torso",
+		"npc_fastzombie",
+		"npc_fastzombie_torso",
+		"npc_poisonzombie"
+	}
+	local headcrabClasses = {
+		"npc_headcrab",
+		"npc_headcrab_fast",
+		"npc_headcrab_black"
+	}
+	local barnacleClass = "npc_barnacle"
 
-	-- local function lerpSmoothDiv(startValue, endValue, progress)
-	-- 	return startValue + (endValue - startValue) * progress
-	-- end
+	local function lerpSmoothDiv(startValue, endValue, progress)
+		return startValue + (endValue - startValue) * progress
+	end
 
-	-- local hg_zombtwitching = CreateConVar("hg_zombtwitching", 0, FCVAR_ARCHIVE + FCVAR_REPLICATED + FCVAR_NOTIFY, "Zombies & barnacle will twitch and deformate", 0, 1)
-	-- local function applySmoothLerp(npc, boneID, startAngles, endAngles, startPosition, endPosition, startScale, endScale, duration)
-	-- 	local startTime = CurTime()
-	-- 	if not IsValid(npc) then return end
+	local hg_zombtwitching = CreateConVar("hg_zombtwitching", 0, FCVAR_ARCHIVE + FCVAR_REPLICATED + FCVAR_NOTIFY, "Zombies & barnacle will twitch and deformate", 0, 1)
+	local function applySmoothLerp(npc, boneID, startAngles, endAngles, startPosition, endPosition, startScale, endScale, duration)
+		local startTime = CurTime()
+		if not IsValid(npc) then return end
 
-	-- 	timer.Create("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID, 0.02, math.ceil(duration / 0.02), function()
-	-- 		if not IsValid(npc) then
-	-- 			timer.Remove("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID)
-	-- 			return
-	-- 		end
+		timer.Create("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID, 0.02, math.ceil(duration / 0.02), function()
+			if not IsValid(npc) then
+				timer.Remove("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID)
+				return
+			end
 
-	-- 		local elapsedTime = CurTime() - startTime
-	-- 		local progress = math.Clamp(elapsedTime / duration, 0, 1)
+			local elapsedTime = CurTime() - startTime
+			local progress = math.Clamp(elapsedTime / duration, 0, 1)
 
-	-- 		local currentAngles = LerpAngle(progress, startAngles, endAngles)
-	-- 		local currentPosition = LerpVector(progress, startPosition, endPosition)
-	-- 		local currentScale = Vector(
-	-- 			lerpSmoothDiv(startScale.x, endScale.x, progress),
-	-- 			lerpSmoothDiv(startScale.y, endScale.y, progress),
-	-- 			lerpSmoothDiv(startScale.z, endScale.z, progress)
-	-- 		)
+			local currentAngles = LerpAngle(progress, startAngles, endAngles)
+			local currentPosition = LerpVector(progress, startPosition, endPosition)
+			local currentScale = Vector(
+				lerpSmoothDiv(startScale.x, endScale.x, progress),
+				lerpSmoothDiv(startScale.y, endScale.y, progress),
+				lerpSmoothDiv(startScale.z, endScale.z, progress)
+			)
 
-	-- 		npc:ManipulateBoneAngles(boneID, currentAngles)
-	-- 		npc:ManipulateBonePosition(boneID, currentPosition)
-	-- 		npc:ManipulateBoneScale(boneID, currentScale)
+			npc:ManipulateBoneAngles(boneID, currentAngles)
+			npc:ManipulateBonePosition(boneID, currentPosition)
+			npc:ManipulateBoneScale(boneID, currentScale)
 
-	-- 		if progress == 0 then
-	-- 			timer.Remove("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID)
-	-- 		end
-	-- 	end)
-	-- end
+			if progress == 0 then
+				timer.Remove("SmoothLerp_" .. npc:EntIndex() .. "_" .. boneID)
+			end
+		end)
+	end
 
-	-- local vector_1 = Vector(1, 1, 1)
-	-- local function applyTwitchEffect(npc, params)
-	-- 	if not IsValid(npc) then return end
+	local vector_1 = Vector(1, 1, 1)
+	local function applyTwitchEffect(npc, params)
+		if not IsValid(npc) then return end
 
-	-- 	local bonesToModify = math_random(3)
-	-- 	for _ = 1, bonesToModify do
-	-- 		local boneID = math_random(0, npc:GetBoneCount() - 1)
-	-- 		if boneID == 0 then continue end
+		local bonesToModify = math_random(3)
+		for _ = 1, bonesToModify do
+			local boneID = math_random(0, npc:GetBoneCount() - 1)
+			if boneID == 0 then continue end
 
-	-- 		local startAngles = npc:GetManipulateBoneAngles(boneID) or angle_zero
-	-- 		local endAngles = startAngles + Angle(
-	-- 			math_Rand(-params.twitchRotRange, params.twitchRotRange),
-	-- 			math_Rand(-params.twitchRotRange, params.twitchRotRange),
-	-- 			math_Rand(-params.twitchRotRange, params.twitchRotRange)
-	-- 		) * ZT_Scale
+			local startAngles = npc:GetManipulateBoneAngles(boneID) or angle_zero
+			local endAngles = startAngles + Angle(
+				math_Rand(-params.twitchRotRange, params.twitchRotRange),
+				math_Rand(-params.twitchRotRange, params.twitchRotRange),
+				math_Rand(-params.twitchRotRange, params.twitchRotRange)
+			) * ZT_Scale
 
-	-- 		local startPosition = npc:GetManipulateBonePosition(boneID) or vector_origin
-	-- 		local endPosition = startPosition + Vector(
-	-- 			math_Rand(-params.twitchOffsetRange, params.twitchOffsetRange),
-	-- 			math_Rand(-params.twitchOffsetRange, params.twitchOffsetRange),
-	-- 			math_Rand(0, params.twitchOffsetRange)
-	-- 		) * ZT_Scale
+			local startPosition = npc:GetManipulateBonePosition(boneID) or vector_origin
+			local endPosition = startPosition + Vector(
+				math_Rand(-params.twitchOffsetRange, params.twitchOffsetRange),
+				math_Rand(-params.twitchOffsetRange, params.twitchOffsetRange),
+				math_Rand(0, params.twitchOffsetRange)
+			) * ZT_Scale
 
-	-- 		local startScale = npc:GetManipulateBoneScale(boneID) or vector_1
-	-- 		local endScale = startScale + Vector(
-	-- 			math_Rand(-params.twitchScaleRange, params.twitchScaleRange),
-	-- 			math_Rand(-params.twitchScaleRange, params.twitchScaleRange),
-	-- 			math_Rand(-params.twitchScaleRange, params.twitchScaleRange)
-	-- 		) * ZT_Scale * 0.95
+			local startScale = npc:GetManipulateBoneScale(boneID) or vector_1
+			local endScale = startScale + Vector(
+				math_Rand(-params.twitchScaleRange, params.twitchScaleRange),
+				math_Rand(-params.twitchScaleRange, params.twitchScaleRange),
+				math_Rand(-params.twitchScaleRange, params.twitchScaleRange)
+			) * ZT_Scale * 0.95
 
-	-- 		local duration = math_Rand(0.5, 2)
-	-- 		applySmoothLerp(npc, boneID, startAngles, endAngles, startPosition, endPosition, startScale, endScale, duration)
-	-- 	end
-	-- end
+			local duration = math_Rand(0.5, 2)
+			applySmoothLerp(npc, boneID, startAngles, endAngles, startPosition, endPosition, startScale, endScale, duration)
+		end
+	end
 
-	-- local function applyBoneModifications(npc, params)
-	-- 	if not IsValid(npc) then return end
+	local function applyBoneModifications(npc, params)
+		if not IsValid(npc) then return end
 
-	-- 	for boneID = 0, npc:GetBoneCount() - 1 do
-	-- 		if boneID == 0 then continue end
+		for boneID = 0, npc:GetBoneCount() - 1 do
+			if boneID == 0 then continue end
 
-	-- 		if math_Rand(0, 1) > 0.2 then continue end
+			if math_Rand(0, 1) > 0.2 then continue end
 
-	-- 		local targetAngles = Angle(
-	-- 			math_Rand(-params.rotRange, params.rotRange),
-	-- 			math_Rand(-params.rotRange, params.rotRange),
-	-- 			math_Rand(-params.rotRange, params.rotRange)
-	-- 		) * ZT_Scale
-	-- 		local targetPosition = Vector(
-	-- 			math_Rand(-params.offsetRange, params.offsetRange),
-	-- 			math_Rand(-params.offsetRange, params.offsetRange),
-	-- 			math_Rand(0, params.offsetRange)
-	-- 		) * ZT_Scale
-	-- 		local targetScale = Vector(
-	-- 			1 + math_Rand(-params.scaleRange, params.scaleRange),
-	-- 			1 + math_Rand(-params.scaleRange, params.scaleRange),
-	-- 			1 + math_Rand(-params.scaleRange, params.scaleRange)
-	-- 		) * ZT_Scale
+			local targetAngles = Angle(
+				math_Rand(-params.rotRange, params.rotRange),
+				math_Rand(-params.rotRange, params.rotRange),
+				math_Rand(-params.rotRange, params.rotRange)
+			) * ZT_Scale
+			local targetPosition = Vector(
+				math_Rand(-params.offsetRange, params.offsetRange),
+				math_Rand(-params.offsetRange, params.offsetRange),
+				math_Rand(0, params.offsetRange)
+			) * ZT_Scale
+			local targetScale = Vector(
+				1 + math_Rand(-params.scaleRange, params.scaleRange),
+				1 + math_Rand(-params.scaleRange, params.scaleRange),
+				1 + math_Rand(-params.scaleRange, params.scaleRange)
+			) * ZT_Scale
 
-	-- 		npc:ManipulateBoneAngles(boneID, targetAngles)
-	-- 		npc:ManipulateBonePosition(boneID, targetPosition)
-	-- 		npc:ManipulateBoneScale(boneID, targetScale)
-	-- 	end
-	-- end
+			npc:ManipulateBoneAngles(boneID, targetAngles)
+			npc:ManipulateBonePosition(boneID, targetPosition)
+			npc:ManipulateBoneScale(boneID, targetScale)
+		end
+	end
 
-	-- local function handleNPCSpawn(npc)
-	-- 	if not IsValid(npc) then return end
-	-- 	local class = npc:GetClass()
+	local function handleNPCSpawn(npc)
+		if not IsValid(npc) then return end
+		local class = npc:GetClass()
 
-	-- 	local params = {}
-	-- 	if table.HasValue(zombieClasses, class) then
-	-- 		params = {
-	-- 			rotRange = 15,
-	-- 			scaleRange = 0.04,
-	-- 			offsetRange = 2,
-	-- 			twitchRotRange = 10,
-	-- 			twitchOffsetRange = 0.5,
-	-- 			twitchScaleRange = 0.02
-	-- 		}
-	-- 	elseif table.HasValue(headcrabClasses, class) then
-	-- 		params = {
-	-- 			rotRange = 12,
-	-- 			scaleRange = 0.03,
-	-- 			offsetRange = 1.5,
-	-- 			twitchRotRange = 8,
-	-- 			twitchOffsetRange = 0.3,
-	-- 			twitchScaleRange = 0.01
-	-- 		}
-	-- 	elseif class == barnacleClass then
-	-- 		params = {
-	-- 			rotRange = 10,
-	-- 			scaleRange = 0.02,
-	-- 			offsetRange = 1,
-	-- 			twitchRotRange = 6,
-	-- 			twitchOffsetRange = 0.2,
-	-- 			twitchScaleRange = 0.005
-	-- 		}
-	-- 	else
-	-- 		return
-	-- 	end
+		local params = {}
+		if table.HasValue(zombieClasses, class) then
+			params = {
+				rotRange = 15,
+				scaleRange = 0.04,
+				offsetRange = 2,
+				twitchRotRange = 10,
+				twitchOffsetRange = 0.5,
+				twitchScaleRange = 0.02
+			}
+		elseif table.HasValue(headcrabClasses, class) then
+			params = {
+				rotRange = 12,
+				scaleRange = 0.03,
+				offsetRange = 1.5,
+				twitchRotRange = 8,
+				twitchOffsetRange = 0.3,
+				twitchScaleRange = 0.01
+			}
+		elseif class == barnacleClass then
+			params = {
+				rotRange = 10,
+				scaleRange = 0.02,
+				offsetRange = 1,
+				twitchRotRange = 6,
+				twitchOffsetRange = 0.2,
+				twitchScaleRange = 0.005
+			}
+		else
+			return
+		end
 
-	-- 	applyBoneModifications(npc, params)
-	-- 	applyTwitchEffect(npc, params)
+		applyBoneModifications(npc, params)
+		applyTwitchEffect(npc, params)
 
-	-- 	timer.Create("ZombTwitch_" .. npc:EntIndex(), math_random(12) / 4, 0, function()
-	-- 		if not IsValid(npc) or not hg_zombtwitching:GetBool() then
-	-- 			timer.Remove("ZombTwitch_" .. npc:EntIndex())
-	-- 			return
-	-- 		end
+		timer.Create("ZombTwitch_" .. npc:EntIndex(), math_random(12) / 4, 0, function()
+			if not IsValid(npc) or not hg_zombtwitching:GetBool() then
+				timer.Remove("ZombTwitch_" .. npc:EntIndex())
+				return
+			end
 
-	-- 		applyTwitchEffect(npc, params)
-	-- 	end)
-	-- end
+			applyTwitchEffect(npc, params)
+		end)
+	end
 
-	-- hook.Add("OnEntityCreated", "ZombTwitch", function(ent)
-	-- 	if IsValid(ent) and ent:IsNPC() and hg_zombtwitching:GetBool() then
-	-- 		timer.Simple(0, function()
-	-- 			handleNPCSpawn(ent)
-	-- 		end)
-	-- 	end
-	-- end)
+	hook.Add("OnEntityCreated", "ZombTwitch", function(ent)
+		if IsValid(ent) and ent:IsNPC() and hg_zombtwitching:GetBool() then
+			timer.Simple(0, function()
+				handleNPCSpawn(ent)
+			end)
+		end
+	end)
 --\\
 
 --\\ Tough NPCs

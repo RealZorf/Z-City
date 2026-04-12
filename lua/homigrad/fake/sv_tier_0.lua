@@ -416,6 +416,155 @@ hook.Add("PlayerSpawn", "Fake", function(ply)
 	ply:SetCanZoom(false)
 end)
 
+local fakeUpWeaponBlacklist = {
+	["weapon_hands_sh"] = true,
+	["weapon_zombclaws"] = true
+}
+
+local function IsSandboxFakeLoadoutFixActive()
+	return HG_SANDBOX and HG_SANDBOX.IsSandboxModeActive and HG_SANDBOX.IsSandboxModeActive()
+end
+
+local function CaptureFakeUpLoadout(ply)
+	local snapshot = {
+		weapons = {},
+		ammo = {},
+		attachments = {},
+		inventoryWeapons = {},
+		armors = table.Copy(ply.armors or {}),
+		armorsHealth = table.Copy(ply.armors_health or {}),
+		activeWeaponClass = nil,
+		armorPoints = ply:Armor()
+	}
+
+	local inv = ply:GetNetVar("Inventory", ply.inventory or {})
+	if istable(inv.Attachments) then
+		snapshot.attachments = table.Copy(inv.Attachments)
+	end
+
+	if istable(inv.Weapons) then
+		for class, value in pairs(inv.Weapons) do
+			if fakeUpWeaponBlacklist[class] then continue end
+			if IsValid(value) and value:IsWeapon() then continue end
+
+			snapshot.inventoryWeapons[class] = istable(value) and table.Copy(value) or value
+		end
+	end
+
+	for _, wep in ipairs(ply:GetWeapons()) do
+		if not IsValid(wep) then continue end
+
+		local class = wep:GetClass()
+		if fakeUpWeaponBlacklist[class] then continue end
+
+		local weaponData = wep.GetInfo and wep:GetInfo() or nil
+		if istable(weaponData) then
+			snapshot.weapons[class] = table.Copy(weaponData)
+		else
+			snapshot.weapons[class] = {
+				Clip1 = wep:Clip1(),
+				Clip2 = wep:Clip2()
+			}
+		end
+	end
+
+	local activeWeapon = ply:GetActiveWeapon()
+	if IsValid(activeWeapon) and not fakeUpWeaponBlacklist[activeWeapon:GetClass()] then
+		snapshot.activeWeaponClass = activeWeapon:GetClass()
+	end
+
+	for ammoID, count in pairs(ply:GetAmmo()) do
+		if count <= 0 then continue end
+
+		local ammoName = game.GetAmmoName(ammoID)
+		if ammoName then
+			snapshot.ammo[ammoName] = count
+		end
+	end
+
+	return snapshot
+end
+
+local function RestoreFakeUpLoadout(ply, snapshot)
+	if not IsValid(ply) or not ply:Alive() or not snapshot then return end
+
+	ply:SetSuppressPickupNotices(true)
+	ply:StripWeapons()
+	ply:RemoveAllAmmo()
+	ply:Give("weapon_hands_sh")
+
+	local inv = {
+		Weapons = {},
+		Ammo = {},
+		Armor = {},
+		Attachments = table.Copy(snapshot.attachments or {})
+	}
+
+	for class, value in pairs(snapshot.inventoryWeapons or {}) do
+		inv.Weapons[class] = istable(value) and table.Copy(value) or value
+	end
+
+	ply.inventory = inv
+	ply:SetNetVar("Inventory", inv)
+
+	for class, weaponData in pairs(snapshot.weapons or {}) do
+		local wep = ply:Give(class)
+		if not IsValid(wep) then continue end
+
+		if istable(weaponData) then
+			if wep.SetInfo then
+				wep:SetInfo(table.Copy(weaponData))
+			else
+				if weaponData.Clip1 then wep:SetClip1(weaponData.Clip1) end
+				if weaponData.Clip2 then wep:SetClip2(weaponData.Clip2) end
+			end
+		end
+	end
+
+	for ammoName, count in pairs(snapshot.ammo or {}) do
+		ply:GiveAmmo(count, ammoName, true)
+	end
+
+	if hg.AddArmor then
+		for _, armorName in pairs(snapshot.armors or {}) do
+			hg.AddArmor(ply, armorName)
+		end
+	end
+
+	ply.armors_health = ply.armors_health or {}
+	for placement, health in pairs(snapshot.armorsHealth or {}) do
+		ply.armors_health[placement] = health
+	end
+
+	ply:SetArmor(snapshot.armorPoints or 0)
+
+	inv = ply.inventory or inv
+	inv.Attachments = table.Copy(snapshot.attachments or {})
+	for class, value in pairs(snapshot.inventoryWeapons or {}) do
+		inv.Weapons[class] = istable(value) and table.Copy(value) or value
+	end
+	inv.Ammo = ply:GetAmmo()
+
+	ply.inventory = inv
+	ply:SetNetVar("Inventory", inv)
+
+	if ply.SyncArmor then
+		ply:SyncArmor()
+	end
+
+	if snapshot.activeWeaponClass and ply:HasWeapon(snapshot.activeWeaponClass) then
+		ply:SelectWeapon(snapshot.activeWeaponClass)
+	else
+		ply:SelectWeapon("weapon_hands_sh")
+	end
+
+	timer.Simple(0, function()
+		if not IsValid(ply) then return end
+
+		ply:SetSuppressPickupNotices(false)
+	end)
+end
+
 -- local FrameTimeS
 -- local LastTick = 0
 
@@ -763,6 +912,8 @@ function hg.FakeUp(ply, forced, instant)
 		ragdoll.welds = nil
 	end
 
+	local fakeUpLoadout = IsSandboxFakeLoadoutFixActive() and CaptureFakeUpLoadout(ply) or nil
+
 	OverrideSpawn = true
 	local hp, armor = ply:Health(), ply:Armor()
 	local ang, wep = ply:EyeAngles(), ply:GetActiveWeapon()
@@ -779,8 +930,21 @@ function hg.FakeUp(ply, forced, instant)
 	if IsValid(wep) then ply:SelectWeapon(wep:GetClass()) else ply:SelectWeapon("weapon_hands_sh") end
 	
 	if IsValid(ragdoll) and ragdoll.rope_attach then
+		local ropeWeapon = ragdoll.rope_attach
 		ply:PickupWeapon(ragdoll.rope_attach)
 		ragdoll.rope_attach = nil
+
+		if fakeUpLoadout and IsValid(ropeWeapon) and not fakeUpWeaponBlacklist[ropeWeapon:GetClass()] then
+			local weaponData = ropeWeapon.GetInfo and ropeWeapon:GetInfo() or nil
+			if istable(weaponData) then
+				fakeUpLoadout.weapons[ropeWeapon:GetClass()] = table.Copy(weaponData)
+			else
+				fakeUpLoadout.weapons[ropeWeapon:GetClass()] = {
+					Clip1 = ropeWeapon:Clip1(),
+					Clip2 = ropeWeapon:Clip2()
+				}
+			end
+		end
 	end
 
 	OverrideSpawn = nil
@@ -827,6 +991,10 @@ function hg.FakeUp(ply, forced, instant)
 				if pos then
 					--ply:SetPos(pos)
 				end
+
+				if fakeUpLoadout then
+					RestoreFakeUpLoadout(ply, fakeUpLoadout)
+				end
 			end)
 		else
 			ply:DrawShadow(true)
@@ -841,6 +1009,12 @@ function hg.FakeUp(ply, forced, instant)
 
 			if IsValid(ragdoll) then
 				ragdoll:Remove()
+			end
+
+			if fakeUpLoadout then
+				timer.Simple(0.05, function()
+					RestoreFakeUpLoadout(ply, fakeUpLoadout)
+				end)
 			end
 		end
 	end
@@ -1196,6 +1370,106 @@ hook.Add("Ragdoll Collide", "FallSounds", function(rag, data)
 	end]]
 
 	rag.NextSND = data.DeltaTime + 1
+end)
+
+local hg_corpse_settle_delay = ConVarExists("hg_corpse_settle_delay") and GetConVar("hg_corpse_settle_delay") or CreateConVar("hg_corpse_settle_delay", "10", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Delay before settled corpse ragdolls are put to sleep.", 0, 300)
+local hg_corpse_cleanup_max = ConVarExists("hg_corpse_cleanup_max") and GetConVar("hg_corpse_cleanup_max") or CreateConVar("hg_corpse_cleanup_max", "18", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Maximum amount of inactive corpse ragdolls before oldest ones start getting cleaned up. 0 disables corpse culling.", 0, 128)
+local hg_corpse_cleanup_age = ConVarExists("hg_corpse_cleanup_age") and GetConVar("hg_corpse_cleanup_age") or CreateConVar("hg_corpse_cleanup_age", "45", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Minimum corpse age before the automatic ragdoll cleanup can remove it.", 0, 1800)
+local hg_corpse_cleanup_player_radius = ConVarExists("hg_corpse_cleanup_player_radius") and GetConVar("hg_corpse_cleanup_player_radius") or CreateConVar("hg_corpse_cleanup_player_radius", "350", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Corpses near living players are preserved by the automatic ragdoll cleanup.", 0, 5000)
+
+local function IsLiveManagedRagdoll(rag)
+	if not IsValid(rag) then return false end
+
+	local owner = hg.RagdollOwner(rag)
+	if not IsValid(owner) then
+		owner = rag:GetNWEntity("ply")
+	end
+
+	return IsValid(owner) and owner:IsPlayer() and owner:Alive()
+end
+
+local function RagdollIsSettled(rag)
+	for i = 0, rag:GetPhysicsObjectCount() - 1 do
+		local phys = rag:GetPhysicsObjectNum(i)
+		if not IsValid(phys) then continue end
+		if phys:GetVelocity():LengthSqr() > 256 then return false end
+	end
+
+	return true
+end
+
+local function HasNearbyLivingPlayer(pos, radius)
+	local radiusSqr = radius * radius
+
+	for _, ply in ipairs(player.GetAll()) do
+		if IsValid(ply) and ply:Alive() and ply:GetPos():DistToSqr(pos) <= radiusSqr then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function SettleCorpseRagdoll(rag)
+	if rag.hg_corpseSettled then return end
+
+	rag.hg_corpseSettled = true
+	rag:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+
+	for i = 0, rag:GetPhysicsObjectCount() - 1 do
+		local phys = rag:GetPhysicsObjectNum(i)
+		if IsValid(phys) then phys:Sleep() end
+	end
+end
+
+timer.Create("hg_corpse_optimizer", 5, 0, function()
+	local corpses = {}
+	local now = CurTime()
+
+	for _, rag in ipairs(ents.FindByClass("prop_ragdoll")) do
+		if not IsValid(rag) then continue end
+
+		rag.hg_corpseSpawnTime = rag.hg_corpseSpawnTime or now
+
+		if IsLiveManagedRagdoll(rag) or IsValid(rag:GetParent()) or rag:GetCustomCollisionCheck() then
+			rag.hg_corpseSettled = nil
+
+			if rag:GetCollisionGroup() == COLLISION_GROUP_DEBRIS then
+				rag:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+			end
+
+			continue
+		end
+
+		corpses[#corpses + 1] = rag
+
+		if (now - rag.hg_corpseSpawnTime) >= hg_corpse_settle_delay:GetFloat() and RagdollIsSettled(rag) then
+			SettleCorpseRagdoll(rag)
+		end
+	end
+
+	local maxCorpses = math.max(hg_corpse_cleanup_max:GetInt(), 0)
+	if maxCorpses <= 0 or #corpses <= maxCorpses then return end
+
+	table.sort(corpses, function(a, b)
+		return (a.hg_corpseSpawnTime or now) < (b.hg_corpseSpawnTime or now)
+	end)
+
+	local minAge = hg_corpse_cleanup_age:GetFloat()
+	local keepRadius = hg_corpse_cleanup_player_radius:GetFloat()
+	local toRemove = #corpses - maxCorpses
+
+	for i = 1, #corpses do
+		if toRemove <= 0 then break end
+
+		local rag = corpses[i]
+		if not IsValid(rag) then continue end
+		if (now - (rag.hg_corpseSpawnTime or now)) < minAge then break end
+		if HasNearbyLivingPlayer(rag:GetPos(), keepRadius) then continue end
+
+		rag:Remove()
+		toRemove = toRemove - 1
+	end
 end)
 
 local hg_shitty_fake = CreateConVar("hg_shitty_fake", "1", FCVAR_ARCHIVE + FCVAR_NOTIFY, "enable shitty fake", 0, 1)

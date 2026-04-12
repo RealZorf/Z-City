@@ -720,6 +720,9 @@ players : 1 humans, 0 bots (20 max)
 			}
 
 			local weight = (ply:IsSpeaking() and math.Clamp( ply:VoiceVolume() * 5, 0, 2 )) or 0
+			if hg.IsMouthDuctTaped and hg.IsMouthDuctTaped(ply) then
+				weight = 0
+			end
 
 			for k = 1, #flexes do
 				v = flexes[ k ]

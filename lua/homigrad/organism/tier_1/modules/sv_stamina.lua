@@ -28,8 +28,22 @@ module[1] = function(org)
 end
 
 local hg_infstamina = CreateConVar("hg_infstamina", "0", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Toggle infinite stamina (excausts only from other organism effects, not from running/attacking)", 0, 1)
+
+local function ZC_HasPermanentInfiniteStamina(ply)
+	if not IsValid(ply) or not ply:IsPlayer() then return false end
+	if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
+
+	local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
+	return userGroup == "superadmin"
+end
+
+local function ZC_HasInfiniteStamina(ply)
+	return IsValid(ply) and (ply.ZCInfiniteStaminaEnabled == true or ZC_HasPermanentInfiniteStamina(ply))
+end
+
 module[2] = function(owner, org, timeValue)
 	local stamina = org.stamina
+	local hasInfiniteStamina = ZC_HasInfiniteStamina(owner)
 	
 	local painfrommoving = (stamina.sub * (org.chest))//(stamina.sub * ((org.jaw == 1 and 1 or 0) + org.chest + (org.jawdislocation and 1 or 0)))
 	//org.painadd = org.painadd + painfrommoving * timeValue * 5
@@ -100,8 +114,9 @@ module[2] = function(owner, org, timeValue)
 	-- 	end
 	-- end
 
-	if hg_infstamina:GetBool() then
+	if hg_infstamina:GetBool() or hasInfiniteStamina then
 		stamina.sub = 0
+		stamina.subadd = 0
 		stamina[1] = stamina.max
 	end
 end
@@ -131,7 +146,21 @@ hook.Add("FinishMove", "!homigrad-organism", function(ply, move)
 	local vel = move:GetFinalJumpVelocity()
 
 	if !ply.organism then return end
+	local hasInfiniteStamina = ZC_HasInfiniteStamina(ply)
 
-	if vel ~= vecZero then ply.organism.stamina[1] = max(ply.organism.stamina[1] - ply:GetJumpPower() / 10,0) end
+	if vel ~= vecZero and not hasInfiniteStamina then
+		ply.organism.stamina[1] = max(ply.organism.stamina[1] - ply:GetJumpPower() / 10,0)
+	end
+
+	if hasInfiniteStamina then
+		local stamina = ply.organism.stamina
+
+		if stamina then
+			stamina.sub = 0
+			stamina.subadd = 0
+			stamina[1] = stamina.max or stamina.range or stamina[1] or 0
+		end
+	end
+
 	ply.organism.moveMaxSpeed = move:GetMaxSpeed()
 end)

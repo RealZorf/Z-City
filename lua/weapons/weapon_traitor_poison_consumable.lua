@@ -170,6 +170,11 @@ function SWEP:DoPoison(ent)
 end
 
 --\\Chemical resistance
+local chemical_degrade_speeds = {
+	["HCN"] = 1,
+	["KCN"] = 0.5,
+}
+
 function DegradeChemicalsOfPlayer(ply)
 	ply.PassiveAbility_ChemicalAccumulation = ply.PassiveAbility_ChemicalAccumulation or {}
 	

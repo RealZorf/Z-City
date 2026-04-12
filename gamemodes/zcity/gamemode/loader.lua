@@ -33,25 +33,7 @@ LoadFromDir("zcity/gamemode/libraries")
 
 zb.modesHooks = {}
 zb.modes = zb.modes or {}
-
-local function addModeHook( MODE, hookName, func )
-	zb.modesHooks[MODE.name] = zb.modesHooks[MODE.name] or {}
-	zb.modesHooks[MODE.name][hookName] = func
-
-	hook.Add( hookName, "zb_modehook_" .. hookName, function( ... )
-		local Current = zb.CROUND_MAIN or zb.CROUND or "tdm"
-
-		local modeHooks = zb.modesHooks[Current]
-		if modeHooks and modeHooks[hookName] then
-			local ModeTable = zb.modes[Current]
-			local a, b, c, d, e, f = modeHooks[hookName]( ModeTable, ... )
-
-			if a ~= nil then
-				return a, b, c, d, e, f
-			end
-		end
-	end )
-end
+zb.validModeChances = zb.validModeChances or {}
 
 local function InitMode()
 	if table.IsEmpty(MODE) then return end
@@ -82,15 +64,30 @@ local function InitMode()
 
 	if SERVER then
 		if MODE.SetupChances then
+			local chances_before_setup = table.Copy(zb.ModesChances or {})
+
 			MODE:SetupChances()
+
+			for chance_name in pairs(MODE.Types or {}) do
+				zb.validModeChances[chance_name] = true
+			end
+
+			for chance_name in pairs(zb.ModesChances or {}) do
+				if not chances_before_setup[chance_name] then
+					zb.validModeChances[chance_name] = true
+				end
+			end
 		else
 			zb.ModesChances[name] = zb.ModesChances[name] or MODE.Chance
+			zb.validModeChances[name] = true
 		end
 	end
 
+	zb.modesHooks[name] = zb.modesHooks[name] or {}
+
 	for k, v2 in pairs(MODE) do
 		if isfunction(v2) then
-			addModeHook(MODE, k, v2)
+			zb.modesHooks[name][k] = v2
 		end
 	end
 end
@@ -123,9 +120,11 @@ end
 local function LoadModes()
 	local directory = "zcity/gamemode/modes"
 	local files, folders = file.Find(directory .. "/*", "LUA")
+	local chancesChanged = false
 
 	if SERVER then
 		zb.ModesChances = util.JSONToTable(file.Read(chancesfile,  "DATA") or "") or {}
+		zb.validModeChances = {}
 	end
 
 	for _, v in ipairs(files) do
@@ -142,7 +141,16 @@ local function LoadModes()
 		MODE = nil
 	end
 
-	if SERVER and !file.Exists(chancesfile,  "DATA") then
+	if SERVER then
+		for modeName in pairs(zb.ModesChances) do
+			if not zb.validModeChances[modeName] then
+				zb.ModesChances[modeName] = nil
+				chancesChanged = true
+			end
+		end
+	end
+
+	if SERVER and (chancesChanged or !file.Exists(chancesfile,  "DATA")) then
 		file.Write(chancesfile, util.TableToJSON(zb.ModesChances, true))
 	end
 end
@@ -150,3 +158,27 @@ end
 LoadModes()
 
 print("Z-City modes loaded!")
+
+zb.oldHook = zb.oldHook or hook.Call
+local oldHook = zb.oldHook
+
+function hook.Call(name, gm, ...)
+	local Current = zb.CROUND_MAIN or zb.CROUND or "tdm"
+
+	local modesHooks = zb.modesHooks[Current]
+
+	if modesHooks then -- technically an unnecessary nil check but i don't trust legacy code
+		local hookFunc = modesHooks[name]
+		if hookFunc then
+			local ModeTable = zb.modes[Current]
+
+			local a, b, c, d, e, f = hookFunc(ModeTable, ...)
+
+			if (a != nil) then
+				return a, b, c, d, e, f
+			end
+		end
+	end
+
+	return oldHook(name, gm, ...)
+end

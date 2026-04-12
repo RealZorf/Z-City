@@ -67,6 +67,19 @@ MODE.LootTable = {
 		{0.2,"hg_brassknuckles"},
 		{0.13,"weapon_hg_spear"},
 		{0.13, "weapon_hg_spear_pro"},
+
+		{12,"weapon_screwdriver"},
+        {8,"weapon_hg_wrench"},
+        {7,"weapon_golfclub"},
+        {6,"weapon_hg_skateboard"},
+
+        {1.8,"weapon_hg_pickaxe"},
+        {1.2,"weapon_hg_razor"},
+        {1,"weapon_scalpel"},
+        {0.9,"weapon_batmetal"},
+
+        {0.35,"weapon_hg_taiga"},
+        {0.25,"weapon_hg_fubar"},
 	}},
 	{11,{
 		{10,"*sight*"},
@@ -159,6 +172,19 @@ MODE.LootTableStandard = {
 		{0.10,"weapon_hg_axe"},
 		{0.09,"weapon_hg_sledgehammer"},
 		{0.07,"weapon_hg_machete"},
+
+		{0.80,"weapon_screwdriver"},
+        {0.70,"weapon_hg_wrench"},
+        {0.20,"weapon_golfclub"},
+        {0.50,"weapon_hg_skateboard"},
+
+        {0.12,"weapon_hg_pickaxe"},
+        {0.15,"weapon_hg_razor"},
+        {0.13,"weapon_scalpel"},
+        {0.10,"weapon_batmetal"},
+
+        {0.12,"weapon_hg_taiga"},
+        {0.10,"weapon_hg_fubar"},
 	}},
 }
 
@@ -249,7 +275,414 @@ util.AddNetworkString("HMCDPoliceRole")
 util.AddNetworkString("HMCD(StartPlayersRoleSelection)")
 util.AddNetworkString("HMCD(EndPlayersRoleSelection)")
 util.AddNetworkString("HMCD(SetSubRole)")
+util.AddNetworkString("HMCD(SetProfession)")
 util.AddNetworkString("hmcd_announce_traitor_lose")
+
+MODE.BaseProfessionHealth = 100
+MODE.BaseProfessionStamina = 60 * 3
+
+local function HMCDSanitizeProfessionToken(text)
+	return string.gsub(string.Trim(string.lower(text or "")), "[%s_%-]+", "")
+end
+
+function MODE.NormalizeProfessionId(profession_id)
+	if(!isstring(profession_id))then
+		return nil
+	end
+
+	local sanitized_profession_id = HMCDSanitizeProfessionToken(profession_id)
+
+	if(sanitized_profession_id == "")then
+		return nil
+	end
+
+	if(sanitized_profession_id == "doctor")then
+		sanitized_profession_id = "medic"
+	end
+
+	for current_profession_id, profession_info in pairs(MODE.Professions) do
+		if(HMCDSanitizeProfessionToken(current_profession_id) == sanitized_profession_id or HMCDSanitizeProfessionToken(profession_info.Name or "") == sanitized_profession_id)then
+			return current_profession_id
+		end
+	end
+end
+
+function MODE.GetProfessionCommandName(profession_id)
+	local profession_info = MODE.Professions[profession_id]
+
+	if(profession_info and profession_info.Name)then
+		return string.lower(profession_info.Name)
+	end
+
+	return string.gsub(string.lower(profession_id or ""), "_", " ")
+end
+
+function MODE.GetAvailableProfessionIds(round_type)
+	local available_professions = {}
+	local profession_pool = MODE.Professions
+
+	if(round_type and MODE.RoleChooseRoundTypes[round_type] and MODE.RoleChooseRoundTypes[round_type].Professions)then
+		profession_pool = MODE.RoleChooseRoundTypes[round_type].Professions
+	end
+
+	for profession_id in pairs(profession_pool) do
+		if(MODE.Professions[profession_id])then
+			available_professions[#available_professions + 1] = profession_id
+		end
+	end
+
+	table.sort(available_professions)
+
+	return available_professions
+end
+
+function MODE.GetAvailableProfessionList(round_type)
+	local available_profession_names = {}
+
+	for _, profession_id in ipairs(MODE.GetAvailableProfessionIds(round_type)) do
+		available_profession_names[#available_profession_names + 1] = MODE.GetProfessionCommandName(profession_id)
+	end
+
+	return table.concat(available_profession_names, ", ")
+end
+
+function MODE.ClearProfessionLoadout(ply)
+	if(!IsValid(ply))then
+		return
+	end
+
+	local stripped_weapons = {}
+
+	for _, profession_info in pairs(MODE.Professions or {}) do
+		if(profession_info.Loadout)then
+			for _, weapon_class in ipairs(profession_info.Loadout) do
+				if(!stripped_weapons[weapon_class] and ply:HasWeapon(weapon_class))then
+					ply:StripWeapon(weapon_class)
+					stripped_weapons[weapon_class] = true
+				end
+			end
+		end
+	end
+end
+
+function MODE.ResetProfessionStats(ply)
+	if(!IsValid(ply))then
+		return
+	end
+
+	local base_health = MODE.BaseProfessionHealth
+	local old_max_health = math.max((ply:GetMaxHealth() > 0 and ply:GetMaxHealth()) or base_health, 1)
+	local current_health = math.max(ply:Health(), 0)
+	local health_ratio = math.Clamp(current_health / old_max_health, 0, 1)
+
+	ply:SetMaxHealth(base_health)
+
+	if(ply:Alive())then
+		ply:SetHealth(math.Clamp(math.Round(base_health * health_ratio), 1, base_health))
+	end
+
+	if(ply.organism and ply.organism.stamina)then
+		local stamina = ply.organism.stamina
+		local old_stamina_range = math.max(stamina.range or MODE.BaseProfessionStamina, 1)
+		local current_stamina = math.max(stamina[1] or old_stamina_range, 0)
+		local stamina_ratio = math.Clamp(current_stamina / old_stamina_range, 0, 1)
+
+		stamina.range = MODE.BaseProfessionStamina
+		stamina.max = MODE.BaseProfessionStamina
+		stamina[1] = math.Clamp(math.Round(MODE.BaseProfessionStamina * stamina_ratio), 0, stamina.max)
+	end
+end
+
+function MODE.ApplyProfessionLoadout(ply)
+	if(!IsValid(ply))then
+		return
+	end
+
+	MODE.ResetProfessionStats(ply)
+
+	if(!ply.Profession)then
+		return
+	end
+
+	local profession_info = MODE.Professions[ply.Profession]
+
+	if(profession_info)then
+		if(profession_info.HealthMultiplier and profession_info.HealthMultiplier != 1)then
+			local max_health = math.max(1, math.Round(MODE.BaseProfessionHealth * profession_info.HealthMultiplier))
+			local health_ratio = math.Clamp(ply:Health() / MODE.BaseProfessionHealth, 0, 1)
+
+			ply:SetMaxHealth(max_health)
+
+			if(ply:Alive())then
+				ply:SetHealth(math.Clamp(math.Round(max_health * health_ratio), 1, max_health))
+			end
+		end
+
+		if(profession_info.StaminaMultiplier and profession_info.StaminaMultiplier != 1 and ply.organism and ply.organism.stamina)then
+			local stamina = ply.organism.stamina
+			local stamina_ratio = math.Clamp((stamina[1] or MODE.BaseProfessionStamina) / MODE.BaseProfessionStamina, 0, 1)
+			local stamina_max = math.max(1, math.Round(MODE.BaseProfessionStamina * profession_info.StaminaMultiplier))
+
+			stamina.range = stamina_max
+			stamina.max = stamina_max
+			stamina[1] = math.Clamp(math.Round(stamina_max * stamina_ratio), 0, stamina.max)
+		end
+	end
+
+	if(profession_info and profession_info.SpawnFunction)then
+		profession_info.SpawnFunction(ply)
+	end
+end
+
+function MODE.SyncProfession(ply)
+	if(!IsValid(ply))then
+		return
+	end
+
+	net.Start("HMCD(SetProfession)")
+		net.WriteString(ply.Profession or "")
+	net.Send(ply)
+end
+
+local function HMCDCanApplyProfessionNow(ply)
+	local mode = CurrentRound()
+
+	return IsValid(ply) and mode and mode.name == "hmcd" and zb.ROUND_STATE == 1 and ply:Team() != TEAM_SPECTATOR and ply:Alive() and !ply.isTraitor
+end
+
+local function HMCDGetProfessionMaxPlayers(profession_id, round_type)
+	local round_info = round_type and MODE.RoleChooseRoundTypes[round_type] and MODE.RoleChooseRoundTypes[round_type].Professions and MODE.RoleChooseRoundTypes[round_type].Professions[profession_id]
+
+	if(round_info and round_info.MaxPlayers)then
+		return round_info.MaxPlayers
+	end
+
+	local profession_info = MODE.Professions[profession_id]
+
+	if(profession_info and profession_info.MaxPlayers)then
+		return profession_info.MaxPlayers
+	end
+end
+
+local function HMCDCountProfessionAssignments(profession_id, field_name, exclude_ply)
+	local profession_count = 0
+
+	for _, current_ply in player.Iterator() do
+		if(current_ply != exclude_ply and MODE.NormalizeProfessionId(current_ply[field_name]) == profession_id)then
+			profession_count = profession_count + 1
+		end
+	end
+
+	return profession_count
+end
+
+local function HMCDValidateProfessionCapacity(target_ply, profession_id, round_type)
+	local max_players = HMCDGetProfessionMaxPlayers(profession_id, round_type)
+
+	if(!max_players)then
+		return true
+	end
+
+	local counting_field = HMCDCanApplyProfessionNow(target_ply) and "Profession" or "HMCDPreferredProfession"
+	local current_count = HMCDCountProfessionAssignments(profession_id, counting_field, target_ply)
+
+	if(current_count >= max_players)then
+		local profession_name = (MODE.Professions[profession_id] and MODE.Professions[profession_id].Name) or profession_id
+
+		return false, "The innocent class '" .. profession_name .. "' is limited to " .. max_players .. " players."
+	end
+
+	return true
+end
+
+local function HMCDParseCommandArguments(text)
+	local arguments = {}
+	local waiting_for_quote = false
+	local quoted_text = nil
+
+	for _, current_part in ipairs(string.Split(string.Trim(text or ""), " ")) do
+		if(current_part == "")then
+			continue
+		end
+
+		if(!waiting_for_quote and string.sub(current_part, 1, 1) == "\"")then
+			if(string.sub(current_part, -1) == "\"" and #current_part > 1)then
+				arguments[#arguments + 1] = string.sub(current_part, 2, -2)
+			else
+				waiting_for_quote = true
+				quoted_text = string.sub(current_part, 2)
+			end
+
+			continue
+		end
+
+		if(waiting_for_quote)then
+			if(string.sub(current_part, -1) == "\"")then
+				waiting_for_quote = nil
+				arguments[#arguments + 1] = (quoted_text != "" and (quoted_text .. " ") or "") .. string.sub(current_part, 1, -2)
+				quoted_text = nil
+			else
+				quoted_text = (quoted_text != "" and (quoted_text .. " ") or "") .. current_part
+			end
+
+			continue
+		end
+
+		arguments[#arguments + 1] = current_part
+	end
+
+	if(waiting_for_quote and quoted_text and quoted_text != "")then
+		arguments[#arguments + 1] = quoted_text
+	end
+
+	return arguments
+end
+
+local function HMCDFindSinglePlayerByName(name)
+	local trimmed_name = string.Trim(name or "")
+
+	if(trimmed_name == "")then
+		return nil, "Please specify a player name."
+	end
+
+	local lowered_name = string.lower(trimmed_name)
+	local partial_matches = {}
+
+	for _, target_ply in player.Iterator() do
+		local player_name = string.lower(target_ply:Name())
+
+		if(player_name == lowered_name)then
+			return target_ply
+		end
+
+		if(string.find(player_name, lowered_name, 1, true))then
+			partial_matches[#partial_matches + 1] = target_ply
+		end
+	end
+
+	if(#partial_matches == 1)then
+		return partial_matches[1]
+	end
+
+	if(#partial_matches == 0)then
+		return nil, "No player matches '" .. trimmed_name .. "'."
+	end
+
+	return nil, "Multiple players match '" .. trimmed_name .. "'."
+end
+
+local function HMCDParseInnoclassSelection(arguments)
+	local arguments_count = #arguments
+
+	for end_index = arguments_count, 2, -1 do
+		local profession_id = MODE.NormalizeProfessionId(table.concat(arguments, " ", 2, end_index))
+
+		if(profession_id)then
+			return profession_id, string.Trim(table.concat(arguments, " ", end_index + 1))
+		end
+	end
+
+	for start_index = 3, arguments_count do
+		local profession_id = MODE.NormalizeProfessionId(table.concat(arguments, " ", start_index, arguments_count))
+
+		if(profession_id)then
+			return profession_id, string.Trim(table.concat(arguments, " ", 2, start_index - 1))
+		end
+	end
+end
+
+local function HMCDApplyProfessionSelection(actor_ply, target_ply, profession_id)
+	target_ply.HMCDPreferredProfession = profession_id
+
+	local profession_name = (MODE.Professions[profession_id] and MODE.Professions[profession_id].Name) or profession_id
+
+	if(HMCDCanApplyProfessionNow(target_ply))then
+		target_ply.Profession = profession_id
+		MODE.ClearProfessionLoadout(target_ply)
+		MODE.ApplyProfessionLoadout(target_ply)
+
+		local hands = target_ply:GetWeapon("weapon_hands_sh")
+
+		if(IsValid(hands))then
+			target_ply:SetActiveWeapon(hands)
+		end
+
+		MODE.SyncProfession(target_ply)
+
+		if(actor_ply == target_ply)then
+			actor_ply:ChatPrint("Your innocent class has been set to " .. profession_name .. " and applied for this round.")
+		else
+			actor_ply:ChatPrint(target_ply:Name() .. "'s innocent class has been set to " .. profession_name .. " and applied for this round.")
+			target_ply:ChatPrint(actor_ply:Name() .. " set your innocent class to " .. profession_name .. " and applied it for this round.")
+		end
+	else
+		if(actor_ply == target_ply)then
+			actor_ply:ChatPrint("Your innocent class has been set to " .. profession_name .. ". It will apply the next time you spawn as an innocent in Homicide.")
+		else
+			actor_ply:ChatPrint(target_ply:Name() .. "'s innocent class has been set to " .. profession_name .. ". It will apply the next time they spawn as an innocent in Homicide.")
+			target_ply:ChatPrint(actor_ply:Name() .. " set your innocent class to " .. profession_name .. ". It will apply the next time you spawn as an innocent in Homicide.")
+		end
+	end
+end
+
+MODE.ApplyProfessionSelection = HMCDApplyProfessionSelection
+
+hook.Add("HG_PlayerSay", "HMCD_InnoclassCommand", function(ply, txtTbl, text)
+	if(string.sub(text or "", 1, 1) != "!")then
+		return
+	end
+
+	local arguments = HMCDParseCommandArguments(string.sub(text or "", 2))
+	local command = string.lower(arguments[1] or "")
+
+	if(command != "innoclass")then
+		return
+	end
+
+	txtTbl[1] = ""
+
+	local mode = CurrentRound()
+	local round_type = mode and mode.name == "hmcd" and mode.Type or nil
+	local available_classes = MODE.GetAvailableProfessionList(round_type)
+
+	if(!arguments[2])then
+		ply:ChatPrint("Available innocent classes: " .. available_classes)
+		return
+	end
+
+	local profession_id, target_name = HMCDParseInnoclassSelection(arguments)
+
+	if(!profession_id)then
+		local entered_class = string.Trim(table.concat(arguments, " ", 2))
+
+		ply:ChatPrint("Unknown innocent class '" .. entered_class .. "'. Available classes: " .. available_classes)
+		return
+	end
+
+	if(round_type and MODE.RoleChooseRoundTypes[round_type] and !MODE.RoleChooseRoundTypes[round_type].Professions[profession_id])then
+		ply:ChatPrint("The class '" .. profession_id .. "' is not available in this Homicide type. Available classes: " .. available_classes)
+		return
+	end
+
+	local target_ply = ply
+
+	if(target_name and target_name != "")then
+		if(!ply:IsAdmin())then
+			ply:ChatPrint("You can only set another player's innocent class as an admin.")
+			return
+		end
+
+		local find_error
+		target_ply, find_error = HMCDFindSinglePlayerByName(target_name)
+
+		if(!IsValid(target_ply))then
+			ply:ChatPrint(find_error)
+			return
+		end
+	end
+
+	HMCDApplyProfessionSelection(ply, target_ply, profession_id)
+end)
 
 MODE.Type = MODE.Type or "standard"
 MODE.Types = MODE.Types or {}
@@ -645,8 +1078,6 @@ function MODE:SubModes()
 	return modes
 end
 
-local homicide_traitoramount = ConVarExists("homicide_traitoramount") and GetConVar("homicide_traitoramount") or CreateConVar("homicide_traitoramount", 1, FCVAR_SERVER_CAN_EXECUTE + FCVAR_ARCHIVE, "Homicide Only: Determine how many traitors should innocents face in homicide.", 1, 20)
-
 function MODE:Intermission()
 	game.CleanUpMap()
 
@@ -657,6 +1088,7 @@ function MODE:Intermission()
 	end
 
 	self.Type = CROUND
+
 	local player_count = 0
 
 	for k, ply in player.Iterator() do
@@ -679,15 +1111,11 @@ function MODE:Intermission()
 	MODE.TraitorFrequency = nil
 	MODE.TraitorWord = MODE.TraitorWords[math.random(1, #MODE.TraitorWords)]
 	MODE.TraitorWordSecond = MODE.TraitorWords[math.random(1, #MODE.TraitorWords)]
-
-	local traitors_needed = math.min(player_count - 1, homicide_traitoramount:GetInt())
 	
-	if(MODE.ShouldStartRoleRound())then
-		traitors_needed = math.ceil(player_count / 9)
-		
-		if(player_count > 8 and math.random(1, 8) == 1)then
-			traitors_needed = traitors_needed + 1
-		end
+	local traitors_needed = 1
+
+	if player_count >= 15 then
+    	traitors_needed = 2
 	end
 
 	MODE.TraitorExpectedAmt = traitors_needed
@@ -1542,6 +1970,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
     for i, ply in player.Iterator() do
         if(ply:Team() != TEAM_SPECTATOR)then
             player_count = player_count + 1
+			ply.Profession = nil
         end
     end
 
@@ -1553,34 +1982,105 @@ function MODE.SpawnPlayers(spawn_with_subroles)
         if(professions_possible_pre)then
             local professions_possible = {}
             local professions_count_to_satisfy = math.ceil(player_count / 2)
+            local profession_counts = {}
+
+            local function GetProfessionMaxPlayers(profession_id)
+                return HMCDGetProfessionMaxPlayers(profession_id, MODE.Type)
+            end
+
+            local function CanAssignProfession(profession_id)
+                local max_players = GetProfessionMaxPlayers(profession_id)
+
+                return !max_players or (profession_counts[profession_id] or 0) < max_players
+            end
+
+            local function AssignProfession(ply, profession_id)
+                if(!profession_id or !CanAssignProfession(profession_id))then
+                    return false
+                end
+
+                ply.Profession = profession_id
+                profession_counts[profession_id] = (profession_counts[profession_id] or 0) + 1
+                professions_count_to_satisfy = professions_count_to_satisfy - 1
+
+                return true
+            end
+
+            local function GetWeightedProfessionPool()
+                local available_professions = {}
+
+                for profession_key, profession_data in ipairs(professions_possible) do
+                    local profession_chance = profession_data[1]
+                    local profession_id = profession_data[2]
+
+                    if(profession_chance > 0 and CanAssignProfession(profession_id))then
+                        available_professions[#available_professions + 1] = {profession_chance, profession_id, profession_key}
+                    end
+                end
+
+                return available_professions
+            end
 
             for profession, profession_info in pairs(professions_possible_pre) do
                 professions_possible[#professions_possible + 1] = {profession_info.Chance, profession}
             end
 
             for _, ply in RandomPairs(player.GetAll()) do
-                if(ply:Team() != TEAM_SPECTATOR)then
-                    if((math.random(100) <= (ply.Karma or 100)) and (math.random(1, 3) == 1 or (!ply.isTraitor and !ply.isGunner)))then
-                        local profession_key, profession = hg.WeightedRandomSelect(professions_possible)
-                        professions_possible[profession_key][1] = professions_possible[profession_key][1] / 2
-                        ply.Profession = profession
-                        professions_count_to_satisfy = professions_count_to_satisfy - 1
-                        
-                        if(professions_count_to_satisfy == 0)then
-                            break
-                        end
-                    end
+                if(ply:Team() != TEAM_SPECTATOR and !ply.isTraitor)then
+					local preferred_profession = MODE.NormalizeProfessionId(ply.HMCDPreferredProfession)
+
+					if(preferred_profession and professions_possible_pre[preferred_profession])then
+						AssignProfession(ply, preferred_profession)
+					end
                 end
             end
-            
+
+			if(professions_count_to_satisfy > 0)then
+				for _, ply in RandomPairs(player.GetAll()) do
+					if(ply:Team() != TEAM_SPECTATOR and !ply.isTraitor and !ply.Profession)then
+						if((math.random(100) <= (ply.Karma or 100)) and (math.random(1, 3) == 1 or !ply.isGunner))then
+							local available_professions = GetWeightedProfessionPool()
+
+							if(#available_professions == 0)then
+								break
+							end
+
+							local available_key, profession = hg.WeightedRandomSelect(available_professions)
+							local selected_profession = available_professions[available_key]
+							local profession_key = selected_profession and selected_profession[3]
+
+							if(profession_key)then
+								professions_possible[profession_key][1] = professions_possible[profession_key][1] / 2
+							end
+
+							AssignProfession(ply, profession)
+							
+							if(professions_count_to_satisfy == 0)then
+								break
+							end
+						end
+					end
+				end
+			end
 
             if(professions_count_to_satisfy > 0)then
                 for _, ply in RandomPairs(player.GetAll()) do
-                    if(ply:Team() != TEAM_SPECTATOR and !ply.Profession)then
-                        local profession_key, profession = hg.WeightedRandomSelect(professions_possible)
-                        professions_possible[profession_key][1] = professions_possible[profession_key][1] / 2
-                        ply.Profession = profession
-                        professions_count_to_satisfy = professions_count_to_satisfy - 1
+                    if(ply:Team() != TEAM_SPECTATOR and !ply.isTraitor and !ply.Profession)then
+                        local available_professions = GetWeightedProfessionPool()
+
+                        if(#available_professions == 0)then
+                            break
+                        end
+
+                        local available_key, profession = hg.WeightedRandomSelect(available_professions)
+                        local selected_profession = available_professions[available_key]
+                        local profession_key = selected_profession and selected_profession[3]
+
+                        if(profession_key)then
+                            professions_possible[profession_key][1] = professions_possible[profession_key][1] / 2
+                        end
+
+                        AssignProfession(ply, profession)
                         
                         if(professions_count_to_satisfy == 0)then
                             break
@@ -1669,7 +2169,14 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             end
 
             local hands = current_ply:Give("weapon_hands_sh")
-            current_ply:SetActiveWeapon(hands)
+
+			if(current_ply.Profession)then
+				MODE.ApplyProfessionLoadout(current_ply)
+			end
+
+			if(IsValid(hands))then
+				current_ply:SetActiveWeapon(hands)
+			end
             current_ply:SetNetVar("flashlight", false)
 
             local this_player = current_ply

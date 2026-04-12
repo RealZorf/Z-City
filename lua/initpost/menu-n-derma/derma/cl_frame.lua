@@ -5,8 +5,8 @@ local PANEL = {}
 --[[
 hg.VGUI.SecondaryColor = Color(155,0,0,240)
 hg.VGUI.BackgroundColor = Color(25,25,35,220)]]
-local color_blacky = Color(25,25,30,220)
-local color_reddy = Color(155,0,0,240)
+local color_blacky = Color(8, 18, 34, 220)
+local color_reddy = Color(125, 205, 255, 240)
 
 function PANEL:Init()
     self.Itensens = {}
@@ -76,4 +76,3 @@ function PANEL:Close()
 end
 
 vgui.Register( "ZFrame", PANEL, "DFrame")
-

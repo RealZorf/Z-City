@@ -12,12 +12,24 @@ function hg.Appearance.CreateAppearanceFile(strFile_name, tblAppearance)
 end
 
 function hg.Appearance.LoadAppearanceFile(strFile_name)
-	if not file.Exists(dir .. strFile_name .. ".json", "DATA") then return false end
-	local tblAppearance = util.JSONToTable(file.Read(dir .. strFile_name .. ".json"))
+	local path = dir .. strFile_name .. ".json"
+	if not file.Exists(path, "DATA") then return false, "file not found [data/" .. path .. "]" end
 
-	if not hg.Appearance.AppearanceValidater(tblAppearance) then return false, "file is damaged [data/zcity/appearances/" .. strFile_name .. ".json]"  end
+	local rawAppearance = file.Read(path, "DATA")
+	if not rawAppearance or rawAppearance == "" then return false, "file is empty or unreadable [data/" .. path .. "]" end
+
+	local tblAppearance = util.JSONToTable(rawAppearance)
+
+	if not hg.Appearance.AppearanceValidater(tblAppearance) then return false, "file is damaged [data/" .. path .. "]" end
 
 	return tblAppearance
+end
+
+local function PrintAppearanceLoadError(reason)
+	local ply = LocalPlayer()
+	if not IsValid(ply) then return end
+
+	ply:ChatPrint("[Appearance] file load failed - " .. (reason or "unknown error"))
 end
 
 function hg.Appearance.GetAppearanceList()
@@ -39,7 +51,7 @@ net.Receive("Get_Appearance", function()
         net.WriteBool(not tbl)
     net.SendToServer()
 
-	if not tbl and not forced_random and reason then lply:ChatPrint("[Appearance] file load failed - " .. reason) end
+	if not tbl and not forced_random then PrintAppearanceLoadError(reason) end
 end)
 
 local function OnlyGetAppearance()
@@ -55,7 +67,7 @@ local function OnlyGetAppearance()
 
     net.SendToServer()
 
-	if not tbl and not forced_random and reason then lply:ChatPrint("[Appearance] file load failed - " .. reason) end
+	if not tbl and not forced_random then PrintAppearanceLoadError(reason) end
 end
 
 net.Receive("OnlyGet_Appearance", OnlyGetAppearance)

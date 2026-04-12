@@ -866,6 +866,23 @@ local function solve(segments, iter, turn)
     return final
 end
 
+local function ensureArmSegments( segments, upperarmMatrix, forearmMatrix, handMatrix, limbLength )
+    local upperPos = upperarmMatrix:GetTranslation()
+    local forearmPos = forearmMatrix:GetTranslation()
+    local handPos = handMatrix:GetTranslation()
+
+    segments[1] = segments[1] or {Pos = upperPos, Len = limbLength}
+    segments[2] = segments[2] or {Pos = forearmPos, Len = limbLength}
+    segments[3] = segments[3] or {Pos = handPos, Len = 12}
+
+    segments[1].Pos = segments[1].Pos or upperPos
+    segments[2].Pos = segments[2].Pos or forearmPos
+    segments[3].Pos = segments[3].Pos or handPos
+    segments[1].Len = segments[1].Len or limbLength
+    segments[2].Len = segments[2].Len or limbLength
+    segments[3].Len = segments[3].Len or 12
+end
+
 function hg.DoTPIK(ply, ent)
     local ply_spine_index = ent:LookupBone("ValveBiped.Bip01_Head1")
     if !ply_spine_index then return end
@@ -928,7 +945,8 @@ function hg.DoTPIK(ply, ent)
 
     ply.lhold = nil 
     ply.rhold = nil
-    if not ply_r_hand_matrix or not ply_l_hand_matrix then return end
+    if not ply_r_upperarm_matrix or not ply_r_forearm_matrix or not ply_r_hand_matrix then return end
+    if not ply_l_upperarm_matrix or not ply_l_forearm_matrix or not ply_l_hand_matrix then return end
 
 	local self = ply:GetActiveWeapon()
 
@@ -980,12 +998,10 @@ function hg.DoTPIK(ply, ent)
     //local l_forearm_length = limblength
 
     ply.segmentsr = ply.segmentsr or {}
-    ply.segmentsr[1] = ply.segmentsr[1] or {Pos = Vector(), Len = 0}
-    ply.segmentsr[2] = ply.segmentsr[2] or {Pos = Vector(), Len = 0}
+    ensureArmSegments( ply.segmentsr, ply_r_upperarm_matrix, ply_r_forearm_matrix, ply_r_hand_matrix, limblength )
 
     ply.segmentsl = ply.segmentsl or {}
-    ply.segmentsl[1] = ply.segmentsl[1] or {Pos = Vector(), Len = 0}
-    ply.segmentsl[2] = ply.segmentsl[2] or {Pos = Vector(), Len = 0}
+    ensureArmSegments( ply.segmentsl, ply_l_upperarm_matrix, ply_l_forearm_matrix, ply_l_hand_matrix, limblength )
     
     if not ply.BonesLength then
         ply.BonesLength = {}

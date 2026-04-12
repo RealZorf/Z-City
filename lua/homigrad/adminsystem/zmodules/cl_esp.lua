@@ -6,14 +6,23 @@ local ESP = {}
 ESP.Enabled = false
 ESP.InAdminMode = false
 ESP.AllESP = false
+ESP.ToggleKeyDown = false
+ESP.NextToggle = 0
 
 local ESPEye = CreateClientConVar("zb_espeye", "0", true, false, "Show admin ESP eye trace line")
+local liveESPUserGroups = {
+	["superadmin"] = true,
+	["headadmin"] = true,
+	["developer"] = true
+}
 
 local col_default = Color(255, 0, 0)
 local col_white = Color(255, 255, 255)
 local col_gray = Color(180, 180, 180)
 local col_weapon = Color(255, 200, 100)
 local col_box_outline = Color(0, 0, 0, 200)
+local SHOW_TARGET_OUTLINE = true
+local SHOW_TARGET_BOX = false
 
 local teamColors = {
 	[0] = Color(200, 200, 200),
@@ -24,16 +33,26 @@ local teamColors = {
 	[1001] = Color(150, 150, 150),
 }
 
-local function GetPlayerTeamColor(target)
-	if !IsValid(target) then return col_default end
-	
-	local tm = target:Team()
-	
+local function CanUseLiveESPClient( ply )
+	if !IsValid( ply ) then return false end
+	return liveESPUserGroups[string.lower( ply:GetUserGroup() or "" )] == true
+end
+
+local function CanUseESPClient( ply )
+	if !IsValid( ply ) then return false end
+	return ply:IsAdmin() or CanUseLiveESPClient( ply )
+end
+
+local function CanRenderESP( ply )
+	return IsValid( ply ) and ESP.Enabled
+end
+
+local function GetESPTeamColor(tm)
 	local teamCol = team.GetColor(tm)
 	if teamCol and (teamCol.r != 255 or teamCol.g != 255 or teamCol.b != 255) then
 		return Color(teamCol.r, teamCol.g, teamCol.b, 255)
 	end
-	
+
 	if zb and zb.Points then
 		for pointName, pointData in pairs(zb.Points) do
 			if pointData.Color and pointData.Team == tm then
@@ -41,12 +60,17 @@ local function GetPlayerTeamColor(target)
 			end
 		end
 	end
-	
+
 	if teamColors[tm] then
 		return teamColors[tm]
 	end
-	
+
 	return col_default
+end
+
+local function GetPlayerTeamColor(target)
+	if !IsValid(target) then return col_default end
+	return GetESPTeamColor(target:Team())
 end
 
 local UpVector = Vector(0, 0, 80)
@@ -70,15 +94,15 @@ local weaponClasses = {
 
 local function GetWeaponClass(wep)
 	if !IsValid(wep) then return "None" end
-	
+
 	local class = wep:GetClass()
-	
+
 	if weaponClasses[class] then
 		return weaponClasses[class]
 	end
-	
+
 	local lclass = string.lower(class)
-	
+
 	if string.find(lclass, "pistol") or string.find(lclass, "glock") or string.find(lclass, "deagle") or string.find(lclass, "usp") then
 		return "Pistol"
 	elseif string.find(lclass, "smg") or string.find(lclass, "mp5") or string.find(lclass, "mac10") or string.find(lclass, "p90") then
@@ -98,38 +122,51 @@ local function GetWeaponClass(wep)
 	elseif string.find(lclass, "lmg") or string.find(lclass, "m249") or string.find(lclass, "negev") then
 		return "LMG"
 	end
-	
+
 	local printName = wep:GetPrintName()
 	if printName and printName != "" then
 		return printName
 	end
-	
+
 	return "Unknown"
 end
 
 local function ShouldShowPlayer(ply, target)
 	if target == ply then return false end
-	if not IsValid(target) or not target:Alive() then return false end
+	if !IsValid(target) or !target:Alive() then return false end
 	if target:Team() == TEAM_SPECTATOR then return false end
-	
+
 	if ESP.AllESP then
 		return true
 	end
-	
-	if ply:IsSuperAdmin() and target:Team() == ply:Team() then
-		return false
-	end
+
 	return true
+end
+
+local function GetPlayerRenderEntity(target)
+	if !IsValid(target) then return nil end
+
+	local ragdoll = target.FakeRagdoll
+	if IsValid(ragdoll) then
+		return ragdoll
+	end
+
+	ragdoll = target:GetNWEntity("FakeRagdoll", NULL)
+	if IsValid(ragdoll) then
+		return ragdoll
+	end
+
+	return target
 end
 
 local function Get2DBox(ent)
 	if !IsValid(ent) then return nil end
-	
+
 	local mins = ent:OBBMins()
 	local maxs = ent:OBBMaxs()
 	local pos = ent:GetPos()
 	local ang = Angle(0, ent:GetAngles().y, 0)
-	
+
 	local corners = {
 		Vector(mins.x, mins.y, mins.z),
 		Vector(mins.x, maxs.y, mins.z),
@@ -140,22 +177,22 @@ local function Get2DBox(ent)
 		Vector(maxs.x, maxs.y, maxs.z),
 		Vector(maxs.x, mins.y, maxs.z)
 	}
-	
+
 	local minX, minY = ScrW(), ScrH()
 	local maxX, maxY = 0, 0
-	
+
 	for _, corner in ipairs(corners) do
-		local worldPos = LocalToWorld(corner, Angle(0,0,0), pos, ang)
+		local worldPos = LocalToWorld(corner, Angle(0, 0, 0), pos, ang)
 		local screen = worldPos:ToScreen()
-		
+
 		if !screen.visible then return nil end
-		
+
 		minX = math.min(minX, screen.x)
 		minY = math.min(minY, screen.y)
 		maxX = math.max(maxX, screen.x)
 		maxY = math.max(maxY, screen.y)
 	end
-	
+
 	return minX, minY, maxX - minX, maxY - minY
 end
 
@@ -173,84 +210,103 @@ function ESP:SetupNetworking()
 end
 
 function ESP:SetupHooks()
+	hook.Remove("Think", "AS_ESP_ToggleKey")
+	hook.Remove("PlayerButtonDown", "AS_ESP_ToggleKey")
+	hook.Remove("SetupOutlines", "AS_ESP_Outlines")
+	hook.Remove("PreDrawHUD", "AS_ESP_EyeTrace")
+	hook.Remove("HUDPaint", "AS_ESP_Draw")
+
+	hook.Add("PlayerButtonDown", "AS_ESP_ToggleKey", function(ply, button)
+		if ply != LocalPlayer() then return end
+		if button != KEY_O then return end
+		if gui.IsGameUIVisible() or vgui.GetKeyboardFocus() then return end
+		if RealTime() < ESP.NextToggle then return end
+
+		ESP.NextToggle = RealTime() + 0.3
+
+		RunConsoleCommand("zb_admesp")
+	end)
+
 	hook.Add("SetupOutlines", "AS_ESP_Outlines", function(Add)
-		if !ESP.Enabled then return end
-		
+		if !SHOW_TARGET_OUTLINE then return end
+
 		local ply = LocalPlayer()
-		if !IsValid(ply) or !ply:IsAdmin() then return end
-		
+		if !CanRenderESP( ply ) then return end
+
 		local teamTargets = {}
 		for _, target in player.Iterator() do
 			if ShouldShowPlayer(ply, target) then
 				local tm = target:Team()
 				teamTargets[tm] = teamTargets[tm] or {}
-				table.insert(teamTargets[tm], target)
+				local renderTarget = GetPlayerRenderEntity(target)
+				if IsValid(renderTarget) then
+					table.insert(teamTargets[tm], renderTarget)
+				end
 			end
 		end
-		
+
 		for tm, targets in pairs(teamTargets) do
 			if #targets > 0 then
-				local col = GetPlayerTeamColor(targets[1])
-				outline.Add(targets, col, OUTLINE_MODE_BOTH)
+				local col = GetESPTeamColor(tm)
+				Add(targets, col, OUTLINE_MODE_BOTH)
 			end
 		end
 	end)
-	
+
 	hook.Add("PreDrawHUD", "AS_ESP_EyeTrace", function()
-		if !ESP.Enabled then return end
 		if !ESPEye:GetBool() then return end
-		
+
 		local ply = LocalPlayer()
-		if !IsValid(ply) or !ply:IsAdmin() then return end
-		
+		if !CanRenderESP( ply ) then return end
+
 		for _, target in player.Iterator() do
 			if !ShouldShowPlayer(ply, target) then continue end
-			
+
 			local col = GetPlayerTeamColor(target)
 			local eyePos = target:EyePos()
 			local eyeDir = target:EyeAngles():Forward()
 			local endPos = eyePos + eyeDir * 10000
-			
+
 			cam.Start3D()
 				render.DrawLine(eyePos, endPos, col, true)
 			cam.End3D()
 		end
 	end)
-	
+
 	hook.Add("HUDPaint", "AS_ESP_Draw", function()
-		if !ESP.Enabled then return end
-		
 		local ply = LocalPlayer()
-		if !IsValid(ply) or !ply:IsAdmin() then return end
-		
+		if !CanRenderESP( ply ) then return end
+
 		local myPos = ply:GetPos()
-		
+
 		for _, target in player.Iterator() do
 			if !ShouldShowPlayer(ply, target) then continue end
-			
+
 			local col = GetPlayerTeamColor(target)
-			
-			local x, y, w, h = Get2DBox(target)
-			if x then
+			local renderTarget = GetPlayerRenderEntity(target)
+			if !IsValid(renderTarget) then continue end
+
+			local x, y, w, h = Get2DBox(renderTarget)
+			if SHOW_TARGET_BOX and x then
 				surface.SetDrawColor(col_box_outline)
 				surface.DrawOutlinedRect(x - 1, y - 1, w + 2, h + 2, 1)
 				surface.DrawOutlinedRect(x + 1, y + 1, w - 2, h - 2, 1)
-				
+
 				surface.SetDrawColor(col)
 				surface.DrawOutlinedRect(x, y, w, h, 2)
 			end
-			
-			local screenPos = (target:GetPos() + UpVector):ToScreen()
+
+			local screenPos = (renderTarget:WorldSpaceCenter() + UpVector * 0.25):ToScreen()
 			if !screenPos.visible then continue end
-			
+
 			local sx, sy = screenPos.x, screenPos.y
-			local dist = math.floor(myPos:Distance(target:GetPos()) / 52.49)
-			
+			local dist = math.floor(myPos:Distance(renderTarget:GetPos()) / 52.49)
+
 			draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", sx, sy - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
-			
+
 			local bottomY = y and (y + h + 5) or (sy + 50)
 			draw.SimpleTextOutlined(dist .. " m.", "TargetIDSmall", sx, bottomY, col_gray, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, color_black)
-			
+
 			local wep = target:GetActiveWeapon()
 			local weaponClass = GetWeaponClass(wep)
 			draw.SimpleTextOutlined(weaponClass, "TargetIDSmall", sx, bottomY + 14, col_weapon, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, color_black)

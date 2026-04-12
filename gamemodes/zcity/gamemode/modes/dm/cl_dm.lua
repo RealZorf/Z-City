@@ -17,6 +17,69 @@ local snds = {
 }
 
 local deathmatch_nozone = ConVarExists("deathmatch_nozone") and GetConVar("deathmatch_nozone") or CreateConVar("deathmatch_nozone", 0, FCVAR_REPLICATED, "Allows to disable deathmatch mode zone.", 0, 1)
+local MusicVolume = GetConVar("snd_musicvolume")
+local deathmatchThemeStation
+
+local function IsDeathmatchZoneMode(mode)
+	return mode and mode.UsesDeathmatchZone
+end
+
+local function StopDeathmatchTheme()
+	if IsValid(deathmatchThemeStation) then
+		deathmatchThemeStation:Stop()
+	end
+
+	deathmatchThemeStation = nil
+end
+
+local function GetDeathmatchThemePath(round)
+	local themePath = round and round.ThemeMusicFile
+	if not themePath or themePath == "" then return nil end
+
+	if string.StartWith(themePath, "sound/") then
+		return themePath
+	end
+
+	return "sound/" .. themePath
+end
+
+local function StartDeathmatchTheme(round)
+	local themePath = GetDeathmatchThemePath(round)
+	if not themePath then return false end
+
+	local expectedRoundName = round.name
+	StopDeathmatchTheme()
+
+	sound.PlayFile(themePath, "noblock noplay", function(station, errCode, errStr)
+		if not IsValid(station) then
+			print(errCode, errStr)
+
+			local currentRound = CurrentRound()
+			if currentRound and currentRound.name == expectedRoundName and hg.DynaMusic then
+				hg.DynaMusic:Start("mirrors_edge")
+			end
+
+			return
+		end
+
+		local currentRound = CurrentRound()
+		if not currentRound or currentRound.name != expectedRoundName then
+			station:Stop()
+			return
+		end
+
+		if hg.DynaMusic then
+			hg.DynaMusic:Stop()
+		end
+
+		deathmatchThemeStation = station
+		station:EnableLooping(true)
+		station:SetVolume((round.ThemeMusicVolume or 0.35) * ((MusicVolume and MusicVolume:GetFloat()) or 1))
+		station:Play()
+	end)
+
+	return true
+end
 
 local function restartMusic()
 	local snd = snds[math.random(#snds)]
@@ -42,7 +105,12 @@ end
 net.Receive("dm_start",function()
 	roundend = false
 
-	hg.DynaMusic:Start( "mirrors_edge" )
+	local round = CurrentRound() or MODE
+	if round.ThemeMusicFile then
+		StartDeathmatchTheme(round)
+	else
+		hg.DynaMusic:Start("mirrors_edge")
+	end
 
 	zb.RemoveFade()
 	
@@ -62,7 +130,8 @@ net.Receive("dm_start",function()
 end)
 
 hook.Add("Think", "ZoneSoundThink", function()
-	if CurrentRound() and CurrentRound().name ~= "dm" then return end
+	local round = CurrentRound()
+	if not IsDeathmatchZoneMode(round) then return end
 	local station = zb.SoundStation
 	if not IsValid(station) then return end
 	if deathmatch_nozone:GetBool() then return end
@@ -71,11 +140,30 @@ hook.Add("Think", "ZoneSoundThink", function()
 	station:SetVolume(volume)
 end)
 
-local fighter = {
-    objective = "Kill everyone.",
-    name = "Fighter",
-    color1 = Color(0,120,190)
-}
+hook.Add("Think", "DeathmatchThemeVolumeThink", function()
+	if not IsValid(deathmatchThemeStation) then return end
+
+	local round = CurrentRound()
+	if not round or not round.ThemeMusicFile then
+		StopDeathmatchTheme()
+		return
+	end
+
+	deathmatchThemeStation:SetVolume((round.ThemeMusicVolume or 0.35) * ((MusicVolume and MusicVolume:GetFloat()) or 1))
+
+	if deathmatchThemeStation:GetState() != GMOD_CHANNEL_PLAYING then
+		deathmatchThemeStation:Play()
+	end
+end)
+
+hook.Add("RoundInfoCalled", "DeathmatchThemeRoundInfo", function(rnd)
+	if not IsValid(deathmatchThemeStation) then return end
+
+	local currentRound = CurrentRound()
+	if currentRound and currentRound.ThemeMusicFile and rnd != currentRound.name then
+		StopDeathmatchTheme()
+	end
+end)
 
 --local zonemodel = ClientsideModel("models/hunter/misc/sphere375x375.mdl",RENDERGROUP_TRANSLUCENT)
 --zonemodel:SetNoDraw(true)
@@ -135,17 +223,29 @@ function MODE:HUDPaint()
     if zb.ROUND_START + 8.5 < CurTime() then return end
 	zb.RemoveFade()
     local fade = math.Clamp(zb.ROUND_START + 8 - CurTime(),0,1)
-    
-    draw.SimpleText("Homicide | DeathMatch", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0,162,255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    local Rolename = fighter.name
-	local ColorRole = fighter.color1
-    ColorRole.a = 255 * fade
-    draw.SimpleText("You are a "..Rolename , "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-    local Objective = fighter.objective
-    local ColorObj = fighter.color1
-    ColorObj.a = 255 * fade
-    draw.SimpleText( Objective, "ZB_HomicideMedium", sw * 0.5, sh * 0.9, ColorObj, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	local round = CurrentRound() or MODE
+	local introColor = round.IntroColor or Color(0,120,190)
+	local title = round.IntroTitle or "Homicide | DeathMatch"
+	local roleName = round.IntroRoleName or "Fighter"
+	local objective = round.IntroObjective or "Kill everyone."
+	local description = round.IntroDescription
+
+	local titleColor = Color(introColor.r, introColor.g, introColor.b, 255 * fade)
+	draw.SimpleText(title, "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, titleColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+	local roleColor = Color(introColor.r, introColor.g, introColor.b, 255 * fade)
+	draw.SimpleText("You are a "..roleName, "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.5, roleColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+	local objectiveY = sh * 0.9
+	if description and description != "" then
+		local descriptionColor = Color(introColor.r, introColor.g, introColor.b, 235 * fade)
+		draw.SimpleText(description, "ZB_HomicideMedium", sw * 0.5, sh * 0.82, descriptionColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		objectiveY = sh * 0.9
+	end
+
+	local objectiveColor = Color(introColor.r, introColor.g, introColor.b, 255 * fade)
+	draw.SimpleText(objective, "ZB_HomicideMedium", sw * 0.5, objectiveY, objectiveColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
 	if hg.PluvTown.Active then
 		surface.SetMaterial(hg.PluvTown.PluvMadness)
@@ -160,6 +260,8 @@ local CreateEndMenu = nil
 local wonply = nil
 
 net.Receive("dm_end",function()
+	StopDeathmatchTheme()
+
 	local ent = net.ReadEntity()
 	local most_violent_player = net.ReadEntity()
 

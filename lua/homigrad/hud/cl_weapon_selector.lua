@@ -48,7 +48,10 @@ end
 
 local scrW, scrH = ScrW(), ScrH()
 
-local AcsentColor = Color(155,0,0)
+local selectorAccent = Color(125, 205, 255)
+local selectorAccentSoft = Color(38, 110, 168)
+local selectorBg = Color(8, 18, 34)
+local selectorBgAlt = Color(14, 28, 48)
 local gradient_u = Material("vgui/gradient-d")
 
 function WS.WeaponSelectorDraw( ply )
@@ -102,35 +105,48 @@ function WS.WeaponSelectorDraw( ply )
             if slotTbl[wepId-1] and SelectedWep == slotTbl[wepId-1] then
                 lastPos = (scrH *0.095) 
             end
+            local boxY = (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos
+            local isSelected = SelectedWep == wep
+
             draw.RoundedBox(
                 0,
                 position,
-                (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos,
+                boxY,
                 sizeX,
-                sizeH, 
-                ColorAlpha(color_black,WS.Transparent*205) 
+                sizeH,
+                ColorAlpha(selectorBgAlt, WS.Transparent * 215)
             )
             draw.RoundedBox(
                 0,
                 position,
-                ((scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos) + sizeH-2,
+                boxY + sizeH - 2,
                 sizeX,
-                2, 
-                ColorAlpha(color_black,WS.Transparent*205) 
+                2,
+                ColorAlpha(selectorBg, WS.Transparent * 235)
             )
-            surface.SetDrawColor( 155, 0, 0, WS.Transparent*( SelectedWep == wep and 200 or 0 )  )
+            surface.SetDrawColor(
+                selectorAccentSoft.r,
+                selectorAccentSoft.g,
+                selectorAccentSoft.b,
+                WS.Transparent * (isSelected and 165 or 45)
+            )
             surface.SetMaterial( gradient_u )
-            surface.DrawTexturedRect( position, (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos, sizeX, sizeH )
-            if SelectedWep == wep then
-                surface.SetDrawColor( 255, 0, 0, WS.Transparent*155 )
-	            surface.DrawOutlinedRect( position, (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos, sizeX, sizeH, 2 )
-            end
-            local sizeHi = (scrH *0.025) * (Ammout) + (scrH * 0.05) + lastPos
+            surface.DrawTexturedRect( position, boxY, sizeX, sizeH )
+
+            surface.SetDrawColor(
+                selectorAccent.r,
+                selectorAccent.g,
+                selectorAccent.b,
+                WS.Transparent * (isSelected and 185 or 110)
+            )
+	        surface.DrawOutlinedRect( position, boxY, sizeX, sizeH, isSelected and 2 or 1 )
+
+            local sizeHi = boxY
             sizeHi = sizeHi + 2.5
             WS.DrawText( WS.GetPrintName(wep), "HomigradFontSmall", position + sizeX/2, sizeHi, ColorAlpha(color_white,WS.Transparent*255) ,TEXT_ALIGN_CENTER )
             Ammout = Ammout + 1
 
-            if SelectedWep == wep and wep.DrawWeaponSelection then
+            if isSelected and wep.DrawWeaponSelection then
                 wep:DrawWeaponSelection(position + 5, (scrH * 0.025) * (Ammout) + (scrH * 0.055) + lastPos, sizeX - 10, sizeH, WS.Transparent*255)
             end
         end

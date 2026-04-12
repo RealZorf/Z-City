@@ -1,16 +1,19 @@
 -- https://github.com/YuRaNnNzZZ/gmcl_steamrichpresencer/releases/tag/2023.07.20
 -- https://github.com/fluffy-servers/gmod-discord-rpc/releases/tag/1.2.1
+print("[RPC] file loaded")
 
 function StartDiscordPresence(arguments)
+	print("[RPC] StartDiscordPresence called")
 	if not util.IsBinaryModuleInstalled("gdiscord") then return end
 	require("gdiscord")
 
 	local image = "default"
-	local discord_id = "1365734386619646123"
+	local discord_id = "1482090612797739160"
 	local refresh_time = 30
 	local discord_start = discord_start or -1
 
 	function DiscordUpdate()
+		print("[RPC] DiscordUpdate tick")
 		local ply = LocalPlayer()
 
 		local rpc_data = {}
@@ -36,7 +39,7 @@ function StartDiscordPresence(arguments)
 			mapname = string.sub(mapname, prefix + 1)
 		end
 		local gm = gmod.GetGamemode().Name .. " | " .. string.NiceName(zb ~= nil and zb.GetRoundName or mapname)
-		local text = gm .. " | " .. showip .. " | " .. (ply.exp or 0) .. " XP " .. math.Round(ply.skill or 0, 3) .. " Skill"
+		local text = gm .. " | " .. showip
 		rpc_data["details"] = text
 		rpc_data["startTimestamp"] = discord_start
 		rpc_data["largeImageKey"] = image
@@ -80,7 +83,7 @@ function StartSteamPresence(arguments)
 		local ip = game.GetIPAddress()
 		local showip = ip
 
-		local updatedtext = gm .. " | " .. showip .. " | " .. (ply.exp or 0) .. " XP " .. math.Round(ply.skill or 0, 3) .. " Skill"
+		local updatedtext = gm .. " | " .. showip
 		if ip == "loopback" then
 			showip = "Local Server"
 		end
@@ -105,8 +108,9 @@ function StartSteamPresence(arguments)
 end
 
 hook.Add("PostGamemodeLoaded", "UpdateDiscordStatus", function()
+	print("[RPC] PostGamemodeLoaded runs")
 	StartDiscordPresence()
 	StartSteamPresence()
 end)
 
---print("steam: "..tostring(util.IsBinaryModuleInstalled("steamrichpresencer")),"discord: "..tostring(util.IsBinaryModuleInstalled("gdiscord")))
+print("steam: "..tostring(util.IsBinaryModuleInstalled("steamrichpresencer")),"discord: "..tostring(util.IsBinaryModuleInstalled("gdiscord")))

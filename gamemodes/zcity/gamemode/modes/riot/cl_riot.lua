@@ -167,49 +167,74 @@ CreateEndMenu = function()
 
 	for i,ply in player.Iterator() do
 		if ply:Team() == TEAM_SPECTATOR then continue end
+		local steamID64 = ply.SteamID64 and ply:SteamID64() or nil
+		local fallbackName = (ply.GetPlayerName and ply:GetPlayerName()) or (ply.Name and ply:Name()) or "Unknown Player"
 		local but = vgui.Create("DButton",DScrollPanel)
 		but:SetSize(100,50)
 		but:Dock(TOP)
 		but:DockMargin( 8, 6, 8, -1 )
 		but:SetText("")
 		but.Paint = function(self,w,h)
-            local col1 = (ply:Alive() and colRed) or colGray
-            local col2 = (ply:Alive() and colRedUp) or colSpect1
+			local isValidPly = IsValid(ply)
+			local isAlive = isValidPly and ply:Alive()
+			local col1 = isAlive and colRed or colGray
+			local col2 = isAlive and colRedUp or colSpect1
 			surface.SetDrawColor(col1.r,col1.g,col1.b,col1.a)
 			surface.DrawRect(0,0,w,h)
 			surface.SetDrawColor(col2.r,col2.g,col2.b,col2.a)
 			surface.DrawRect(0,h/2,w,h/2)
 
-            local col = ply:GetPlayerColor():ToColor()
+			local playerName = fallbackName
+			if isValidPly then
+				playerName = (ply.GetPlayerName and ply:GetPlayerName()) or (ply.Name and ply:Name()) or fallbackName
+			end
+
+			local nameColor = colSpect2
+			if isValidPly and ply.GetPlayerColor then
+				nameColor = ply:GetPlayerColor():ToColor()
+			end
+
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
-			local lengthX, lengthY = surface.GetTextSize( ply:GetPlayerName() or "He quited..." )
+			local lengthX, lengthY = surface.GetTextSize(playerName)
 			
 			surface.SetTextColor(0,0,0,255)
 			surface.SetTextPos(w / 2 + 1,h/2 - lengthY/2 + 1)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(playerName)
 
-			surface.SetTextColor(col.r,col.g,col.b,col.a)
+			surface.SetTextColor(nameColor.r,nameColor.g,nameColor.b,nameColor.a)
 			surface.SetTextPos(w / 2,h/2 - lengthY/2)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(playerName)
 
             
 			local col = colSpect2
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
-			local lengthX, lengthY = surface.GetTextSize( ply:GetPlayerName() or "He quited..." )
+			local statusText = playerName .. (isValidPly and (not isAlive and " - died" or "") or " - disconnected")
+			local lengthX, lengthY = surface.GetTextSize(statusText)
 			surface.SetTextPos(15,h/2 - lengthY/2)
-			surface.DrawText((ply:Name() .. (not ply:Alive() and " - died" or "")) or "He quited...")
+			surface.DrawText(statusText)
 
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
-			local lengthX, lengthY = surface.GetTextSize( ply:Frags() or "He quited..." )
+			local fragsText = isValidPly and tostring(ply:Frags()) or "-"
+			local lengthX, lengthY = surface.GetTextSize(fragsText)
 			surface.SetTextPos(w - lengthX -15,h/2 - lengthY/2)
-			surface.DrawText(ply:Frags() or "He quited...")
+			surface.DrawText(fragsText)
 		end
 
 		function but:DoClick()
+			if not IsValid(ply) then
+				chat.AddText(Color(255,0,0), "this player is no longer available")
+				return
+			end
+
 			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
-			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
+			if not steamID64 or steamID64 == "" then
+				chat.AddText(Color(255,0,0), "steam profile unavailable")
+				return
+			end
+
+			gui.OpenURL("https://steamcommunity.com/profiles/"..steamID64)
 		end
 
 		DScrollPanel:AddItem(but)

@@ -16,6 +16,9 @@ colors.scrollbarGrip = Color(70,70,90,255)
 colors.scrollbarGripHover = Color(100,100,130,255)
 colors.scrollbarBorder = Color(100,100,120,200)
 colors.previewBorder = Color(255,200,50,255)
+colors.entryBackground = Color(255,255,255,245)
+colors.entryText = Color(12,18,28,255)
+colors.entryPlaceholder = Color(110,120,135,255)
 
 local presetsDir = "zcity/appearances/presets/"
 
@@ -513,10 +516,10 @@ function PANEL:PostInit()
         main.AppearanceTable.AName = self:GetValue()
     end
     function NameEntry:Paint(w, h)
-        draw.RoundedBox(4, 0, 0, w, h, Color(20, 20, 25, 240))
+        draw.RoundedBox(4, 0, 0, w, h, colors.entryBackground)
         surface.SetDrawColor(colors.scrollbarBorder)
         surface.DrawOutlinedRect(0, 0, w, h, 1)
-        self:DrawTextEntryText(colors.mainText, colors.selectionBG, colors.mainText)
+        self:DrawTextEntryText(colors.entryText, colors.selectionBG, colors.entryText)
     end
 
     local presetsPanel = vgui.Create("DPanel", bottomContainer)
@@ -677,10 +680,11 @@ function PANEL:PostInit()
     presetNameEntry:SetContentAlignment(5)
     presetNameEntry:DockMargin(5,0,0,0)
     function presetNameEntry:Paint(w, h)
-        draw.RoundedBox(4, 0, 0, w, h, Color(15, 15, 20, 255))
+        draw.RoundedBox(4, 0, 0, w, h, colors.entryBackground)
         surface.SetDrawColor(colors.scrollbarBorder)
         surface.DrawOutlinedRect(0, 0, w, h, 1)
-        self:DrawTextEntryText(colors.mainText, colors.selectionBG, colors.mainText)
+        local textColor = self:GetValue() == "" and colors.entryPlaceholder or colors.entryText
+        self:DrawTextEntryText(textColor, colors.selectionBG, colors.entryText)
     end
 
     local previewAccessory = {nil, nil, nil}  -- [1] = hat, [2] = face, [3] = body

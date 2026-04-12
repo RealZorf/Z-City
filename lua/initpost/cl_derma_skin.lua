@@ -1,8 +1,8 @@
 --\\
 hg.VGUI = hg.VGUI or {}
-hg.VGUI.MainColor = Color(150, 0 ,0)
-hg.VGUI.SecondaryColor = Color(155,0,0,240)
-hg.VGUI.BackgroundColor = Color(25,25,35,220)
+hg.VGUI.MainColor = Color(125, 205, 255)
+hg.VGUI.SecondaryColor = Color(38, 110, 168, 240)
+hg.VGUI.BackgroundColor = Color(8, 18, 34, 220)
 hg.VGUI.MainSkin = "ZCity"
 
 function hg.GetMainSkin()
@@ -114,7 +114,20 @@ local gradient = surface.GetTextureID("vgui/gradient-d")
 local gradientUp = surface.GetTextureID("vgui/gradient-u")
 local gradientLeft = surface.GetTextureID("vgui/gradient-l")
 -- local gradientRadial = Material("helix/gui/radial-gradient.png")
-local defaultBackgroundColor = Color(30, 30, 30, 200)
+local defaultBackgroundColor = Color(8, 18, 34, 200)
+local panelBackground = Color(8, 18, 34, 220)
+local panelOverlay = Color(14, 28, 48, 220)
+local panelSoft = Color(18, 36, 62, 190)
+local accentMain = Color(125, 205, 255)
+local accentSoft = Color(38, 110, 168)
+local textEntryBackground = Color(255, 255, 255, 245)
+local textEntryBackgroundFocus = Color(255, 255, 255, 255)
+local textEntryBackgroundDisabled = Color(225, 232, 240, 220)
+local textEntryBorder = Color(150, 170, 195, 255)
+local textEntryText = Color(12, 18, 28, 255)
+local textEntryPlaceholder = Color(110, 120, 135, 255)
+local textEntryCursor = Color(12, 18, 28, 255)
+local textEntryHighlight = Color(125, 205, 255, 120)
 
 local SKIN = {}
 derma.DefineSkin("ZCity", "ZCity skin.", SKIN)
@@ -127,13 +140,13 @@ SKIN.Colours = table.Copy(derma.SkinList.Default.Colours)
 
 SKIN.Colours.Info = Color(100, 185, 255)
 SKIN.Colours.Success = Color(64, 185, 85)
-SKIN.Colours.Error = Color(255, 100, 100)
+SKIN.Colours.Error = Color(125, 205, 255)
 SKIN.Colours.Warning = Color(230, 180, 0)
 SKIN.Colours.MenuLabel = color_white
-SKIN.Colours.DarkerBackground = Color(0, 0, 0, 77)
+SKIN.Colours.DarkerBackground = Color(8, 18, 34, 160)
 
-SKIN.Colours.Outline = Color(155, 0, 0, 255)
-SKIN.Colours.Background = Color(0, 0, 0, 205)
+SKIN.Colours.Outline = Color(125, 205, 255, 255)
+SKIN.Colours.Background = Color(8, 18, 34, 205)
 
 SKIN.Colours.SegmentedProgress = {}
 SKIN.Colours.SegmentedProgress.Bar = Color(64, 185, 85)
@@ -150,6 +163,10 @@ SKIN.Colours.Button.Down = Color(180, 180, 180)
 SKIN.Colours.Button.Disabled = Color(0, 0, 0, 100)
 
 SKIN.Colours.Label.Default = color_white
+SKIN.colTextEntryText = textEntryText
+SKIN.colTextEntryTextHighlight = textEntryHighlight
+SKIN.colTextEntryTextCursor = textEntryCursor
+SKIN.colTextEntryTextPlaceholder = textEntryPlaceholder
 
 function SKIN.tex.Menu_Strip(x, y, width, height, color)
 	surface.SetDrawColor(0, 0, 0, 200)
@@ -167,15 +184,15 @@ function SKIN:PaintFrame(panel)
 		hg.DrawBlur(panel, 10)
 	end
 
-	surface.SetDrawColor(30, 30, 30, 150)
+	surface.SetDrawColor(panelBackground)
 	surface.DrawRect(0, 0, panel:GetWide(), panel:GetTall())
 
 	if (panel:GetTitle() != "" or panel.btnClose:IsVisible()) then
-		surface.SetDrawColor(hg.VGUI.MainColor)
+		surface.SetDrawColor(panelOverlay)
 		surface.DrawRect(0, 0, panel:GetWide(), 24)
 
 		if (panel.bHighlighted) then
-			self:DrawImportantBackground(0, 0, panel:GetWide(), 24, ColorAlpha(color_white, 22))
+			self:DrawImportantBackground(0, 0, panel:GetWide(), 24, ColorAlpha(accentSoft, 60))
 		end
 	end
 
@@ -188,7 +205,7 @@ function SKIN:PaintBaseFrame(panel, width, height)
 		hg.DrawBlur(panel, 10)
 	end
 
-	surface.SetDrawColor(30, 30, 30, 150)
+	surface.SetDrawColor(panelBackground)
 	surface.DrawRect(0, 0, width, height)
 
 	surface.SetDrawColor(hg.VGUI.MainColor)
@@ -260,7 +277,7 @@ function SKIN:PaintCategoryPanel(panel, text, color)
 	local textHeight = select(2, surface.GetTextSize(text)) + 6
 	local width, height = panel:GetSize()
 
-	surface.SetDrawColor(0, 0, 0, 100)
+	surface.SetDrawColor(panelBackground.r, panelBackground.g, panelBackground.b, 140)
 	surface.DrawRect(0, textHeight, width, height - textHeight)
 
 	self:DrawImportantBackground(0, 0, width, textHeight, color)
@@ -283,46 +300,44 @@ end
 function SKIN:PaintButton(panel)
 	if (panel.m_bBackground) then
 		local w, h = panel:GetWide(), panel:GetTall()
-		local alpha = 50
-
-		if (panel:GetDisabled()) then
-			alpha = 10
-		elseif (panel.Depressed) then
-			alpha = 180
-		elseif (panel.Hovered) then
-			alpha = 75
-		end
-
 		if (panel:GetParent() and panel:GetParent():GetName() == "DListView_Column") then
-			surface.SetDrawColor(color_white)
+			surface.SetDrawColor(panelSoft)
 			surface.DrawRect(0, 0, w, h)
 		end
 
-		surface.SetDrawColor(30, 30, 30, alpha)
+		surface.SetDrawColor(panelOverlay)
 		surface.DrawRect(0, 0, w, h)
 
-		surface.SetDrawColor(0, 0, 0, 180)
+		if (panel.Depressed) then
+			surface.SetDrawColor(ColorAlpha(accentMain, 55))
+			surface.DrawRect(0, 0, w, h)
+		elseif (panel.Hovered) then
+			surface.SetDrawColor(ColorAlpha(accentSoft, 95))
+			surface.DrawRect(0, 0, w, h)
+		end
+
+		surface.SetDrawColor(panel:GetDisabled() and ColorAlpha(accentSoft, 100) or ColorAlpha(accentMain, panel.Depressed and 255 or 180))
 		surface.DrawOutlinedRect(0, 0, w, h)
 
-		surface.SetDrawColor(180, 180, 180, 2)
+		surface.SetDrawColor(255, 255, 255, 10)
 		surface.DrawOutlinedRect(1, 1, w - 2, h - 2)
 	end
 end
 
-local color_red = Color(50, 50, 50)
+local color_red = Color(125, 205, 255)
 
 function SKIN:PaintTextEntry( panel, w, h )
 	if ( panel.m_bBackground ) then
 		if ( panel:GetDisabled() ) then
-			surface.SetDrawColor(30, 30, 30, 100)
+			surface.SetDrawColor(textEntryBackgroundDisabled)
 		elseif ( panel:HasFocus() ) then
-			surface.SetDrawColor(150, 150, 150, 100)
+			surface.SetDrawColor(textEntryBackgroundFocus)
 		else
-			surface.SetDrawColor(130, 130, 130, 100)
+			surface.SetDrawColor(textEntryBackground)
 		end
 		
 		surface.DrawRect(0, 0, w, h)
-		surface.SetDrawColor(0, 0, 0, 150)
+		surface.SetDrawColor(panel:HasFocus() and accentMain or textEntryBorder)
 		surface.DrawOutlinedRect(0, 0, w, h)
 	end
 
@@ -443,7 +458,7 @@ function SKIN:PaintAreaEntry(panel, width, height)
 end
 
 function SKIN:PaintListRow(panel, width, height)
-	surface.SetDrawColor(0, 0, 0, 150)
+	surface.SetDrawColor(panelBackground.r, panelBackground.g, panelBackground.b, 185)
 	surface.DrawRect(0, 0, width, height)
 end
 
@@ -463,6 +478,8 @@ function SKIN:PaintSettingsRowBackground(panel, width, height)
 end
 
 function SKIN:PaintVScrollBar(panel, width, height)
+	surface.SetDrawColor(panelBackground.r, panelBackground.g, panelBackground.b, 180)
+	surface.DrawRect(0, 0, width, height)
 end
 
 function SKIN:PaintScrollBarGrip(panel, width, height)
@@ -471,12 +488,10 @@ function SKIN:PaintScrollBarGrip(panel, width, height)
 	local downButtonHeight = parent.btnDown:GetTall()
 
 	DisableClipping(true)
-		if is3d2d then 
-			surface.SetDrawColor(255, 255, 255, 200)
-		else
-			surface.SetDrawColor(30, 30, 30, 200)
-		end
+		surface.SetDrawColor(panelOverlay.r, panelOverlay.g, panelOverlay.b, 215)
 		surface.DrawRect(4, -upButtonHeight, width - 8, height + upButtonHeight + downButtonHeight)
+		surface.SetDrawColor(ColorAlpha(accentMain, 140))
+		surface.DrawOutlinedRect(4, -upButtonHeight, width - 8, height + upButtonHeight + downButtonHeight)
 	DisableClipping(false)
 end
 
@@ -515,35 +530,43 @@ function SKIN:PaintPropertySheet( panel, width, height )
 
 	hg.DrawBlur(panel)
 
-	surface.SetDrawColor(30, 30, 30, 150)
+	surface.SetDrawColor(panelBackground)
 	surface.DrawRect(0, 0, width, height)
 
-	surface.SetDrawColor(255, 0, 0, 150)
+	surface.SetDrawColor(ColorAlpha(accentMain, 170))
 	surface.DrawOutlinedRect(0, 0, width, height)
 end
 
 function SKIN:PaintTab( panel, w, h )
-
 	if ( panel:IsActive() ) then
 		return self:PaintActiveTab( panel, w, h )
 	end
 
-	--self.tex.TabT_Inactive( 0, 0, w, h )
+	surface.SetDrawColor(panelOverlay.r, panelOverlay.g, panelOverlay.b, 215)
+	surface.DrawRect(0, 0, w, h * 0.8)
+
+	if panel:IsHovered() then
+		surface.SetDrawColor(ColorAlpha(accentSoft, 95))
+		surface.DrawRect(0, 0, w, h * 0.8)
+	end
+
+	surface.SetDrawColor(ColorAlpha(accentSoft, 155))
+	surface.DrawOutlinedRect(0, 0, w, h * 0.8, 1)
 end
 
 function SKIN:PaintActiveTab( panel, w, h )
-
-	surface.SetDrawColor(30, 30, 30, 150)
-	surface.DrawRect(0, 0, w, h*0.8)
-	surface.SetDrawColor(255, 0, 0, 150)
-	surface.DrawOutlinedRect(0, 0, w, h*0.8,1)
-
+	surface.SetDrawColor(panelSoft)
+	surface.DrawRect(0, 0, w, h * 0.8)
+	surface.SetDrawColor(ColorAlpha(accentSoft, 120))
+	surface.DrawRect(0, 0, w, h * 0.8)
+	surface.SetDrawColor(ColorAlpha(accentMain, 200))
+	surface.DrawOutlinedRect(0, 0, w, h * 0.8, 1)
 end
 
 function SKIN:PaintMenu(panel, width, height)
 	hg.DrawBlur(panel)
 
-	surface.SetDrawColor(30, 30, 30, 150)
+	surface.SetDrawColor(panelBackground)
 	surface.DrawRect(0, 0, width, height)
 end
 
@@ -608,12 +631,12 @@ function SKIN:PaintChatboxBackground(panel, width, height)
 end
 
 function SKIN:PaintChatboxEntry(panel, width, height)
-	surface.SetDrawColor(0, 0, 0, 66)
+	surface.SetDrawColor(textEntryBackground)
 	surface.DrawRect(0, 0, width, height)
 
-	panel:DrawTextEntryText(color_white, hg.VGUI.MainColor, color_white)
+	panel:DrawTextEntryText(textEntryText, textEntryHighlight, textEntryCursor)
 
-	surface.SetDrawColor(color_black)
+	surface.SetDrawColor(textEntryBorder)
 	surface.DrawOutlinedRect(0, 0, width, height)
 end
 
@@ -693,10 +716,10 @@ function SKIN:PaintInfoBarBackground(panel, width, height)
 end
 
 function SKIN:PaintInventorySlot(panel, width, height)
-	surface.SetDrawColor(35, 35, 35, 85)
+	surface.SetDrawColor(panelOverlay.r, panelOverlay.g, panelOverlay.b, 145)
 	surface.DrawRect(1, 1, width - 2, height - 2)
 
-	surface.SetDrawColor(0, 0, 0, 250)
+	surface.SetDrawColor(ColorAlpha(accentSoft, 190))
 	surface.DrawOutlinedRect(1, 1, width - 2, height - 2)
 end
 

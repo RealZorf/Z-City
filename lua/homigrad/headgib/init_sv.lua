@@ -44,10 +44,80 @@ gib_ragdols = gib_ragdols or {}
 local gib_ragdols = gib_ragdols
 
 local VectorRand, ents_Create = VectorRand, ents.Create
+local CurTime = CurTime
+local hg_gib_limit = ConVarExists("hg_gib_limit") and GetConVar("hg_gib_limit") or CreateConVar("hg_gib_limit", "80", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Maximum number of active Homigrad meat gibs.", 0, 512)
+local hg_gib_lifetime = ConVarExists("hg_gib_lifetime") and GetConVar("hg_gib_lifetime") or CreateConVar("hg_gib_lifetime", "25", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Lifetime of Homigrad meat gibs in seconds. 0 disables timed cleanup.", 0, 300)
+local hg_gib_freeze_delay = ConVarExists("hg_gib_freeze_delay") and GetConVar("hg_gib_freeze_delay") or CreateConVar("hg_gib_freeze_delay", "4", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Delay before settled Homigrad meat gibs are frozen.", 0, 60)
+hg.meatGibs = hg.meatGibs or {}
+local trackedMeatGibs = hg.meatGibs
+
+local function TrimTrackedMeatGibs()
+	for i = #trackedMeatGibs, 1, -1 do
+		if not IsValid(trackedMeatGibs[i]) then
+			table.remove(trackedMeatGibs, i)
+		end
+	end
+
+	local maxGibs = math.max(hg_gib_limit:GetInt(), 0)
+	local overflow = #trackedMeatGibs - maxGibs
+
+	if overflow <= 0 then return end
+
+	table.sort(trackedMeatGibs, function(a, b)
+		return (a.hg_meat_gib_spawn or 0) < (b.hg_meat_gib_spawn or 0)
+	end)
+
+	local removeQueue = {}
+	for i = 1, overflow do
+		removeQueue[i] = trackedMeatGibs[i]
+	end
+
+	for i = 1, #removeQueue do
+		local ent = removeQueue[i]
+		if IsValid(ent) then ent:Remove() end
+	end
+end
+
+local function FreezeTrackedMeatGib(ent)
+	if not IsValid(ent) then return end
+
+	local phys = ent:GetPhysicsObject()
+	if not IsValid(phys) or phys:GetVelocity():LengthSqr() > 144 then return end
+
+	ent:SetNotSolid(true)
+	phys:EnableMotion(false)
+	phys:Sleep()
+end
+
+local function TrackMeatGib(ent)
+	ent.hg_meat_gib_spawn = CurTime()
+	trackedMeatGibs[#trackedMeatGibs + 1] = ent
+
+	ent:CallOnRemove("hg_meat_gib_cleanup", function()
+		for i = #trackedMeatGibs, 1, -1 do
+			if trackedMeatGibs[i] == ent then
+				table.remove(trackedMeatGibs, i)
+				break
+			end
+		end
+	end)
+
+	timer.Simple(hg_gib_freeze_delay:GetFloat(), function()
+		FreezeTrackedMeatGib(ent)
+	end)
+
+	TrimTrackedMeatGibs()
+end
+
 local vector_up = Vector(0,0,1)
 local function PhysCallback( ent, data )
 	--data.HitPos -- data.HitNormal
 	if data.DeltaTime < 0.2 then return end
+
+	local now = CurTime()
+	if (ent.hg_nextImpact or 0) > now then return end
+	ent.hg_nextImpact = now + 0.15
+
 	ent:EmitSound("physics/flesh/flesh_squishy_impact_hard"..math.random(4)..".wav")
 	-- if !data.HitEntity:IsPlayer() and !data.HitEntity:IsRagdoll() and math.abs(data.HitNormal.z) < 0.75 then
 	-- 	ent:SetMoveType(MOVETYPE_NONE)
@@ -82,9 +152,9 @@ local grub, mat, gamemod = Model("models/grub_nugget_small.mdl"), "models/flesh"
 local meatModels = {
 	Model("models/props_junk/watermelon01_chunk02a.mdl"),
 }
-local gibRemoveTime = 60 --120
 function SpawnMeatGore(mainent, pos, count, force, scale)
 	force = force or Vector(0,0,0)
+	local gibRemoveTime = hg_gib_lifetime:GetFloat()
 	for i = 1, (count or math.random(8, 10)) do
 		local ent = ents_Create("prop_physics")
 		ent:SetModel(meatModels[math.random(#meatModels)])
@@ -95,6 +165,7 @@ function SpawnMeatGore(mainent, pos, count, force, scale)
 		ent:SetAngles(AngleRand(-180,180))
 		ent:Activate()
 		ent:Spawn()
+		ent:DrawShadow(false)
 
 		local phys = ent:GetPhysicsObject()
 		if IsValid(phys) then
@@ -102,12 +173,12 @@ function SpawnMeatGore(mainent, pos, count, force, scale)
 			phys:AddAngleVelocity(VectorRand(-65,65))
 		end
 
-		if zb.CROUND and zb.CROUND ~= "hmcd" or gamemod == "sandbox" then
-			ent:DrawShadow(false)
+		if gibRemoveTime > 0 then
 			ent:SetModelScale(0, gibRemoveTime)
 			SafeRemoveEntityDelayed(ent, gibRemoveTime)
 		end
 
+		TrackMeatGib(ent)
 		ent:AddCallback( "PhysicsCollide", PhysCallback )
 	end
 end

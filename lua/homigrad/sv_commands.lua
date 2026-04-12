@@ -2,6 +2,8 @@ COMMANDS = COMMANDS or {}
 
 local validUserGroupSuperAdmin = {
 	superadmin = true,
+	developer = true,
+	headadmin = true,
 }
 
 local validUserGroup = {
@@ -114,13 +116,437 @@ if SERVER then
     util.AddNetworkString("AnotherLightningEffect")
     util.AddNetworkString("PluvCommand")
 
+    local ZC_GOD_MODEL = "models/player/anon/anon.mdl"
+    local ZC_POWER_RECOIL_MUL = 0.25
+    local ZC_POWER_MELEE_MAX_DISTANCE_SQR = 180 * 180
+    local ZC_POWER_MELEE_FORCE = 22000
+    local ZC_POWER_MELEE_UP_FORCE = 7000
+    local ZC_POWER_MELEE_SWING_VELOCITY_MUL = 35
+    local ZC_POWER_MELEE_HIT_COOLDOWN = 0.2
+    local ZC_POWER_UP_VECTOR = Vector(0, 0, 1)
+
+    local function ZC_ApplyGodModel(ply)
+        if not IsValid(ply) then return end
+
+        ply:SetNetVar("Accessories", {})
+        ply:SetSubMaterial()
+        ply:SetModel(ZC_GOD_MODEL)
+    end
+
+    local function ZC_RestoreGodModel(ply)
+        if not IsValid(ply) then return end
+
+        if ply.ZCGodStoredAppearance then
+            hg.Appearance.ForceApplyAppearance(ply, ply.ZCGodStoredAppearance)
+        elseif ply.ZCGodStoredModel then
+            ply:SetSubMaterial()
+            ply:SetModel(ply.ZCGodStoredModel)
+        end
+
+        ply.ZCGodStoredAppearance = nil
+        ply.ZCGodStoredModel = nil
+    end
+
+    local function ZC_CanUsePowerCommand(ply)
+        if not IsValid(ply) then return false end
+
+        local user_group = ply:GetUserGroup()
+
+        return user_group == "superadmin" or user_group == "headadmin"
+    end
+
+    local function ZC_HasPermanentInfiniteStamina(ply)
+        if not IsValid(ply) then return false end
+        if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
+
+        local user_group = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
+        return user_group == "superadmin"
+    end
+
+    local function ZC_HasInfiniteStamina(ply)
+        return IsValid(ply) and (ply.ZCInfiniteStaminaEnabled == true or ZC_HasPermanentInfiniteStamina(ply))
+    end
+
+    local function ZC_HasPowerMelee(attacker)
+        return IsValid(attacker)
+            and attacker:IsPlayer()
+            and attacker:Alive()
+            and attacker.ZCPowerEnabled == true
+            and attacker.organism
+            and attacker.organism.superfighter == true
+    end
+
+    local function ZC_IsPowerMeleeInflictor(inflictor)
+        if not IsValid(inflictor) then return false end
+
+        if inflictor:GetClass() == "weapon_hands_sh" then
+            return true
+        end
+
+        return inflictor:IsWeapon() and inflictor.ismelee == true
+    end
+
+    local function ZC_GetPowerMeleeVictim(target)
+        if not IsValid(target) then return nil end
+
+        if target:IsPlayer() then
+            return target
+        end
+
+        if not target:IsRagdoll() then
+            return nil
+        end
+
+        if not hg or not hg.RagdollOwner then
+            return nil
+        end
+
+        local owner = hg.RagdollOwner(target)
+
+        if not IsValid(owner) and target.GetNWEntity then
+            owner = target:GetNWEntity("ply")
+        end
+
+        if IsValid(owner) and owner:IsPlayer() then
+            return owner
+        end
+
+        return nil
+    end
+
+    local function ZC_IsPowerMeleeHit(attacker, target, dmginfo)
+        if not ZC_HasPowerMelee(attacker) then return false end
+
+        local victim = ZC_GetPowerMeleeVictim(target)
+        if not IsValid(victim) or victim == attacker or not victim:Alive() then return false end
+
+        local inflictor = dmginfo:GetInflictor()
+        if not ZC_IsPowerMeleeInflictor(inflictor) then return false end
+
+        if not (
+            dmginfo:IsDamageType(DMG_CLUB)
+            or dmginfo:IsDamageType(DMG_SLASH)
+            or dmginfo:IsDamageType(DMG_CRUSH)
+        ) then
+            return false
+        end
+
+        local target_pos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
+        if attacker:WorldSpaceCenter():DistToSqr(target_pos) > ZC_POWER_MELEE_MAX_DISTANCE_SQR then
+            return false
+        end
+
+        return true, victim
+    end
+
+    local function ZC_GetPowerMeleeForce(attacker, victim, dmginfo)
+        local force_direction = dmginfo:GetDamageForce()
+
+        if force_direction:LengthSqr() <= 1 then
+            force_direction = attacker:GetAimVector()
+        else
+            force_direction = force_direction:GetNormalized()
+        end
+
+        local towards_victim = victim:WorldSpaceCenter() - attacker:WorldSpaceCenter()
+        if towards_victim:LengthSqr() > 1 then
+            towards_victim:Normalize()
+
+            if force_direction:Dot(towards_victim) < 0.15 then
+                force_direction = towards_victim
+            end
+        end
+
+        force_direction.z = math.max(force_direction.z, 0.2)
+        force_direction:Normalize()
+
+        return force_direction * ZC_POWER_MELEE_FORCE
+            + ZC_POWER_UP_VECTOR * ZC_POWER_MELEE_UP_FORCE
+            + attacker:GetVelocity() * ZC_POWER_MELEE_SWING_VELOCITY_MUL
+    end
+
+    local function ZC_ApplyPowerMeleeForceToRagdoll(ragdoll, force)
+        if not IsValid(ragdoll) or not ragdoll:IsRagdoll() then return end
+
+        for phys_id = 0, ragdoll:GetPhysicsObjectCount() - 1 do
+            local phys = ragdoll:GetPhysicsObjectNum(phys_id)
+            if not IsValid(phys) then continue end
+
+            phys:Wake()
+            phys:ApplyForceCenter(force * (phys_id == 0 and 1 or 0.35))
+        end
+    end
+
+    local function ZC_TriggerPowerMeleeKnockback(attacker, target, victim, dmginfo)
+        if not hg or not hg.GetCurrentCharacter or not hg.AddForceRag or not hg.Fake or not hg.LightStunPlayer then return end
+
+        local now = CurTime()
+        if (victim.ZCPowerMeleeHitCooldown or 0) > now then return end
+
+        victim.ZCPowerMeleeHitCooldown = now + ZC_POWER_MELEE_HIT_COOLDOWN
+
+        local force = ZC_GetPowerMeleeForce(attacker, victim, dmginfo)
+        local current_character = hg.GetCurrentCharacter(victim)
+        local should_fake = not IsValid(current_character) or current_character == victim
+
+        if should_fake then
+            hg.AddForceRag(victim, 0, force, 0.5)
+            hg.AddForceRag(victim, 1, force * 0.65, 0.5)
+            hg.AddForceRag(victim, 2, force * 0.35, 0.5)
+            hg.Fake(victim)
+        elseif target:IsRagdoll() then
+            ZC_ApplyPowerMeleeForceToRagdoll(target, force)
+        end
+
+        hg.LightStunPlayer(victim, 1.5)
+
+        if not should_fake then return end
+
+        timer.Simple(0, function()
+            if not IsValid(victim) then return end
+
+            local ragdoll = hg.GetCurrentCharacter(victim)
+            if IsValid(ragdoll) and ragdoll ~= victim and ragdoll:IsRagdoll() then
+                ZC_ApplyPowerMeleeForceToRagdoll(ragdoll, force)
+            elseif victim:Alive() then
+                victim:SetVelocity(force * 0.02)
+            end
+        end)
+    end
+
+    local function ZC_ApplyPowerState(ply)
+        if not IsValid(ply) or not ply.organism then return end
+
+        ply.organism.superfighter = true
+        ply.organism.recoilmul = ZC_POWER_RECOIL_MUL
+    end
+
+    local function ZC_ApplyInfiniteStaminaState(ply)
+        if not IsValid(ply) or not ply.organism or not ply.organism.stamina then return end
+
+        local stamina = ply.organism.stamina
+
+        stamina.sub = 0
+        stamina.subadd = 0
+        stamina[1] = stamina.max or stamina.range or stamina[1] or 0
+    end
+
+    local function ZC_RemovePowerState(ply)
+        if not IsValid(ply) or not ply.organism then return end
+
+        ply.organism.superfighter = ply.ZCPowerStoredSuperfighter == true
+        ply.organism.recoilmul = ply.ZCPowerStoredRecoilMul or 1
+    end
+
+    local function ZC_FindSinglePlayerByName(name)
+        local trimmed_name = string.Trim(name or "")
+
+        if trimmed_name == "" then
+            return nil, "please specify a player name"
+        end
+
+        local lowered_name = string.lower(trimmed_name)
+        local partial_matches = {}
+
+        for _, target_ply in player.Iterator() do
+            local target_name = string.lower(target_ply:Name())
+
+            if target_name == lowered_name then
+                return target_ply
+            end
+
+            if string.find(target_name, lowered_name, 1, true) then
+                partial_matches[#partial_matches + 1] = target_ply
+            end
+        end
+
+        if #partial_matches == 1 then
+            return partial_matches[1]
+        end
+
+        if #partial_matches == 0 then
+            return nil, "no player matches '" .. trimmed_name .. "'"
+        end
+
+        return nil, "multiple players match '" .. trimmed_name .. "'"
+    end
+
     COMMANDS.zc_god = {function(ply)
         if not ply.organism then return end
-        
+
+        local enableGod = not ply.organism.godmode
+
+        if enableGod then
+            ply.ZCGodStoredModel = ply:GetModel()
+            ply.ZCGodStoredAppearance = ply.CurAppearance and table.Copy(ply.CurAppearance) or nil
+        end
+
         ply.organism.godmode = !ply.organism.godmode
+
+        if ply.organism.godmode then
+            ZC_ApplyGodModel(ply)
+        else
+            ZC_RestoreGodModel(ply)
+        end
+
 		ply:Notify(ply.organism.godmode and "now i'm immortal..." or "now i'm mortal")
 		return
     end,1}
+
+    COMMANDS.power = {function(ply, args)
+        if not ZC_CanUsePowerCommand(ply) then
+            if IsValid(ply) then
+                ply:Notify("this command is only for the usergroups superadmin and headadmin")
+            end
+            return
+        end
+
+        local target_ply = ply
+
+        if args[1] then
+            local resolved_target, resolve_error = ZC_FindSinglePlayerByName(table.concat(args, " "))
+
+            if not IsValid(resolved_target) then
+                ply:Notify(resolve_error)
+                return
+            end
+
+            target_ply = resolved_target
+        end
+
+        if not target_ply.organism then
+            if target_ply == ply then
+                ply:Notify("your organism is not ready yet")
+            else
+                ply:Notify(target_ply:Name() .. "'s organism is not ready yet")
+            end
+
+            return
+        end
+
+        local enablePower = not target_ply.ZCPowerEnabled
+
+        if enablePower then
+            target_ply.ZCPowerStoredSuperfighter = target_ply.organism.superfighter == true
+            target_ply.ZCPowerStoredRecoilMul = target_ply.organism.recoilmul or 1
+            target_ply.ZCPowerEnabled = true
+
+            ZC_ApplyPowerState(target_ply)
+
+            if target_ply == ply then
+                ply:Notify("super power enabled")
+            else
+                ply:Notify("super power enabled for " .. target_ply:Name())
+                target_ply:Notify("super power enabled by " .. ply:Name())
+            end
+        else
+            target_ply.ZCPowerEnabled = nil
+            ZC_RemovePowerState(target_ply)
+
+            target_ply.ZCPowerStoredSuperfighter = nil
+            target_ply.ZCPowerStoredRecoilMul = nil
+
+            if target_ply == ply then
+                ply:Notify("super power disabled")
+            else
+                ply:Notify("super power disabled for " .. target_ply:Name())
+                target_ply:Notify("super power disabled by " .. ply:Name())
+            end
+        end
+    end,2,"[player]"}
+
+    COMMANDS.stamina = {function(ply, args)
+        if not ZC_CanUsePowerCommand(ply) then
+            if IsValid(ply) then
+                ply:Notify("this command is only for the usergroups superadmin and headadmin")
+            end
+            return
+        end
+
+        local target_ply = ply
+
+        if args[1] then
+            local resolved_target, resolve_error = ZC_FindSinglePlayerByName(table.concat(args, " "))
+
+            if not IsValid(resolved_target) then
+                ply:Notify(resolve_error)
+                return
+            end
+
+            target_ply = resolved_target
+        end
+
+        if ZC_HasPermanentInfiniteStamina(target_ply) then
+            target_ply.ZCInfiniteStaminaEnabled = nil
+            ZC_ApplyInfiniteStaminaState(target_ply)
+
+            if target_ply == ply then
+                ply:Notify("infinite stamina is permanently enabled for the superadmin usergroup")
+            else
+                ply:Notify("infinite stamina is permanently enabled for " .. target_ply:Name() .. " because they are superadmin")
+                target_ply:Notify("your infinite stamina is permanently enabled because you are superadmin")
+            end
+
+            return
+        end
+
+        local enable_stamina = not ZC_HasInfiniteStamina(target_ply)
+
+        target_ply.ZCInfiniteStaminaEnabled = enable_stamina or nil
+
+        if enable_stamina then
+            ZC_ApplyInfiniteStaminaState(target_ply)
+
+            if target_ply == ply then
+                ply:Notify("infinite stamina enabled")
+            else
+                ply:Notify("infinite stamina enabled for " .. target_ply:Name())
+                target_ply:Notify("infinite stamina enabled by " .. ply:Name())
+            end
+        else
+            if target_ply == ply then
+                ply:Notify("infinite stamina disabled")
+            else
+                ply:Notify("infinite stamina disabled for " .. target_ply:Name())
+                target_ply:Notify("infinite stamina disabled by " .. ply:Name())
+            end
+        end
+    end,2,"[player]"}
+
+    hook.Add("PlayerSpawn", "ZC_GodModelPersist", function(ply)
+        if not IsValid(ply) or not ply.organism or not ply.organism.godmode then return end
+
+        timer.Simple(0, function()
+            if not IsValid(ply) or not ply.organism or not ply.organism.godmode then return end
+            ZC_ApplyGodModel(ply)
+        end)
+    end)
+
+    hook.Add("PlayerSpawn", "ZC_PowerPersist", function(ply)
+        if not IsValid(ply) or not ply.ZCPowerEnabled then return end
+
+        timer.Simple(0, function()
+            if not IsValid(ply) or not ply.ZCPowerEnabled then return end
+            ZC_ApplyPowerState(ply)
+        end)
+    end)
+
+    hook.Add("EntityTakeDamage", "ZC_PowerMeleeKnockback", function(target, dmginfo)
+        local attacker = dmginfo:GetAttacker()
+        local is_power_melee_hit, victim = ZC_IsPowerMeleeHit(attacker, target, dmginfo)
+
+        if not is_power_melee_hit then return end
+        ZC_TriggerPowerMeleeKnockback(attacker, target, victim, dmginfo)
+    end)
+
+    hook.Add("PlayerSpawn", "ZC_InfiniteStaminaPersist", function(ply)
+        if not IsValid(ply) or not ZC_HasInfiniteStamina(ply) then return end
+
+        timer.Simple(0, function()
+            if not IsValid(ply) or not ZC_HasInfiniteStamina(ply) then return end
+            ZC_ApplyInfiniteStaminaState(ply)
+        end)
+    end)
 
 	COMMANDS.zc_cloak = {function(ply)
         if not ply.organism then return end
@@ -211,13 +637,12 @@ if SERVER then
         target:Notify(message, 0)
         ply:ChatPrint("Sent notification to " .. target:GetName() .. ": " .. message)
 
-    end, 2, "name; message"}
+    end, 2, "ник игрока сообщение"}
 
 	COMMANDS.setmodel = {function(ply, args)
 		if not ply:IsAdmin() then return end
 		local plya = #args > 1 and args[1] or ply:Name()
 		local mdl = #args > 1 and args[2] or args[1]
-
 		for i, ply2 in pairs(player.GetListByName(plya)) do
 			if ply2:Alive() then
 				local Appearance = ply2.CurAppearance or hg.Appearance.GetRandomAppearance()
@@ -231,30 +656,4 @@ if SERVER then
 			end
 		end
 	end, 0}
-
-	--// Aliases
-	COMMANDS.model = COMMANDS.setmodel
-	COMMANDS.playermodel = COMMANDS.setmodel
-	COMMANDS.setplayermodel = COMMANDS.setmodel
-
-	COMMANDS.setscale = {function(ply, args)
-		if not ply:IsAdmin() then return end
-		local plya = #args > 1 and args[1] or ply:Name()
-		local scale = #args > 1 and args[2] or args[1]
-
-		for i, ply2 in pairs(player.GetListByName(plya)) do
-			if ply2:Alive() then
-				ply2:SetModelScale(scale)
-
-				ply:ChatPrint(ply2:Name().. "'s model scale set to " .. tostring(scale))
-			end
-		end
-	end, 0}
-
-	--// Aliases
-	COMMANDS.setsize = COMMANDS.setscale
-	COMMANDS.scale = COMMANDS.setscale
-	COMMANDS.size = COMMANDS.setscale
-	COMMANDS.setmodelscale = COMMANDS.setscale
-	COMMANDS.modelscale = COMMANDS.setscale
 end

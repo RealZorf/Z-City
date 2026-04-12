@@ -4,6 +4,7 @@ local deathmatch_nozone = ConVarExists("deathmatch_nozone") and GetConVar("death
 
 MODE.name = "dm"
 MODE.PrintName = "Deathmatch"
+MODE.Description = "Free-for-all survival with a shrinking combat zone. Eliminate everyone and be the last fighter alive."
 MODE.LootSpawn = false
 MODE.GuiltDisabled = true
 MODE.randomSpawns = true
@@ -17,6 +18,10 @@ local mapsize = 7500
 
 util.AddNetworkString("dm_start")
 util.AddNetworkString("dm_end")
+
+local function IsDeathmatchZoneMode(round)
+	return round and round.UsesDeathmatchZone
+end
 
 function MODE:CanLaunch()
     return true//(zb.GetWorldSize() >= ZBATTLE_BIGMAP)
@@ -222,7 +227,7 @@ end
 local cooldown = CurTime()
 hook.Add("Think","bober",function(ply)
 	local rnd = CurrentRound()
-	if not rnd or rnd.name != "dm" then return end
+	if not IsDeathmatchZoneMode(rnd) then return end
 	if (zb.ROUND_START or CurTime()) + 20 > CurTime() then return end
 	if cooldown > CurTime() then return end
 	if deathmatch_nozone:GetBool() then return end

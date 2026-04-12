@@ -38,6 +38,13 @@ end
 
 local function BlockSpawn(ply, ent)
 	if game.SinglePlayer() or ply:IsAdmin() then return true end
+	if HG_SANDBOX and HG_SANDBOX.IsSandboxModeActive and HG_SANDBOX.IsSandboxModeActive() then
+		if HG_SANDBOX.IsBypassPlayer and HG_SANDBOX.IsBypassPlayer(ply) then
+			return true
+		end
+
+		return
+	end
 
 	return false
 end
@@ -67,6 +74,11 @@ if CLIENT then
 
 	hook.Add( "SpawnMenuOpen", "SpawnMenuWhitelist", function()
 		local ply = LocalPlayer()
+		if HG_SANDBOX and HG_SANDBOX.IsSandboxModeActive and HG_SANDBOX.IsSandboxModeActive() then
+			if HG_SANDBOX.IsBypassPlayer and HG_SANDBOX.IsBypassPlayer(ply) then return true end
+			if HG_SANDBOX.IsRestrictedPlayer and HG_SANDBOX.IsRestrictedPlayer(ply) then return true end
+		end
+
 		if ply:IsSuperAdmin() then return end
 		if ply:IsAdmin() then return end
 		return false

@@ -3,6 +3,11 @@ local MODE = MODE
 
 MODE.MapSize = 7500
 MODE.ZoneTimeToShrink = 120
+MODE.UsesDeathmatchZone = true
+MODE.IntroTitle = "Homicide | DeathMatch"
+MODE.IntroRoleName = "Fighter"
+MODE.IntroObjective = "Kill everyone."
+MODE.IntroColor = Color(0, 120, 190)
 
 function MODE.GetZoneRadius()
 	if !zonedistance or !isnumber(zonedistance) then return 0xFFFFFFFF /*UUUUUUUUUUUUUUUUUCK*/ end

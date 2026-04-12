@@ -421,15 +421,18 @@ hook.Add("InitPostEntity", "furryhuy", function()
 end)
 
 local colGray = Color(122,122,122,255)
-local colBlue = Color(130,10,10)
-local colBlueUp = Color(160,30,30)
+local colBlue = Color(18, 36, 62, 220)
+local colBlueUp = Color(28, 52, 86, 220)
 local col = Color(255,255,255,255)
 
-local colSpect1 = Color(75,75,75,255)
-local colSpect2 = Color(85,85,85,255)
+local colSpect1 = Color(12, 24, 40, 220)
+local colSpect2 = Color(20, 38, 62, 220)
 
-local colorBG = Color(55,55,55,255)
-local colorBGBlacky = Color(40,40,40,255)
+local colorBG = Color(8, 18, 34, 228)
+local colorBGBlacky = Color(14, 28, 48, 220)
+local tabAccent = Color(125, 205, 255, 160)
+local tabAccentStrong = Color(125, 205, 255, 255)
+local tabAccentSoft = Color(38, 110, 168, 72)
 
 hg.muteall = false
 hg.mutespect = false
@@ -463,8 +466,8 @@ local function OpenPlayerSoundSettings(selfa, ply)
 	end
 
 	function volumeSlider:Paint(w,h)
-		draw.RoundedBox( 0, 0, 0, w, h, Color( 0, 0, 0 ) )
-		draw.RoundedBox( 0, 0, 0, w*self:GetSlideX(), h, Color( 255, 0, 0 ) )
+		draw.RoundedBox( 0, 0, 0, w, h, colorBGBlacky )
+		draw.RoundedBox( 0, 0, 0, w*self:GetSlideX(), h, tabAccentStrong )
 		draw.DrawText( ( math.Round( 100*self:GetSlideX(), 0 ) ).."%", "DermaDefault", w/2, h/4, color_white, TEXT_ALIGN_CENTER )
 	end
 	function volumeSlider.Knob.Paint(self) end
@@ -520,15 +523,23 @@ function GM:ScoreboardShow()
 	scoreBoardMenu:MakePopup()
 	scoreBoardMenu:SetKeyboardInputEnabled( false )
 	scoreBoardMenu:ShowCloseButton( false )
+	scoreBoardMenu:SetColorBG( colorBG )
+	scoreBoardMenu:SetColorBR( tabAccent )
+	scoreBoardMenu:SetBlurStrengh( 5 )
 
 	local muteallbut = vgui.Create("DButton", scoreBoardMenu)
 	local w, h = ScreenScale(30),ScreenScale(6)
 	muteallbut:SetPos(scoreBoardMenu:GetWide()-w*2.3,scoreBoardMenu:GetTall() - h * 1.5)
 	muteallbut:SetSize(w, h)
 	muteallbut:SetText("Mute all")
+	muteallbut:SetTextColor( col )
 	
 	muteallbut.Paint = function(self,w,h)
-		surface.SetDrawColor( not hg.muteall and 255 or 0, hg.muteall and 255 or 0, 0, 128)
+		draw.RoundedBox( 0, 0, 0, w, h, colorBGBlacky )
+		if self:IsHovered() then
+			draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+		end
+		surface.SetDrawColor( hg.muteall and tabAccentStrong or tabAccent )
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 	end
 
@@ -559,9 +570,14 @@ function GM:ScoreboardShow()
 	mutespectbut:SetPos(scoreBoardMenu:GetWide()-w*1.2,scoreBoardMenu:GetTall() - h * 1.5)
 	mutespectbut:SetSize(w, h)
 	mutespectbut:SetText("Mute spectators")
+	mutespectbut:SetTextColor( col )
 	
 	mutespectbut.Paint = function(self,w,h)
-		surface.SetDrawColor( not hg.mutespect and 255 or 0, hg.mutespect and 255 or 0, 0, 128)
+		draw.RoundedBox( 0, 0, 0, w, h, colorBGBlacky )
+		if self:IsHovered() then
+			draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+		end
+		surface.SetDrawColor( hg.mutespect and tabAccentStrong or tabAccent )
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 	end
 
@@ -593,7 +609,7 @@ function GM:ScoreboardShow()
 	local ServerName = GetHostName() or "ZCity | Developer Server | #01"
 	local tick
 	scoreBoardMenu.PaintOver = function(self,w,h)
-		surface.SetDrawColor( 255, 0, 0, 128)
+		surface.SetDrawColor( tabAccent )
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 
 		surface.SetFont( "ZB_InterfaceLarge" )
@@ -632,6 +648,7 @@ function GM:ScoreboardShow()
 		SPECTATE:SetPos(sizeX * 0.925,sizeY * 0.095)
 		SPECTATE:SetSize(ScrW() / 20,ScrH() / 30)
 		SPECTATE:SetText("")
+		SPECTATE:SetTextColor( col )
 		
 		SPECTATE.DoClick = function()
 			net.Start("ZB_SpecMode")
@@ -642,7 +659,11 @@ function GM:ScoreboardShow()
 		end
 
 		SPECTATE.Paint = function(self,w,h)
-			surface.SetDrawColor( 255, 0, 0, 128)
+			draw.RoundedBox( 0, 0, 0, w, h, colorBGBlacky )
+			if self:IsHovered() then
+				draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+			end
+			surface.SetDrawColor( tabAccent )
 			surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 			surface.SetFont( "ZB_InterfaceMedium" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
@@ -657,6 +678,7 @@ function GM:ScoreboardShow()
 		PLAYING:SetPos(sizeX * 0.010,sizeY * 0.095)
 		PLAYING:SetSize(ScrW() / 20,ScrH() / 30)
 		PLAYING:SetText("")
+		PLAYING:SetTextColor( col )
 		
 		PLAYING.DoClick = function()
 			net.Start("ZB_SpecMode")
@@ -667,7 +689,11 @@ function GM:ScoreboardShow()
 		end
 
 		PLAYING.Paint = function(self,w,h)
-			surface.SetDrawColor( 255, 0, 0, 128)
+			draw.RoundedBox( 0, 0, 0, w, h, colorBGBlacky )
+			if self:IsHovered() then
+				draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+			end
+			surface.SetDrawColor( tabAccent )
 			surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 			surface.SetFont( "ZB_InterfaceMedium" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)
@@ -685,10 +711,10 @@ function GM:ScoreboardShow()
 	function DScrollPanel:Paint( w, h )
 		-- BlurBackground(self)
 
-		surface.SetDrawColor(0, 0, 0, 125)
+		surface.SetDrawColor(colorBGBlacky)
 		surface.DrawRect(0, 0, w, h)
 
-		surface.SetDrawColor( 255, 0, 0, 128)
+		surface.SetDrawColor( tabAccent )
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 	end
 
@@ -721,6 +747,12 @@ function GM:ScoreboardShow()
 			surface.DrawRect(0, 0, w, h)
 			surface.SetDrawColor(colBlue.r, colBlue.g, colBlue.b, colBlue.a)
 			surface.DrawRect(0, h / 2, w, h / 2)
+			if self:IsHovered() then
+				draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+			end
+			surface.SetDrawColor( tabAccent )
+			surface.DrawOutlinedRect( 0, 0, w, h, 1.5 )
+
 	
 			surface.SetFont("ZB_InterfaceMediumLarge")
 			surface.SetTextColor(col.r, col.g, col.b, col.a)
@@ -762,10 +794,10 @@ function GM:ScoreboardShow()
 	function DScrollPanel:Paint( w, h )
 		-- BlurBackground(self)
 
-		surface.SetDrawColor(0, 0, 0, 125)
+		surface.SetDrawColor(colorBGBlacky)
 		surface.DrawRect(0, 0, w, h)
 
-		surface.SetDrawColor( 255, 0, 0, 128)
+		surface.SetDrawColor( tabAccent )
         surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 	end
 
@@ -797,6 +829,11 @@ function GM:ScoreboardShow()
 			surface.DrawRect(0,0,w,h)
 			surface.SetDrawColor(colSpect1.r,colSpect1.g,colSpect1.b,colSpect1.a)
 			surface.DrawRect(0,h/2,w,h/2)
+			if self:IsHovered() then
+				draw.RoundedBox( 0, 1, 1, w - 2, h - 2, tabAccentSoft )
+			end
+			surface.SetDrawColor( tabAccent )
+			surface.DrawOutlinedRect( 0, 0, w, h, 1.5 )
 
 			surface.SetFont( "ZB_InterfaceMediumLarge" )
 			surface.SetTextColor(col.r,col.g,col.b,col.a)

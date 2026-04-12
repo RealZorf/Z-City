@@ -411,7 +411,7 @@ local function OpenBuyMenu()
 				net.SendToServer()
 			end
 			
-			if weapon then
+			if weapon and weapon.Primary then
 				local ammo = weapon.Primary.Ammo != "none" and weapon.Primary.Ammo or weapon.Ammo or (weapons.GetStored( weapon.Base ) and weapons.GetStored( weapon.Base ).Primary.Ammo)
 				
 				if hg.ammotypeshuy[ammo] then

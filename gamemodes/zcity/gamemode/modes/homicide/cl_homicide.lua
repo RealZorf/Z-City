@@ -387,6 +387,14 @@ function MODE:HUDPaint()
 		end
 	end
 
+	if(!lply.isTraitor and lply.Profession and lply.Profession != "")then
+		local profession_info = MODE.Professions[lply.Profession]
+
+		if(profession_info and profession_info.Objective)then
+			Objective = profession_info.Objective
+		end
+	end
+
 	if(!lply.MainTraitor and lply.isTraitor)then
 		Objective = "You are equipped with nothing. Help other traitors win."
 	end
@@ -654,6 +662,10 @@ end)
 
 net.Receive("HMCD(SetSubRole)", function(len, ply)
 	lply.SubRole = net.ReadString()
+end)
+
+net.Receive("HMCD(SetProfession)", function()
+	lply.Profession = net.ReadString()
 end)
 --//
 
