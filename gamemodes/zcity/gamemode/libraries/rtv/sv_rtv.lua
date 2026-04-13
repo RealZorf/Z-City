@@ -174,15 +174,13 @@ function zb.EndRTV()
     if endStarted then return end
 
     local winmap = table.GetWinningKey(votes)
-    if not winmap then return end
+    if not winmap then
+		winmap = "random"
+	end
 
     if winmap == "random" then
         winmap = mappull[math.random(#mappull)]
     end
-
-	if not winmap then
-		winmap = "gm_construct"
-	end
 
     local mapFamily = GetMapFamily(winmap)
     
