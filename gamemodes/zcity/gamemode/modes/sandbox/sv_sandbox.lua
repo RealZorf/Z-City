@@ -75,10 +75,28 @@ function MODE:CheckAlivePlayers()
 end
 
 function MODE:ShouldRoundEnd()
+    local roundTime = self.ROUND_TIME or 2700
+
+    if not self.SandboxRoundEndTime then
+        local roundStart = zb and zb.ROUND_START or CurTime()
+        self.SandboxRoundEndTime = roundStart + roundTime
+    end
+
+    if CurTime() >= self.SandboxRoundEndTime then
+        return true
+    end
+
     return
 end
 
 function MODE:RoundStart()
+    local roundTime = self.ROUND_TIME or 2700
+    self.SandboxRoundEndTime = CurTime() + roundTime
+
+    if hg and hg.UpdateRoundTime then
+        hg.UpdateRoundTime(roundTime, CurTime(), CurTime())
+    end
+
     for _, ply in player.Iterator() do
         if not ply:Alive() then continue end
 
@@ -120,6 +138,7 @@ function MODE:CanSpawn()
 end
 
 function MODE:EndRound()
+    self.SandboxRoundEndTime = nil
 end
 
 function MODE:PlayerDeath()
