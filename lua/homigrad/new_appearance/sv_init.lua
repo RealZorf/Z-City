@@ -7,6 +7,161 @@ local APmodule = hg.Appearance
 hg.PointShop = hg.PointShop or {}
 local PSmodule = hg.PointShop
 
+local PERMAMODEL_PDATA_KEY = "zcity_permamodel_enabled"
+local PERMAMODEL_DEFAULT_MODEL = "models/player/kleiner.mdl"
+
+local function CanUsePermamodel(ply)
+    if !IsValid(ply) or !ply:IsPlayer() then return false end
+    if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
+
+    local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
+    return userGroup == "superadmin"
+end
+
+local function LoadPermamodelPreference(ply)
+    if !IsValid(ply) then return false end
+
+    if ply.ZCPermamodelEnabled == nil then
+        ply.ZCPermamodelEnabled = ply:GetPData(PERMAMODEL_PDATA_KEY, "0") == "1"
+    end
+
+    return ply.ZCPermamodelEnabled == true
+end
+
+local function FindPermamodelPath(selected)
+    if !isstring(selected) then return end
+
+    selected = string.Trim(selected)
+    if selected == "" then return end
+
+    local allModels = player_manager and player_manager.AllValidModels and player_manager.AllValidModels() or {}
+    local modelPath = allModels[selected] or allModels[string.lower(selected)]
+
+    if !modelPath then
+        local selectedLower = string.lower(selected)
+
+        for _, path in pairs(allModels) do
+            if isstring(path) and string.lower(path) == selectedLower then
+                modelPath = path
+                break
+            end
+        end
+    end
+
+    if !isstring(modelPath) or modelPath == "" then return end
+    if util.IsValidModel and !util.IsValidModel(modelPath) then return end
+
+    return modelPath
+end
+
+local function GetFallbackPermamodel()
+    if !util.IsValidModel or util.IsValidModel(PERMAMODEL_DEFAULT_MODEL) then
+        return PERMAMODEL_DEFAULT_MODEL
+    end
+
+    local allModels = player_manager and player_manager.AllValidModels and player_manager.AllValidModels() or {}
+
+    for _, path in pairs(allModels) do
+        if isstring(path) and path ~= "" then
+            return path
+        end
+    end
+
+    return PERMAMODEL_DEFAULT_MODEL
+end
+
+local function ReadClientVector(ply, convarName, fallback)
+    local rawValue = ply:GetInfo(convarName) or ""
+    local values = {}
+
+    for value in string.gmatch(rawValue, "[^%s]+") do
+        values[#values + 1] = tonumber(value)
+    end
+
+    return Vector(
+        math.Clamp(values[1] or fallback.x, 0, 1),
+        math.Clamp(values[2] or fallback.y, 0, 1),
+        math.Clamp(values[3] or fallback.z, 0, 1)
+    )
+end
+
+local function ApplyPermamodel(ply)
+    if !IsValid(ply) then return end
+
+    local modelPath = FindPermamodelPath(ply:GetInfo("cl_playermodel")) or GetFallbackPermamodel()
+
+    util.PrecacheModel(modelPath)
+
+    if ply:GetModel() ~= modelPath then
+        ply:SetModel(modelPath)
+    end
+
+    local playerColor = ReadClientVector(ply, "cl_playercolor", Vector(1, 1, 1))
+    local weaponColor = ReadClientVector(ply, "cl_weaponcolor", Vector(0.3, 1, 2))
+
+    if ply.SetPlayerColor then
+        ply:SetPlayerColor(playerColor)
+    end
+
+    if ply.SetWeaponColor then
+        ply:SetWeaponColor(weaponColor)
+    end
+
+    ply:SetNWVector("PlayerColor", playerColor)
+    ply:SetNWString("PlayerName", ply:Nick())
+    ply:SetNetVar("Accessories", {})
+    ply:SetSubMaterial()
+    ply:SetSkin(math.max(tonumber(ply:GetInfo("cl_playerskin")) or 0, 0))
+
+    local bodygroups = ply:GetInfo("cl_playerbodygroups") or ""
+    if isstring(bodygroups) and bodygroups ~= "" then
+        ply:SetBodyGroups(bodygroups)
+    else
+        ply:SetBodyGroups("00000000000000000000")
+    end
+
+    ply.CurAppearance = nil
+end
+
+function APmodule.IsPermamodelEnabled(ply)
+    return CanUsePermamodel(ply) and LoadPermamodelPreference(ply)
+end
+
+function APmodule.SetPermamodelEnabled(ply, enabled)
+    if !CanUsePermamodel(ply) then return false end
+
+    enabled = enabled == true
+    ply.ZCPermamodelEnabled = enabled
+    ply:SetPData(PERMAMODEL_PDATA_KEY, enabled and "1" or "0")
+
+    if ply:Alive() then
+        timer.Simple(0, function()
+            if !IsValid(ply) then return end
+
+            if enabled then
+                ApplyPermamodel(ply)
+            else
+                ApplyAppearance(ply)
+            end
+        end)
+    end
+
+    return enabled
+end
+
+function APmodule.TogglePermamodel(ply)
+    if !CanUsePermamodel(ply) then return false end
+
+    return APmodule.SetPermamodelEnabled(ply, !APmodule.IsPermamodelEnabled(ply))
+end
+
+APmodule.CanUsePermamodel = CanUsePermamodel
+APmodule.ApplyPermamodel = ApplyPermamodel
+
+hook.Add("PlayerInitialSpawn", "ZC_Permamodel_LoadPreference", function(ply)
+    LoadPermamodelPreference(ply)
+end)
+
 local function CheckAttachments(ply,tbl)
     if !IsValid(ply) or !ply:IsPlayer() then return end
     --print(ply:PS_HasItem(uid))
@@ -122,6 +277,11 @@ local tWaitResponse = {}
 
 function ApplyAppearance(Client,tAppearance,bRandom,bResponeIsValid,bUseCahsed)
     if not IsValid(Client) then return end
+    if APmodule.IsPermamodelEnabled(Client) then
+        ApplyPermamodel(Client)
+        return
+    end
+
     if bRandom or (Client.IsBot and Client:IsBot()) or (Client.IsRagdoll and Client:IsRagdoll()) then
         tAppearance = APmodule.GetRandomAppearance()
         WearAppearance(Client,tAppearance)
