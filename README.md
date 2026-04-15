@@ -1,10 +1,6 @@
 # 🌆 ARCXIV ZCITY
 
 <p align="center">
-  <img src="https://github.com/ARCXIV/ARCXIV-ZCITY/blob/main/logo.png" width="300"/>
-</p>
-
-<p align="center">
   🏙️ <strong>The next level of Garry’s Mod roleplay</strong>
 </p>
 
