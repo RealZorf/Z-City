@@ -357,6 +357,46 @@ local function ZCRunHomigradCommand(command_name, calling_ply, target_ply)
     return true
 end
 
+function ulx.permamodel(calling_ply)
+    if CLIENT then return end
+
+    if not IsValid(calling_ply) then return end
+
+    if not hg or not hg.Appearance or not hg.Appearance.TogglePermamodel then
+        ULib.tsayError(calling_ply, "Permamodel ist gerade nicht verfuegbar.", true)
+        return
+    end
+
+    if hg.Appearance.CanUsePermamodel and not hg.Appearance.CanUsePermamodel(calling_ply) then
+        ULib.tsayError(calling_ply, "Nur die Usergruppe superadmin kann diesen Command nutzen.", true)
+        return
+    end
+
+    local enabled = hg.Appearance.TogglePermamodel(calling_ply)
+
+    if enabled then
+        calling_ply:ChatPrint("Permamodel aktiviert: Du spawnst mit deinem ausgewaehlten Spielermodel.")
+    else
+        calling_ply:ChatPrint("Permamodel deaktiviert: Du spawnst wieder normal mit Appearance.")
+    end
+
+    ulx.fancyLogAdmin(calling_ply, enabled and "#A enabled permamodel" or "#A disabled permamodel")
+end
+
+local permamodel = ulx.command(ZCITY_CATEGORY_NAME, "ulx permamodel", ulx.permamodel, "!permamodel")
+permamodel:defaultAccess(ULib.ACCESS_SUPERADMIN)
+permamodel:help("Toggles persistent spawning with the selected player model instead of Appearance.")
+
+if SERVER then
+    ULib.ucl.registerAccess("ulx permamodel", {"superadmin"}, "Grants access to the ulx permamodel command", "Command")
+
+    timer.Simple(0, function()
+        if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
+
+        ULib.ucl.groupAllow("superadmin", "ulx permamodel")
+    end)
+end
+
 function ulx.innoclass(calling_ply, target_ply, class_name)
     if CLIENT then return end
 
