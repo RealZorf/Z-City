@@ -26,6 +26,7 @@ HG_SANDBOX.BlockedWeaponClasses = {
     ["weapon_grapplinghook"] = true,
     ["weapon_fury13"] = true,
     ["weapon_fury16"] = true,
+    ["weapon_hk21"] = true,
     ["weapon_hidebox"] = true,
     ["weapon_hg_grenade_tpik"] = true,
     ["weapon_hg_coolhands"] = true,
@@ -36,8 +37,14 @@ HG_SANDBOX.BlockedWeaponClasses = {
     ["weapon_hg_f1_tpik"] = true,
     ["weapon_hg_rpg"] = true,
     ["weapon_kord"] = true,
+    ["weapon_m249"] = true,
+    ["weapon_m60"] = true,
+    ["weapon_pkm"] = true,
+    ["weapon_rpk"] = true,
     ["weapon_spawnmenu_pda"] = true,
     ["weapon_bombvest"] = true,
+    ["weapon_taser"] = true,
+    ["weapon_vfirethrower"] = true,
     ["weapon_traitor_poison3"] = true
 }
 
