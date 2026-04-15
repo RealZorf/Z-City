@@ -1,7 +1,7 @@
 # 🌆 ARCXIV ZCITY
 
 <p align="center">
-  🏙️ <strong>The next level of Garry’s Mod roleplay</strong>
+  🏙️ <strong>The next level of Garry’s Mod</strong>
 </p>
 
 ---
