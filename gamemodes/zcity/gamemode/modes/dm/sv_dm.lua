@@ -133,6 +133,38 @@ local loadouts = {
 	{primary = "weapon_musket", secondary = "weapon_flintlock", attachments = "", armor = {"vest3"}, ammo = 12, ammo2 = 8, melee = "weapon_pocketknife", randomMedicine = true},
 }
 
+local newWeaponLoadoutWeight = 2
+local newWeaponLoadouts = {
+	{primary = "weapon_python", attachments = "", armor = {"vest3","helmet1"}, ammo = 5},
+	{primary = "weapon_vp9hk", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+	{primary = "weapon_p220", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+	{primary = "weapon_p250", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+	{primary = "weapon_pl15", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+	{primary = "weapon_m9berettacommando", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+
+	{primary = "weapon_g3a3", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_mk18", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_lr300", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_ia2", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_vz58", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_scarh", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_xm8", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_fnfal", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+	{primary = "weapon_ak103d", attachments = "", armor = {"vest1","helmet1"}, ammo = 3},
+
+	{primary = "weapon_vityaz", attachments = "", armor = {"vest3","helmet1"}, ammo = 4},
+
+	{primary = "weapon_moss500", attachments = "", armor = {"vest3","helmet1","mask1"}, ammo = 4},
+	{primary = "weapon_toz194", attachments = "", armor = {"vest3","helmet1","mask1"}, ammo = 4},
+	{primary = "weapon_maverickshot", attachments = "", armor = {"vest3","helmet1","mask1"}, ammo = 4},
+}
+
+for _, loadout in ipairs(newWeaponLoadouts) do
+	for i = 1, newWeaponLoadoutWeight do
+		loadouts[#loadouts + 1] = loadout
+	end
+end
+
 local randomGrenades = {"weapon_hg_rgd_tpik", "weapon_hg_pipebomb_tpik", "weapon_hg_smokenade_tpik", "weapon_hg_flashbang_tpik"}
 local randomMedicine = {"weapon_bandage_sh", "weapon_bigbandage_sh", "weapon_medkit_sh", "weapon_fentanyl", "weapon_morphine", "weapon_adrenaline", "weapon_tourniquet"}
 local randomMelees = {"weapon_melee", "weapon_pocketknife"}
