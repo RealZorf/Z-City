@@ -220,9 +220,12 @@ function GM:PlayerSpawn(ply)
         return
     end
 
-    if CurrentRound() and not CurrentRound().OverrideSpawn then
+    local round = CurrentRound()
+    if round and not round.OverrideSpawn then
         ply:SetTeam(1001)
-        ApplyAppearance(ply,nil,nil,nil,true)
+        if not round.SkipSpawnAppearance then
+            ApplyAppearance(ply,nil,nil,nil,true)
+        end
         ply:SetTeam(zb:BalancedChoice(0, 1))
     end
 

@@ -294,6 +294,7 @@ if CLIENT then
         local allowedModes = {
             ["tdm"] = true,
             ["cstrike"] = true,
+            ["ww2"] = true,
             ["hmcd"] = true,
             ["hl2dm"] = true,
             ["riot"] = true,

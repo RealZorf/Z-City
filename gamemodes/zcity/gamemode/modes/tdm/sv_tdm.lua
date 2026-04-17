@@ -185,18 +185,23 @@ util.AddNetworkString( "tdm_buyitem" )
 
 local AttachmentPrice = 50
 net.Receive("tdm_buyitem",function(len,ply)
-	if !CurrentRound().buymenu then return end
+	local round = CurrentRound()
+	if !round.buymenu then return end
 	if ((zb.ROUND_START or 0) + 40 < CurTime()) then ply:ChatPrint("Time's up!") return end
 	local tItem = net.ReadTable()
 	if not istable(tItem) then return end
 	local category = tItem[1]
 	local index = tItem[2]
 	if not category or not index then return end
-	local buyItems = CurrentRound().BuyItems
+	local buyItems = round.BuyItems
 	if not buyItems or not buyItems[category] or not buyItems[category][index] then return end
 	local item = buyItems[category][index]
 
 	if not item then return end
+	if item.TeamBased != nil and item.TeamBased != ply:Team() then
+		ply:ChatPrint("This item is not available for your team.")
+		return
+	end
 
 	if tItem[3] then
 		if not ply:HasWeapon(item.ItemClass) then ply:ChatPrint("You can't buy this attachment without a weapon.") return end

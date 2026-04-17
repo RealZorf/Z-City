@@ -47,7 +47,7 @@ function NextRound(round)
 end
 
 function zb:PreRound()
-	if ((((zb.Roundscount or 0) > 15) and !GetConVar("zb_dev"):GetBool()) or ( (player.GetCount() > 1) and zb.ROUND_STATE == 0 and zb.CheckRTVVotes() )) and !(zb.RoundsLeft and zb.CROUND == "cstrike") then
+	if ((((zb.Roundscount or 0) > 15) and !GetConVar("zb_dev"):GetBool()) or ( (player.GetCount() > 1) and zb.ROUND_STATE == 0 and zb.CheckRTVVotes() )) and !(zb.RoundsLeft and (zb.CROUND == "cstrike" or zb.CROUND == "ww2")) then
 		zb.StartRTV(20)
 		zb.ROUND_STATE = 0
 		return

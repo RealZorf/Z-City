@@ -273,29 +273,50 @@ surface.CreateFont("ZB_TDM_DESCSMALL", {
     antialias = true
 })
 
+local defaultBuyMenuTheme = {
+	Background = Color(0, 0, 0, 155),
+	InnerBackground = Color(0, 0, 0, 140),
+	Outline = Color(255, 0, 0, 128),
+	Gradient = Color(155, 0, 0, 55),
+	AttachmentGradient = Color(55, 155, 55, 25),
+}
+
+local function GetBuyMenuTheme()
+	local round = CurrentRound and CurrentRound()
+	return (round and round.BuyMenuTheme) or defaultBuyMenuTheme
+end
+
+local function SetThemeDrawColor(color, fallback)
+	color = color or fallback
+	surface.SetDrawColor(color.r, color.g, color.b, color.a)
+end
+
 local function PaintFrame(self,w,h)
 	BlurBackground(self)
 
-	surface.SetDrawColor( 255, 0, 0, 128)
+	local theme = GetBuyMenuTheme()
+	SetThemeDrawColor(theme.Outline, defaultBuyMenuTheme.Outline)
     surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 end
 
 local function PaintPanel(self,w,h)
-	surface.SetDrawColor( 0, 0, 0,155)
+	local theme = GetBuyMenuTheme()
+	SetThemeDrawColor(theme.Background, defaultBuyMenuTheme.Background)
     surface.DrawRect( 0, 0, w, h, 2.5 )
-	surface.SetDrawColor( 255, 0, 0, 128)
+	SetThemeDrawColor(theme.Outline, defaultBuyMenuTheme.Outline)
     surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
 end
 
 local gradient_l = Material("vgui/gradient-l")
 
 local function PaintPanel1(self,w,h)
-	surface.SetDrawColor( 0, 0, 0,155)
+	local theme = GetBuyMenuTheme()
+	SetThemeDrawColor(theme.Background, defaultBuyMenuTheme.Background)
     surface.DrawRect( 0, 0, w, h, 2.5 )
-	surface.SetDrawColor( 255, 0, 0, 128)
+	SetThemeDrawColor(theme.Outline, defaultBuyMenuTheme.Outline)
     surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
-	draw.RoundedBox( 0, 2.5, 2.5, w-5, h-5, Color( 0, 0, 0, 140) )
-    surface.SetDrawColor(155, 0, 0, 55)
+	draw.RoundedBox( 0, 2.5, 2.5, w-5, h-5, theme.InnerBackground or defaultBuyMenuTheme.InnerBackground )
+    SetThemeDrawColor(theme.Gradient, defaultBuyMenuTheme.Gradient)
     surface.SetMaterial(gradient_l)
     surface.DrawTexturedRect( 0, 0, w/1.5, h )
 end
@@ -304,7 +325,8 @@ local function PaintPanel2(self,w,h)
 	--surface.SetDrawColor( 15, 15, 15,25)
     --surface.DrawRect( 0, 0, w, h, 2.5 )
 	--draw.RoundedBox( 0, 2.5, 2.5, w-5, h-5, Color( 0, 0, 0, 140) )
-    surface.SetDrawColor(55, 155, 55, 25)
+	local theme = GetBuyMenuTheme()
+    SetThemeDrawColor(theme.AttachmentGradient, defaultBuyMenuTheme.AttachmentGradient)
     surface.SetMaterial(gradient_l)
     surface.DrawTexturedRect( 0, 0, w*1.2, h )
 end
@@ -350,12 +372,20 @@ local function OpenBuyMenu()
 	Sheet.tabScroller:DockMargin( 8, 0, 8, 0 )
 	Sheet:SetFadeTime(0.1)
 
-	for k,category in SortedPairsByMemberValue(MODE.BuyItems, "Priority") do
-		local CategoryPanel = vgui.Create( "DScrollPanel", sheet )
+	local round = CurrentRound and CurrentRound() or MODE
+	local buyItems = (round and round.BuyItems) or MODE.BuyItems
+	if not buyItems then return end
+
+	for k,category in SortedPairsByMemberValue(buyItems, "Priority") do
+		local CategoryPanel = vgui.Create( "DScrollPanel", Sheet )
 		--CategoryPanel:Dock()
 		CategoryPanel.Paint = function() end
+		local hasItems = false
 		for n,Item in pairs(category) do
 			if n == "Priority" then continue end
+			if Item.TeamBased != nil and Item.TeamBased != LocalPlayer():Team() then continue end
+			hasItems = true
+
 			local weapon = weapons.GetStored( Item.ItemClass )
 			local ent = scripted_ents.GetStored( Item.ItemClass )
 
@@ -429,7 +459,7 @@ local function OpenBuyMenu()
 					amm:SetWidth(w + 7)
 					local ammo2 = "ent_ammo_"..hg.ammotypeshuy[ammo].name
 					local name
-					for name2, ammo in pairs(MODE.BuyItems["Ammo"]) do
+					for name2, ammo in pairs(buyItems["Ammo"] or {}) do
 						if not istable(ammo) then continue end
 						if ammo.ItemClass == ammo2 then
 							name = name2
@@ -476,6 +506,8 @@ local function OpenBuyMenu()
 				end
 			end
 		end
+		if not hasItems then continue end
+
 		local tab = Sheet:AddSheet(k,CategoryPanel)
 		local rTab = tab["Tab"]
 		rTab.Paint = PaintPanel

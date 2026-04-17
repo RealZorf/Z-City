@@ -12,6 +12,16 @@ MODE.ForBigMaps = false -- if it can launch, then it doesn't really matter
 
 MODE.CooldownRounds = 5 -- 5 rounds of cs, 5 rounds without cs (at least 5)
 
+MODE.TeamNames = MODE.TeamNames or {
+    [0] = "Terrorists",
+    [1] = "Counter-Terrorists",
+    [3] = "Nobody",
+}
+
+local function GetTeamName(mode, teamID)
+    return (mode.TeamNames and mode.TeamNames[teamID]) or (teamID == 1 and "Counter-Terrorists") or (teamID == 0 and "Terrorists") or "Nobody"
+end
+
 function MODE:ChanceFunction(info)
     if info.rounds then
         for i = #info.rounds, #info.rounds - self.CooldownRounds + 1, -1 do
@@ -23,7 +33,7 @@ function MODE:ChanceFunction(info)
         end
     end
 
-    return zb.ModesChances["cstrike"] or self.Chance
+    return zb.ModesChances[self.name] or self.Chance
 end
 
 util.AddNetworkString("zb_cs_round_intermission")
@@ -235,7 +245,7 @@ function MODE:EndRound()
                 end
                 
                 winner = maxTeam == 0 and 1 or 0
-                PrintMessage(HUD_PRINTTALK, (maxTeam == 0 and "Terrorists" or "Counter-Terrorists") .. " have killed the hostage")
+                PrintMessage(HUD_PRINTTALK, GetTeamName(self, maxTeam) .. " have killed the hostage")
             else
                 winner = 3
             end
@@ -255,7 +265,7 @@ function MODE:EndRound()
         end
     end
 
-    local winnerprt = (winner == 1 and "Counter-Terrorists") or (winner == 0 and "Terrorists") or "Nobody"
+    local winnerprt = GetTeamName(self, winner)
     
     PrintMessage(HUD_PRINTTALK, winnerprt.." have won the round.")
 
@@ -313,7 +323,7 @@ function MODE:EndRound()
         end
 
         if winner then
-            local winnerprt = (winner == 1 and "Counter-Terrorists") or (winner == 0 and "Terrorists") or "Nobody"
+            local winnerprt = GetTeamName(self, winner)
             
             PrintMessage(HUD_PRINTTALK, winnerprt.." have won the game.")
         end
