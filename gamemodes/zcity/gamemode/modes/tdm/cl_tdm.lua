@@ -1,12 +1,102 @@
 MODE.name = "tdm"
 
 local MODE = MODE
+local MusicVolume = GetConVar("snd_musicvolume")
+local tdmThemeStation
+
+local function StopTDMTheme()
+	if IsValid(tdmThemeStation) then
+		tdmThemeStation:Stop()
+	end
+
+	tdmThemeStation = nil
+end
+
+local function GetTDMThemePath(round)
+	local themePath = round and round.ThemeMusicFile
+	if not themePath or themePath == "" then return nil end
+
+	if string.StartWith(themePath, "sound/") then
+		return themePath
+	end
+
+	return "sound/" .. themePath
+end
+
+local function StartTDMTheme(round)
+	local themePath = GetTDMThemePath(round)
+	if not themePath then return false end
+
+	local expectedRoundName = round.name
+	StopTDMTheme()
+
+	sound.PlayFile(themePath, "noblock noplay", function(station, errCode, errStr)
+		if not IsValid(station) then
+			print(errCode, errStr)
+
+			local currentRound = CurrentRound()
+			if currentRound and currentRound.name == expectedRoundName and hg.DynaMusic then
+				hg.DynaMusic:Start("swat4")
+			end
+
+			return
+		end
+
+		local currentRound = CurrentRound()
+		if not currentRound or currentRound.name != expectedRoundName then
+			station:Stop()
+			return
+		end
+
+		if hg.DynaMusic then
+			hg.DynaMusic:Stop()
+		end
+
+		tdmThemeStation = station
+		station:EnableLooping(true)
+		station:SetVolume((round.ThemeMusicVolume or 0.35) * ((MusicVolume and MusicVolume:GetFloat()) or 1))
+		station:Play()
+	end)
+
+	return true
+end
 
 net.Receive("tdm_start",function()
     surface.PlaySound("csgo_round.wav")
 	zb.rtype = net.ReadString()
-	hg.DynaMusic:Start( "swat4" )
+
+	local round = CurrentRound() or MODE
+	if not StartTDMTheme(round) and hg.DynaMusic then
+		StopTDMTheme()
+		hg.DynaMusic:Start("swat4")
+	end
+
 	zb.RemoveFade()
+end)
+
+hook.Add("Think", "TDMThemeVolumeThink", function()
+	if not IsValid(tdmThemeStation) then return end
+
+	local round = CurrentRound()
+	if not round or not round.ThemeMusicFile then
+		StopTDMTheme()
+		return
+	end
+
+	tdmThemeStation:SetVolume((round.ThemeMusicVolume or 0.35) * ((MusicVolume and MusicVolume:GetFloat()) or 1))
+
+	if tdmThemeStation:GetState() != GMOD_CHANNEL_PLAYING then
+		tdmThemeStation:Play()
+	end
+end)
+
+hook.Add("RoundInfoCalled", "TDMThemeRoundInfo", function(rnd)
+	if not IsValid(tdmThemeStation) then return end
+
+	local currentRound = CurrentRound()
+	if currentRound and currentRound.ThemeMusicFile and rnd != currentRound.name then
+		StopTDMTheme()
+	end
 end)
 
 local teams = {
