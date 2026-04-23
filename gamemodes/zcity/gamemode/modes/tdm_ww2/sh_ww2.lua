@@ -107,3 +107,4 @@ AddItemToBUY(".22 Long Rifle (60)", "Ammo", "ent_ammo_.22longrifle", 50, "Ammo",
 AddItemToBUY("5.56x45mm (30)", "Ammo", "ent_ammo_5.56x45mm", 100, "Ammo", {}, 30)
 AddItemToBUY("7.62x51mm (20)", "Ammo", "ent_ammo_7.62x51mm", 150, "Ammo", {}, 20)
 AddItemToBUY("7.62x54mm (20)", "Ammo", "ent_ammo_7.62x54mm", 100, "Ammo", {}, 20)
+AddItemToBUY("7.92x57mm (20)", "Ammo", "ent_ammo_7.92x57mmmauser", 150, "Ammo", {}, 20)
