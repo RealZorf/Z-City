@@ -159,7 +159,6 @@ local function GetInfantryModel(ply, info)
     return list[index]
 end
 
--- 🪖 SMART BODYGROUP APPLIER
 local function ApplyBodygroups(ply, model, role)
     local groups
 

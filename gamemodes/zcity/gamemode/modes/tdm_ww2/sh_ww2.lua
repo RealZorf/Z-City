@@ -52,10 +52,9 @@ end
 -- Pistols
 AddItemToBUY("Walther PPK", "Weapon", "weapon_ppk", 600, "Pistols", {}, nil, TEAM_GERMAN)
 AddItemToBUY("Walther P38", "Weapon", "weapon_p38", 750, "Pistols", {}, nil, TEAM_GERMAN)
-AddItemToBUY("Colt Python", "Weapon", "weapon_python", 950, "Pistols", {}, nil, TEAM_GERMAN)
+AddItemToBUY("Colt Python", "Weapon", "weapon_python", 950, "Pistols", {} )
 AddItemToBUY("Tokarev TT-33", "Weapon", "weapon_tokarev", 650, "Pistols", {}, nil, TEAM_AMERICAN)
 AddItemToBUY("Colt M1911", "Weapon", "weapon_m1911", 800, "Pistols", {}, nil, TEAM_AMERICAN)
-AddItemToBUY("Colt Python", "Weapon", "weapon_python", 950, "Pistols", {}, nil, TEAM_AMERICAN)
 
 -- Submachine guns
 AddItemToBUY("MP40", "Weapon", "weapon_mp40", 2400, "Submachine Guns", {}, nil, TEAM_GERMAN)
@@ -66,9 +65,8 @@ AddItemToBUY("PPSh-41 Drum", "Weapon", "weapon_ppshboss", 5000, "Submachine Guns
 
 -- Rifles
 AddItemToBUY("Karabiner 98k", "Weapon", "weapon_kar98", 2100, "Rifles", {"optic12"}, nil, TEAM_GERMAN)
-AddItemToBUY("Gewehr 43", "Weapon", "weapon_gewehr43", 3800, "Rifles", {}, nil, TEAM_GERMAN)
+AddItemToBUY("Gewehr 43", "Weapon", "weapon_gewehr43", 3800, "Rifles", {} )
 AddItemToBUY("Mosin-Nagant", "Weapon", "weapon_mosin", 2100, "Rifles", {"optic12"}, nil, TEAM_AMERICAN)
-AddItemToBUY("Gewehr 43", "Weapon", "weapon_gewehr43", 3800, "Rifles", {}, nil, TEAM_AMERICAN)
 
 -- Assault rifles
 AddItemToBUY("FG 42", "Weapon", "weapon_fg42", 5750, "Assault Rifles", {}, nil, TEAM_GERMAN)
