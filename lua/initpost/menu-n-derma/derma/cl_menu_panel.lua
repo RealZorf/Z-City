@@ -2,10 +2,12 @@ local PANEL = {}
 local curent_panel 
 local lightblue_select = Color(125, 205, 255)
 
+DISCORD_URL = "https://discord.com/invite/vPMnZ45QHE"
+
 local Selects = {
     {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
     {Title = "Main Menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
-    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.com/invite/vPMnZ45QHE")  end},
+    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL(DISCORD_URL)  end},
     {Title = "Traitor Role",
     GamemodeOnly = true,
     CreatedFunc = function(self, parent, luaMenu)
