@@ -580,7 +580,11 @@ local function OpenBuyMenu()
 				for id,AttachN in pairs(Item.Attachments) do
 					local ico = hg.attachmentsIcons[AttachN]
 					local Attach = vgui.Create( "DImageButton" )
-					Attach:SetImage(ico)
+					if not ico then
+    					print("[ATTACHMENT ERROR] Missing icon for:", AttachN, "Item:", n, "Category:", k)
+					else
+    					Attach:SetImage(ico)
+					end
 					Attach:SetSize(ItemIcon-5,ItemIcon-5)
 
 					Attach.Attachment = {k,n,AttachN}
