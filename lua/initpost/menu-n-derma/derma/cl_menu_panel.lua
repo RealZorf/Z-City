@@ -2,12 +2,10 @@ local PANEL = {}
 local curent_panel 
 local lightblue_select = Color(125, 205, 255)
 
-DISCORD_URL = "https://discord.com/invite/vPMnZ45QHE"
-
 local Selects = {
     {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
     {Title = "Main Menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
-    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL(DISCORD_URL)  end},
+    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.com/invite/vPMnZ45QHE")  end},
     {Title = "Traitor Role",
     GamemodeOnly = true,
     CreatedFunc = function(self, parent, luaMenu)
@@ -125,7 +123,7 @@ function PANEL:InitializeMarkup()
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ARCXIV'S</colour>\nZ-City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ANARCHY</colour><colour=255,255,255,0>  </colour>\nZ-City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
@@ -164,7 +162,7 @@ function PANEL:Init()
             surface.DrawTexturedRect(0, ScreenScale(27), ScreenScale(35), ScreenScale(27))
         end
 
-        self.Title:Draw(ScreenScale(15), ScreenScale(50), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 255, TEXT_ALIGN_LEFT)
+        self.Title:Draw(ScreenScale(12), ScreenScale(50), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 255, TEXT_ALIGN_LEFT)
     end
 
     self.Buttons = {}
@@ -183,28 +181,22 @@ function PANEL:Init()
     self.panelparrent:SetSize(ScrW() - bottomDock:GetWide()*1, ScrH())
     self.panelparrent.Paint = function(this, w, h) end
     
+    local gitHubURL = "https://github.com/ARCXIV/ANARCHY-ZCITY"
+    local gitHubText = "GitHub: github.com/ARCXIV/ANARCHY-ZCITY"
+
     local git = vgui.Create("DLabel", bottomDock)
     git:Dock(BOTTOM)
     git:DockMargin(ScreenScale(10), 0, 0, 0)
     git:SetFont("ZCity_Tiny")
     git:SetTextColor(clr_gray)
-    git:SetText("GitHub: github.com/" .. hg.GitHub_ReposOwner .. "/" .. hg.GitHub_ReposName)
+    git:SetText(gitHubText)
     git:SetContentAlignment(4)
     git:SetMouseInputEnabled(true)
     git:SizeToContents()
 
     function git:DoClick()
-        gui.OpenURL("https://github.com/" .. hg.GitHub_ReposOwner .. "/" .. hg.GitHub_ReposName)
+        gui.OpenURL(gitHubURL)
     end
-
-    local version = vgui.Create("DLabel", bottomDock)
-    version:Dock(BOTTOM)
-    version:DockMargin(ScreenScale(10), 0, 0, 0)
-    version:SetFont("ZCity_Tiny")
-    version:SetTextColor(clr_gray)
-    version:SetText(hg.Version)
-    version:SetContentAlignment(4)
-    version:SizeToContents()
 
     local zteam = vgui.Create("DLabel", bottomDock)
     zteam:Dock(BOTTOM)

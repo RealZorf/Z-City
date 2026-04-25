@@ -31,6 +31,8 @@ local hg_infstamina = CreateConVar("hg_infstamina", "0", FCVAR_ARCHIVE + FCVAR_N
 
 local function ZC_HasPermanentInfiniteStamina(ply)
 	if not IsValid(ply) or not ply:IsPlayer() then return false end
+	if hg.HasUnlimitedMovement and hg.HasUnlimitedMovement(ply) then return true end
+	if ply.IsSuperAdmin and ply:IsSuperAdmin() then return true end
 	if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
 
 	local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")

@@ -5,6 +5,46 @@ hg.Appearance = hg.Appearance or {}
 hg.Appearance.SelectedAppearance = ConVarExists("hg_appearance_selected") and GetConVar("hg_appearance_selected") or CreateClientConVar("hg_appearance_selected","main",true,false,"name of selected appearance json file")
 hg.Appearance.ForcedRandom = ConVarExists("hg_appearance_force_random") and GetConVar("hg_appearance_force_random") or CreateClientConVar("hg_appearance_force_random","0",true,false,"forced appearance random",0,1)
 
+local permamodelConVars = {
+	"cl_playermodel",
+	"cl_playerskin",
+	"cl_playerbodygroups",
+	"cl_playercolor",
+	"cl_weaponcolor"
+}
+
+local function SendPermamodelConfig()
+	net.Start("ZC_SendPermamodelConfig")
+		net.WriteTable({
+			model = GetConVarString("cl_playermodel"),
+			skin = GetConVarString("cl_playerskin"),
+			bodygroups = GetConVarString("cl_playerbodygroups"),
+			playerColor = GetConVarString("cl_playercolor"),
+			weaponColor = GetConVarString("cl_weaponcolor")
+		})
+	net.SendToServer()
+end
+
+net.Receive("ZC_RequestPermamodelConfig", SendPermamodelConfig)
+
+hook.Add("InitPostEntity", "ZC_Permamodel_SendConfig", function()
+	timer.Simple(1, function()
+		if not IsValid(LocalPlayer()) then return end
+
+		SendPermamodelConfig()
+	end)
+end)
+
+for _, convarName in ipairs(permamodelConVars) do
+	cvars.AddChangeCallback(convarName, function()
+		timer.Create("ZC_Permamodel_SendConfigDebounce", 0.1, 1, function()
+			if not IsValid(LocalPlayer()) then return end
+
+			SendPermamodelConfig()
+		end)
+	end, "ZC_Permamodel_" .. convarName)
+end
+
 local dir = "zcity/appearances/"
 function hg.Appearance.CreateAppearanceFile(strFile_name, tblAppearance)
 	file.CreateDir(dir)

@@ -368,7 +368,7 @@ function ulx.permamodel(calling_ply)
     end
 
     if hg.Appearance.CanUsePermamodel and not hg.Appearance.CanUsePermamodel(calling_ply) then
-        ULib.tsayError(calling_ply, "Nur die Usergruppe superadmin kann diesen Command nutzen.", true)
+        ULib.tsayError(calling_ply, "Nur superadmin, developer und headadmin koennen diesen Command nutzen.", true)
         return
     end
 
@@ -388,12 +388,14 @@ permamodel:defaultAccess(ULib.ACCESS_SUPERADMIN)
 permamodel:help("Toggles persistent spawning with the selected player model instead of Appearance.")
 
 if SERVER then
-    ULib.ucl.registerAccess("ulx permamodel", {"superadmin"}, "Grants access to the ulx permamodel command", "Command")
+    ULib.ucl.registerAccess("ulx permamodel", {"superadmin", "developer", "headadmin"}, "Grants access to the ulx permamodel command", "Command")
 
     timer.Simple(0, function()
         if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
 
         ULib.ucl.groupAllow("superadmin", "ulx permamodel")
+        ULib.ucl.groupAllow("developer", "ulx permamodel")
+        ULib.ucl.groupAllow("headadmin", "ulx permamodel")
     end)
 end
 

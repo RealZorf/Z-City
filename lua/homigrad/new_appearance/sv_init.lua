@@ -1,6 +1,8 @@
 -- 
 util.AddNetworkString("Get_Appearance")
 util.AddNetworkString("OnlyGet_Appearance")
+util.AddNetworkString("ZC_RequestPermamodelConfig")
+util.AddNetworkString("ZC_SendPermamodelConfig")
 hg.Appearance = hg.Appearance or {}
 local APmodule = hg.Appearance
 
@@ -9,13 +11,17 @@ local PSmodule = hg.PointShop
 
 local PERMAMODEL_PDATA_KEY = "zcity_permamodel_enabled"
 local PERMAMODEL_DEFAULT_MODEL = "models/player/kleiner.mdl"
+local PERMAMODEL_ALLOWED_GROUPS = {
+    superadmin = true,
+    developer = true,
+    headadmin = true
+}
 
 local function CanUsePermamodel(ply)
     if !IsValid(ply) or !ply:IsPlayer() then return false end
-    if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
 
     local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
-    return userGroup == "superadmin"
+    return PERMAMODEL_ALLOWED_GROUPS[userGroup] == true
 end
 
 local function LoadPermamodelPreference(ply)
@@ -70,8 +76,17 @@ local function GetFallbackPermamodel()
     return PERMAMODEL_DEFAULT_MODEL
 end
 
-local function ReadClientVector(ply, convarName, fallback)
-    local rawValue = ply:GetInfo(convarName) or ""
+local function SanitizeBodygroups(rawValue)
+    if !isstring(rawValue) then return "" end
+
+    rawValue = string.Trim(rawValue)
+    if rawValue == "" then return "" end
+
+    return (string.gsub(rawValue, "[^0-9]", ""))
+end
+
+local function ReadVectorFromString(rawValue, fallback)
+    rawValue = isstring(rawValue) and rawValue or ""
     local values = {}
 
     for value in string.gmatch(rawValue, "[^%s]+") do
@@ -85,10 +100,66 @@ local function ReadClientVector(ply, convarName, fallback)
     )
 end
 
+local function ReadClientVector(ply, convarName, fallback)
+    return ReadVectorFromString(ply:GetInfo(convarName) or "", fallback)
+end
+
+local function BuildPermamodelConfigFromUserInfo(ply)
+    return {
+        modelPath = FindPermamodelPath(ply:GetInfo("cl_playermodel")) or GetFallbackPermamodel(),
+        skin = math.max(tonumber(ply:GetInfo("cl_playerskin")) or 0, 0),
+        bodygroups = SanitizeBodygroups(ply:GetInfo("cl_playerbodygroups") or ""),
+        playerColor = ReadClientVector(ply, "cl_playercolor", Vector(1, 1, 1)),
+        weaponColor = ReadClientVector(ply, "cl_weaponcolor", Vector(0.3, 1, 2))
+    }
+end
+
+local function NormalizePermamodelConfig(data, fallbackConfig)
+    fallbackConfig = fallbackConfig or {}
+    data = istable(data) and data or {}
+
+    local config = {
+        modelPath = FindPermamodelPath(data.model or data.modelPath or data.modelName) or fallbackConfig.modelPath or GetFallbackPermamodel(),
+        skin = math.max(tonumber(data.skin) or fallbackConfig.skin or 0, 0),
+        bodygroups = SanitizeBodygroups(data.bodygroups or data.bodygroup or "")
+    }
+
+    if config.bodygroups == "" then
+        config.bodygroups = fallbackConfig.bodygroups or ""
+    end
+
+    config.playerColor = ReadVectorFromString(data.playerColor or "", fallbackConfig.playerColor or Vector(1, 1, 1))
+    config.weaponColor = ReadVectorFromString(data.weaponColor or "", fallbackConfig.weaponColor or Vector(0.3, 1, 2))
+
+    return config
+end
+
+local function GetPermamodelConfig(ply)
+    local fallbackConfig = BuildPermamodelConfigFromUserInfo(ply)
+
+    if !istable(ply.ZCPermamodelConfig) then
+        return fallbackConfig
+    end
+
+    return NormalizePermamodelConfig(ply.ZCPermamodelConfig, fallbackConfig)
+end
+
+local function RequestPermamodelConfig(ply)
+    if !IsValid(ply) or !ply:IsPlayer() then return end
+
+    net.Start("ZC_RequestPermamodelConfig")
+    net.Send(ply)
+end
+
 local function ApplyPermamodel(ply)
     if !IsValid(ply) then return end
 
-    local modelPath = FindPermamodelPath(ply:GetInfo("cl_playermodel")) or GetFallbackPermamodel()
+    if !istable(ply.ZCPermamodelConfig) then
+        RequestPermamodelConfig(ply)
+    end
+
+    local config = GetPermamodelConfig(ply)
+    local modelPath = config.modelPath or GetFallbackPermamodel()
 
     util.PrecacheModel(modelPath)
 
@@ -96,8 +167,8 @@ local function ApplyPermamodel(ply)
         ply:SetModel(modelPath)
     end
 
-    local playerColor = ReadClientVector(ply, "cl_playercolor", Vector(1, 1, 1))
-    local weaponColor = ReadClientVector(ply, "cl_weaponcolor", Vector(0.3, 1, 2))
+    local playerColor = config.playerColor or Vector(1, 1, 1)
+    local weaponColor = config.weaponColor or Vector(0.3, 1, 2)
 
     if ply.SetPlayerColor then
         ply:SetPlayerColor(playerColor)
@@ -111,10 +182,10 @@ local function ApplyPermamodel(ply)
     ply:SetNWString("PlayerName", ply:Nick())
     ply:SetNetVar("Accessories", {})
     ply:SetSubMaterial()
-    ply:SetSkin(math.max(tonumber(ply:GetInfo("cl_playerskin")) or 0, 0))
+    ply:SetSkin(config.skin or 0)
 
-    local bodygroups = ply:GetInfo("cl_playerbodygroups") or ""
-    if isstring(bodygroups) and bodygroups ~= "" then
+    local bodygroups = config.bodygroups or ""
+    if bodygroups ~= "" then
         ply:SetBodyGroups(bodygroups)
     else
         ply:SetBodyGroups("00000000000000000000")
@@ -160,6 +231,22 @@ APmodule.ApplyPermamodel = ApplyPermamodel
 
 hook.Add("PlayerInitialSpawn", "ZC_Permamodel_LoadPreference", function(ply)
     LoadPermamodelPreference(ply)
+    RequestPermamodelConfig(ply)
+end)
+
+net.Receive("ZC_SendPermamodelConfig", function(_, client)
+    if !IsValid(client) or !client:IsPlayer() then return end
+
+    client.ZCPermamodelConfig = NormalizePermamodelConfig(net.ReadTable(), BuildPermamodelConfigFromUserInfo(client))
+
+    if APmodule.IsPermamodelEnabled(client) and client:Alive() then
+        timer.Simple(0, function()
+            if !IsValid(client) or !client:Alive() then return end
+            if !APmodule.IsPermamodelEnabled(client) then return end
+
+            ApplyPermamodel(client)
+        end)
+    end
 end)
 
 local function CheckAttachments(ply,tbl)
