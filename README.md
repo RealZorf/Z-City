@@ -1,4 +1,4 @@
-# 🌆 ANARCHY ZCITY
+# 🌆 ARXIV ZCITY
 
 <p align="center">
   🏙️ <strong>The next level of Garry’s Mod</strong>
@@ -8,7 +8,7 @@
 
 ## 🎮 About the Project
 
-**ANARCHY ZCITY** is a custom-built Garry’s Mod server focused on:
+**ARXIV ZCITY** is a custom-built Garry’s Mod server focused on:
 
 * 🎭 Realistic gameplay
 * 🤝 Strong player interaction
