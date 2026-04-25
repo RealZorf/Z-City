@@ -1,4 +1,4 @@
-ENT.Type = "anim"
+﻿ENT.Type = "anim"
 ENT.Base = "base_gmodentity"
 ENT.PrintName = "ent_hg_smokenade"
 ENT.Spawnable = false
@@ -10,7 +10,7 @@ ENT.PrintName = "Grenade"
 ENT.Spawnable = false
 ENT.Model = "models/pwb/weapons/w_f1_thrown.mdl"
 ENT.timeToBoom = 3
-ENT.Fragmentation = 300 * 3 --300 не страшно
+ENT.Fragmentation = 180 -- performance budget
 ENT.BlastDis = 8 --meters
 ENT.Penetration = 8
 ENT.ishggrenade = true
@@ -19,7 +19,7 @@ ENT.Sound = {"m67/m67_detonate_01.wav", "m67/m67_detonate_02.wav", "m67/m67_deto
 ENT.SoundFar = {"m67/m67_detonate_far_dist_01.wav", "m67/m67_detonate_far_dist_02.wav", "m67/m67_detonate_far_dist_03.wav"}
 ENT.SoundWater = "m67/water/m67_water_detonate_01.wav"
 ENT.SoundBass = {
-    "snd_jack_fragsplodeclose.wav", --;; Мне насрать если чет не нравится можете изменить!!!
+    "snd_jack_fragsplodeclose.wav",
     "m67/m67_detonate_02.wav",
     "snd_jack_bigsplodeclose.wav"
 }

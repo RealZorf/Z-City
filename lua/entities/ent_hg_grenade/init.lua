@@ -1,4 +1,4 @@
-AddCSLuaFile("cl_init.lua")
+﻿AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
@@ -36,12 +36,63 @@ function ENT:Use(ply)
 	self.owner = ply
 end
 
+local vecCone = Vector(0, 0, 0)
+local GRENADE_SOUND_RADIUS_SQR = 4500 * 4500
+local GRENADE_NEARBY_ENTITY_CAP = 20
+local GRENADE_PLAYER_EFFECT_CAP = 8
+local GRENADE_PHYSICS_PUSH_CAP = 10
+local GRENADE_SHRAPNEL_SAMPLE_CAP = 96
+local GRENADE_SHRAPNEL_BATCH_RESUMES = 3
+local GRENADE_SHRAPNEL_SLICE_TIME = 0.0008
+
+local function sendFarSound(self, nearSound, farSound, waterSound)
+	local recipients = {}
+	local pos = self:GetPos()
+
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(pos) <= GRENADE_SOUND_RADIUS_SQR then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	if #recipients == 0 then return end
+
+	net.Start("projectileFarSound")
+		net.WriteString(nearSound)
+		net.WriteString(farSound)
+		net.WriteVector(pos)
+		net.WriteEntity(self)
+		net.WriteBool(self:WaterLevel() > 0)
+		net.WriteString(waterSound)
+	net.Send(recipients)
+end
+
 function ENT:Think()
 	if CLIENT then return end
 	self:NextThink(CurTime())
 
 	if self.AddThink then
 		self:AddThink()
+	end
+
+	if self.ShrapnelCoroutine then
+		for i = 1, GRENADE_SHRAPNEL_BATCH_RESUMES do
+			local ok, err = coroutine.resume(self.ShrapnelCoroutine)
+			if not ok then
+				ErrorNoHalt(string.format("[ent_hg_grenade] shrapnel coroutine failed: %s\n", tostring(err)))
+				self.ShrapnelCoroutine = nil
+				self.ShrapnelDone = true
+				SafeRemoveEntity(self)
+				return true
+			end
+
+			if self.ShrapnelDone or coroutine.status(self.ShrapnelCoroutine) == "dead" then
+				self.ShrapnelCoroutine = nil
+				self.ShrapnelDone = true
+				SafeRemoveEntity(self)
+				return true
+			end
+		end
 	end
 
 	if (CurTime() - ( self.CreateTime or 0 )) >= 90 and self.owner ~= nil then
@@ -132,8 +183,6 @@ function ENT:Arm(time,vel)
 	end
 end
 
-local vecCone = Vector(0, 0, 0)
-
 function ENT:PoopBomb()
 	return math.random(1, 100) == 1
 end
@@ -210,21 +259,18 @@ function ENT:Explode()
 		util.Effect("eff_jack_genericboom", effectdata)
 	end
 
-	net.Start("projectileFarSound")
-		net.WriteString(self.Sound[math.random(#self.Sound)])
-		net.WriteString(self.SoundFar[math.random(#self.SoundFar)])
-		net.WriteVector(self:GetPos())
-		net.WriteEntity(self)
-		net.WriteBool(self:WaterLevel() > 0)
-		net.WriteString(self.SoundWater[math.random(#self.SoundWater)])
-	net.Broadcast()
+	local nearSound = self.Sound[math.random(#self.Sound)]
+	local farSound = self.SoundFar[math.random(#self.SoundFar)]
+	local bassSound = self.SoundBass[math.random(#self.SoundBass)]
+
+	sendFarSound(self, nearSound, farSound, self.SoundWater)
 
 	if self:WaterLevel() > 0 then
 		self:EmitSound(self.SoundWater, 140, 85, 1, CHAN_WEAPON)
-		self:EmitSound(self.SoundBass[math.random(#self.SoundBass)], 150, 70, 0.8, CHAN_AUTO)
+		self:EmitSound(bassSound, 150, 70, 0.8, CHAN_AUTO)
 	else
-		self:EmitSound(self.Sound[math.random(#self.Sound)], 145, 85, 1, CHAN_WEAPON)
-		self:EmitSound(self.SoundFar[math.random(#self.SoundFar)], 140, 85, 0.9, CHAN_WEAPON)
+		self:EmitSound(nearSound, 145, 85, 1, CHAN_WEAPON)
+		self:EmitSound(farSound, 140, 85, 0.9, CHAN_WEAPON)
 		
 		timer.Simple(0.05, function() 
 			if IsValid(self) then
@@ -239,13 +285,13 @@ function ENT:Explode()
 		end)
 	end
 
-	EmitSound(self.Sound[math.random(#self.Sound)], self:GetPos(), self:EntIndex() + 100, CHAN_STATIC, 1, 140, nil, math.random(75, 85))
+	EmitSound(nearSound, self:GetPos(), self:EntIndex() + 100, CHAN_STATIC, 1, 140, nil, math.random(75, 85))
 
 	if self:WaterLevel() > 0 then
 		self:EmitSound(self.SoundWater, 100, 100, 1, CHAN_WEAPON)
 	else
-		self:EmitSound(self.Sound[math.random(#self.Sound)], 100, 100, 1, CHAN_WEAPON)
-		self:EmitSound(self.SoundFar[math.random(#self.SoundFar)], 95, 100, 0.8, CHAN_WEAPON)
+		self:EmitSound(nearSound, 100, 100, 1, CHAN_WEAPON)
+		self:EmitSound(farSound, 95, 100, 0.8, CHAN_WEAPON)
 	end
 
 
@@ -267,29 +313,37 @@ function ENT:Explode()
 
 	util.BlastDamage(self, IsValid(self.owner) and self.owner or self, selfPos, self.BlastDis / 0.01905, 35)
 
-	--;; Расскажу вам тайну но у нас трассировка делалась просто ужасно
 	local dis = self.BlastDis / 0.01905
-	local disorientation_dis = 6 / 0.01905  
+	local disorientation_dis = 6 / 0.01905
 	local entsCount = 0
+	local processedEnts = 0
+	local disorientationTargets = 0
+	local playerPushTargets = 0
+	local physicsPushes = 0
 	for i, enta in ipairs(ents.FindInSphere(selfPos, disorientation_dis)) do
+		if processedEnts >= GRENADE_NEARBY_ENTITY_CAP then break end
+		if not IsValid(enta) then continue end
+		processedEnts = processedEnts + 1
+
 		local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
 		local tr = hg.ExplosionTrace(selfPos, tracePos, {self})
 		local phys = enta:GetPhysicsObject()
 		if IsValid(phys) then
 			entsCount = entsCount + 1
 		end
-		
-		local phys = enta:GetPhysicsObject()
+
 		local force = (enta:GetPos() - selfPos)
 		local len = force:Length()
+		if len <= 0 then continue end
 		force:Div(len)
-		local frac = math.Clamp((disorientation_dis - len) / disorientation_dis, 0.1, 1)  
-		local physics_frac = math.Clamp((dis - len) / dis, 0.5, 1)  
-		local forceadd = force * physics_frac * 50000  
+		local frac = math.Clamp((disorientation_dis - len) / disorientation_dis, 0.1, 1)
+		local physics_frac = math.Clamp((dis - len) / dis, 0.5, 1)
+		local forceadd = force * physics_frac * 50000
 
-		if enta.organism then
+		if enta.organism and disorientationTargets < GRENADE_PLAYER_EFFECT_CAP then
 			local behindwall = tr.Entity != enta and tr.MatType != MAT_GLASS
 			if IsValid(enta.organism.owner) and enta.organism.owner:IsPlayer() and not behindwall then
+				disorientationTargets = disorientationTargets + 1
 				hg.ExplosionDisorientation(enta, 5 * frac, 6 * frac)
 				hg.RunZManipAnim(enta.organism.owner, "shieldexplosion")
 			end
@@ -298,15 +352,16 @@ function ENT:Explode()
 		if len > dis then continue end
 		if tr.Entity != enta then continue end
 
-
-		if enta:IsPlayer() then
+		if enta:IsPlayer() and playerPushTargets < GRENADE_PLAYER_EFFECT_CAP then
+			playerPushTargets = playerPushTargets + 1
 			hg.AddForceRag(enta, 0, forceadd * 0.5, 0.5)
 			hg.AddForceRag(enta, 1, forceadd * 0.5, 0.5)
-
 			hg.LightStunPlayer(enta)
 		end
 
 		if not IsValid(phys) then continue end
+		if physicsPushes >= GRENADE_PHYSICS_PUSH_CAP then continue end
+		physicsPushes = physicsPushes + 1
 		phys:ApplyForceCenter(forceadd)
 	end
 
@@ -329,85 +384,81 @@ function ENT:Explode()
 	util.Effect("eff_jack_hmcd_shrapnel",Poof,true,true)
 
 	timer.Simple(0, function()
+		if not IsValid(self) then return end
+
 		util.ScreenShake( selfPos, 35, 200, 1, 1000 )
 
 		local ammo = "Metal Debris"
 		local ammotype = hg.ammotypeshuy[ammo].BulletSettings
+		local sampleCount = math.min(self.Fragmentation, GRENADE_SHRAPNEL_SAMPLE_CAP)
 
-		local co = coroutine.create(function()
+		self.ShrapnelDone = false
+		self.ShrapnelCoroutine = coroutine.create(function()
+			for i = 1, sampleCount do
+				local shrapnelStart = SysTime()
 
-			local LastShrapnel = SysTime()
+				local dir = VectorRand(-1,1):GetNormalized()
+				dir[3] = dir[3] > 0 and math.abs(dir[3] - 0.5) or -math.abs(dir[3] + 0.5)
+				dir:Normalize()
 
-			for i = 1, self.Fragmentation do
-					LastShrapnel = SysTime()
+				local Tr = util.QuickTrace(selfPos, dir * 10000, self)
 
-					local dir = VectorRand(-1,1):GetNormalized()--vector_up
-					dir[3] = dir[3] > 0 and math.abs(dir[3] - 0.5) or -math.abs(dir[3] + 0.5)
-					dir:Normalize()
+				if Tr.Hit and !Tr.HitSky and !Tr.HitWorld then
+					local bullet = {}
 
-					local Tr = util.QuickTrace(selfPos, dir * 10000, self)
+					bullet.Speed = ammotype.Speed
+					bullet.Distance = ammotype.Distance or 56756
+					bullet.penetrated = 0
+					bullet.MaxPenLen = 100
+					bullet.Penetration = (ammotype.Penetration or (-(-self.Penetration))) * (self.PenetrationMultiplier or 1)
+					bullet.Diameter = ammotype.Diameter or 1
+					bullet.Src = selfPos
+					bullet.Spread = vecCone
+					bullet.Force = 20
+					bullet.Damage = 40
+					bullet.AmmoType = ammo
+					bullet.Attacker = self.owner
+					bullet.Inflictor = self
+					bullet.Distance = 56756
+					bullet.DisableLagComp = true
+					bullet.Filter = {self}
+					bullet.Dir = dir
+					bullet.Callback = hg.bulletHit
 
-					if Tr.Hit and !Tr.HitSky and !Tr.HitWorld then
-						local bullet = {}
+					self:FireLuaBullets(bullet, true)
+				end
 
-						bullet.Speed = ammotype.Speed
-						bullet.Distance = ammotype.Distance or 56756
-						bullet.penetrated = 0
-						bullet.MaxPenLen = 100
-						bullet.Penetration = (ammotype.Penetration or (-(-self.Penetration))) * (self.PenetrationMultiplier or 1)
-						bullet.Diameter = ammotype.Diameter or 1
-
-						bullet.Src = selfPos
-						bullet.Spread = vecCone
-						bullet.Force = 20
-						bullet.Damage = 40
-						bullet.AmmoType = ammo
-						bullet.Attacker = self.owner
-						bullet.Inflictor = self
-						bullet.Distance = 56756
-						bullet.DisableLagComp = true
-						bullet.Filter = {self}
-						bullet.Dir = dir
-						bullet.Callback = hg.bulletHit
-
-						self:FireLuaBullets(bullet, true)
-					end
-
-					LastShrapnel = SysTime() - LastShrapnel
-
-					if LastShrapnel > 0.001 then
-						coroutine.yield()
-					end
+				if (SysTime() - shrapnelStart) > GRENADE_SHRAPNEL_SLICE_TIME then
+					coroutine.yield()
+				end
 			end
 
 			self.ShrapnelDone = true
 		end)
 
-		coroutine.resume(co)
+		local ok, err = coroutine.resume(self.ShrapnelCoroutine)
+		if not ok then
+			ErrorNoHalt(string.format("[ent_hg_grenade] failed to start shrapnel coroutine: %s\n", tostring(err)))
+			self.ShrapnelCoroutine = nil
+			self.ShrapnelDone = true
+			SafeRemoveEntity(self)
+			return
+		end
 
-		local index = self:EntIndex()
+		if self.ShrapnelDone or coroutine.status(self.ShrapnelCoroutine) == "dead" then
+			self.ShrapnelCoroutine = nil
+			SafeRemoveEntity(self)
+			return
+		end
 
-		timer.Create("GrenadeCheck_" .. index, 0, 0, function()
-			if !IsValid(self) then
-				timer.Remove("GrenadeCheck_" .. index)
-			end
-
-			coroutine.resume(co)
-
-			if self.ShrapnelDone then
-				SafeRemoveEntity(self)
-				timer.Remove("GrenadeCheck_" .. index)
-			end
-		end)
 		if self.ExplodeAdd then
 			self:ExplodeAdd()
 		end
 	end)
 	util.ScreenShake( selfPos, 35, 1, 1, 1000, true )
-	hg.EmitAISound(self:GetPos(), 300, 3, bit.bor(1, 33554432)) -- надеюсь буде работать
+	hg.EmitAISound(self:GetPos(), 300, 3, bit.bor(1, 33554432))
 end
 
---;; Салат если ты подумаешь что это чатговноти то это послание вам - FUCK YOU!
 local vec10 = Vector(0, 0, 10)
 function ENT:PlaySndExplosion(snd, server, chan, vol, pitch, entity, tripleaffirmative)
 	if SERVER and not server then return end
@@ -438,23 +489,6 @@ function ENT:PlaySndExplosion(snd, server, chan, vol, pitch, entity, tripleaffir
 		end)
 	end
 end
-
--- дека это че
---[[function ENT:PlaySndExplosion(snd, server, chan, vol, pitch, entity, tripleaffirmative)
-	if SERVER and not server then return end
-	
-	vol = vol or 1
-	pitch = pitch or 100
-	chan = chan or CHAN_WEAPON
-	local rand = math.random(-5, 5)
-	
-	EmitSound(snd, self:GetPos(), (entity or self:EntIndex()), chan, vol, 75, nil, pitch + rand)
-	
-	if tripleaffirmative then
-		EmitSound(snd, self:GetPos() - Vector(0, 0, 10), (entity or self:EntIndex()) + 1, chan, vol, 75, nil, pitch + rand - 2)
-		EmitSound(snd, self:GetPos() + Vector(0, 0, 10), (entity or self:EntIndex()) + 2, chan, vol * 0.9, 75, nil, pitch + rand + 2)
-	end
-end]] -- омнипроджект кодинг возвращение
 
 function ENT:PlaySndDebris(snd, vol, pitch)
 	vol = vol or 1

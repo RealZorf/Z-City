@@ -43,6 +43,26 @@ end
 local max_reasonable_pos 		= 25000
 local min_reasonable_pos 		= -25000
 
+hg = hg or {}
+hg._queuedCollisionRuleRefresh = hg._queuedCollisionRuleRefresh or {}
+
+function hg.QueueCollisionRulesChanged(ent)
+	if not IsValid(ent) then return end
+	hg._queuedCollisionRuleRefresh[ent] = true
+end
+
+if SERVER then
+	hook.Add("Tick", "hg_queue_collision_rules_changed", function()
+		for ent in pairs(hg._queuedCollisionRuleRefresh) do
+			hg._queuedCollisionRuleRefresh[ent] = nil
+
+			if IsValid(ent) then
+				ent:CollisionRulesChanged()
+			end
+		end
+	end)
+end
+
 function IsReasonable( pos )
 	local posY, posZ = pos.y, pos.z
 
@@ -70,11 +90,7 @@ hook.Add("OnCrazyPhysics","crazy_physics",function(ent, physobj)--function(a,msg
 
 	local pos = ent:GetPos()
 
-	timer.Simple(0, function()
-		if IsValid(ent) then
-			ent:CollisionRulesChanged()
-		end
-	end)
+	hg.QueueCollisionRulesChanged(ent)
 
 	if physobj:IsValid() then
 		physobj:EnableMotion(false)

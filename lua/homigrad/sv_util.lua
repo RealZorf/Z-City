@@ -1502,6 +1502,77 @@ function entMeta:SDOIsDoor()
 	return self:GetClass() == "prop_door_rotating" or self:GetClass() == "func_door_rotating"
 end
 
+local function getDoorBlockerDistanceSq(door, ent)
+	if not IsValid(door) or not IsValid(ent) then return nil end
+
+	local center = ent.WorldSpaceCenter and ent:WorldSpaceCenter() or ent:GetPos()
+	local nearest = door:NearestPoint(center)
+	local radius = 0
+
+	if ent:IsPlayer() then
+		radius = 22
+	elseif ent:IsRagdoll() then
+		radius = 30
+	else
+		radius = 18
+	end
+
+	return nearest:DistToSqr(center), radius * radius
+end
+
+function hg.IsDoorwayBlocked(door)
+	if not IsValid(door) or not hgIsDoor(door) then return false end
+
+	local mins, maxs = door:OBBMins(), door:OBBMaxs()
+	local halfExtents = (maxs - mins) * 0.5
+	local radius = math.max(halfExtents.x, halfExtents.y, halfExtents.z) + 48
+	local center = door:WorldSpaceCenter()
+
+	for _, ent in ipairs(ents.FindInSphere(center, radius)) do
+		if not IsValid(ent) or ent == door then continue end
+
+		if ent:IsPlayer() then
+			if not ent:Alive() then continue end
+
+			local char = hg.GetCurrentCharacter and hg.GetCurrentCharacter(ent) or ent
+			if IsValid(char) then
+				local distSq, limitSq = getDoorBlockerDistanceSq(door, char)
+				if distSq and distSq <= limitSq then
+					return true, char
+				end
+			end
+
+			local fake = ent.FakeRagdoll
+			if IsValid(fake) then
+				local distSq, limitSq = getDoorBlockerDistanceSq(door, fake)
+				if distSq and distSq <= limitSq then
+					return true, fake
+				end
+			end
+		elseif ent:IsRagdoll() then
+			local distSq, limitSq = getDoorBlockerDistanceSq(door, ent)
+			if distSq and distSq <= limitSq then
+				return true, ent
+			end
+		end
+	end
+
+	return false
+end
+
+function hg.TrySafeCloseDoor(door, user)
+	if not IsValid(door) or not hgIsDoor(door) then return false end
+
+	local blocked = hg.IsDoorwayBlocked(door)
+	if blocked then
+		door:EmitSound("doors/default_locked.wav", 60, 90)
+		return false
+	end
+
+	door:Fire("close")
+	return true
+end
+
 hook.Add( "AcceptInput", "StealthOpenDoors", function( ent, inp, act, ply, val )
 	if inp == "Use" and ent:SDOIsDoor() then
 		local func = ((ply:KeyDown( IN_SPEED ) and "FastOpenDoor") or ( ply:KeyDown( IN_WALK ) and "StealthOpenDoor") or "NormalOpenDoor")
@@ -1523,18 +1594,26 @@ hook.Add( "AcceptInput", "StealthOpenDoors", function( ent, inp, act, ply, val )
 	end
 end )
 
+hook.Add("AcceptInput", "hg_SafeDoorClose", function(ent, inp)
+	if IsValid(ent) and inp == "Close" and hgIsDoor(ent) and hg.IsDoorwayBlocked(ent) then
+		ent:EmitSound("doors/default_locked.wav", 60, 90)
+		return true
+	end
+end)
+
 hook.Add("PlayerUse", "DoorClose", function(ply, ent)
 	local getdoor = ply:GetUseEntity()
-	if string_find(tostring(getdoor), "prop_door_rotating") and getdoor:GetInternalVariable("m_eDoorState") == 2 then
+	if IsValid(getdoor) and getdoor:SDOIsDoor() and DoorIsOpen2(getdoor) then
 		if getdoor:GetInternalVariable("m_hMaster") != NULL then
-			getdoor:GetInternalVariable("m_hMaster"):Fire("close")
-			hg.RunZManipAnim(ply, "door_open_back", nil, 2, {self})
+			if hg.TrySafeCloseDoor(getdoor:GetInternalVariable("m_hMaster"), ply) then
+				hg.RunZManipAnim(ply, "door_open_back", nil, 2, {self})
+			end
 
 			return false
 		else
-			getdoor:Fire("close")
-			hg.RunZManipAnim(ply, "door_open_back", nil, 2, {self})
-
+			if hg.TrySafeCloseDoor(getdoor, ply) then
+				hg.RunZManipAnim(ply, "door_open_back", nil, 2, {self})
+			end
 			return false
 		end
 	end	

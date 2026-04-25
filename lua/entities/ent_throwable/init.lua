@@ -39,7 +39,10 @@ function ENT:Think()
 	if self.AeroDrag then
 		AeroDrag(self, self:GetAngles():Forward(), 10)
 	end
-	self:SetCollisionGroup(speed < 220000 and COLLISION_GROUP_WEAPON or COLLISION_GROUP_NONE)
+	local desiredCollisionGroup = speed < 220000 and COLLISION_GROUP_WEAPON or COLLISION_GROUP_NONE
+	if self:GetCollisionGroup() ~= desiredCollisionGroup then
+		self:SetCollisionGroup(desiredCollisionGroup)
+	end
 end
 
 function ENT:PhysicsCollide(data, phys)

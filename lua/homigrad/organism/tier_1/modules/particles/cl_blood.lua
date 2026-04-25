@@ -21,6 +21,11 @@ local render_GetLightColor = render.GetLightColor
 
 local hg_blood_draw_distance = ConVarExists("hg_blood_draw_distance") and GetConVar("hg_blood_draw_distance") or CreateClientConVar("hg_blood_draw_distance", 1024, true, nil, "distance to draw blood", 0, 4096)
 local hg_blood_sprites = ConVarExists("hg_blood_sprites") and GetConVar("hg_blood_sprites") or CreateClientConVar("hg_blood_sprites", 1, true, nil, "blood is sprites or trails", 0, 1)
+local BLOOD_DRAW_SOFT_CAP = 320
+local BLOOD_PARTICLE_HARD_CAP = 500
+local BLOOD_POSITION_RESET_CAP = 3500
+local BLOOD_DECALS_PER_POS = 4
+local BLOOD_POOL_DECAL_THRESHOLD = 24
 
 hook.Add("PostCleanupMap","removeblooddroplets",function()
 	hg.bloodparticles1 = {}
@@ -38,7 +43,9 @@ bloodparticles_hook[1] = function(anim_pos, mul)
 	local dstsqr = int * int
 	local lplypos = LocalPlayer():EyePos()
 	local lplyang = LocalPlayer():EyeAngles():Forward()
-	for i = 1, #hg.bloodparticles1 do
+	local particleCount = #hg.bloodparticles1
+	local step = particleCount > BLOOD_DRAW_SOFT_CAP and math.ceil(particleCount / BLOOD_DRAW_SOFT_CAP) or 1
+	for i = 1, particleCount, step do
 		local part = hg.bloodparticles1[i]
 		if not part then continue end
 		if (pos - lplypos):Dot(lplyang) < 0 then continue end
@@ -87,7 +94,7 @@ local function decalBlood(pos, normal, tr, artery, owner)
 
 	hg.bloodcount = hg.bloodcount + 1
 	
-	if hg.bloodcount > 10000 then
+	if hg.bloodcount > BLOOD_POSITION_RESET_CAP then
 		hg.bloodpositions = {}
 		hg.bloodcount = 0
 	end
@@ -100,7 +107,7 @@ local function decalBlood(pos, normal, tr, artery, owner)
 			
 			//timer.Simple(0.1, function()
 				hg.bloodpositions[vec] = (hg.bloodpositions[vec] or 0) + 1
-				if hg.bloodpositions[vec] < 6 then
+				if hg.bloodpositions[vec] <= BLOOD_DECALS_PER_POS then
 					util.Decal("Arterial.Blood2"..math.Clamp(hg.bloodpositions[vec], 1, 5), pos + normal, pos - normal, owner)
 				end
 				sound.Play("homigrad/blooddrip" .. math_random(1, 4) .. ".wav", pos, math.random(10, 60), tr.MatType == MAT_METAL and math.random(100, 120) or math.random(80, 120))
@@ -127,11 +134,11 @@ local function decalBlood(pos, normal, tr, artery, owner)
 					sound.Play("zbattle/blood_drop_metal.mp3", pos, math.random(10, 40), tr.MatType == MAT_METAL and math.random(100, 120) or math.random(80, 120))
 				end
 
-				if hg.bloodpositions[vec] < 6 then
+				if hg.bloodpositions[vec] <= BLOOD_DECALS_PER_POS then
 					util.Decal("Normal.Blood2"..math.Clamp((hg.bloodpositions[vec] or 0) + math.random(0, 2), 1, 5), pos + normal, pos - normal, owner)
 				end
 
-				if hg.bloodpositions[vec] == 50 then
+				if hg.bloodpositions[vec] == BLOOD_POOL_DECAL_THRESHOLD then
 					util.Decal("Blood", pos + normal, pos - normal, owner)
 				end
 
@@ -169,6 +176,12 @@ bloodparticles_hook[2] = function(mul)
 	local grav = gravity:GetInt() / 10
     local time = CurTime()
 	local gravvec = vecDown * mul * (math.max(0.0, grav))
+	local particleCount = #hg.bloodparticles1
+	if particleCount > BLOOD_PARTICLE_HARD_CAP then
+		for trim = particleCount, BLOOD_PARTICLE_HARD_CAP + 1, -1 do
+			table_remove(hg.bloodparticles1, trim)
+		end
+	end
 	for i = #hg.bloodparticles1, 1, -1 do
 		local part = hg.bloodparticles1[i]
 		if not part then table_remove(hg.bloodparticles1, i) continue end
