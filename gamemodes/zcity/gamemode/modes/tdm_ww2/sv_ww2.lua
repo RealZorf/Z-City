@@ -8,7 +8,6 @@ local teamData = {
         role = "German Forces",
         color = Color(120, 105, 85),
         models = {
-            -- NEW
             "models/wehrmacht_male01v1pm.mdl",
             "models/wehrmacht_male02v1pm.mdl",
             "models/wehrmacht_male03v1pm.mdl",
@@ -28,7 +27,6 @@ local teamData = {
         role = "American Forces",
         color = Color(70, 120, 85),
         models = {
-            -- NEW
             "models/normandyusmc1pm.mdl",
             "models/normandyusmc2pm.mdl",
             "models/normandyusmc3pm.mdl",
@@ -45,7 +43,6 @@ local teamData = {
     },
 }
 
--- 🔥 YOUR ORIGINAL BODYGROUP SYSTEM
 local baseBodygroups = {
     german_infantry = {
 
