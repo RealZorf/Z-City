@@ -123,7 +123,7 @@ function PANEL:InitializeMarkup()
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ANARCHY</colour><colour=255,255,255,0>  </colour>\nZ-City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ARXIV</colour><colour=255,255,255,0>  </colour>\nZ-City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
@@ -181,8 +181,8 @@ function PANEL:Init()
     self.panelparrent:SetSize(ScrW() - bottomDock:GetWide()*1, ScrH())
     self.panelparrent.Paint = function(this, w, h) end
     
-    local gitHubURL = "https://github.com/ARCXIV/ANARCHY-ZCITY"
-    local gitHubText = "GitHub: github.com/ARCXIV/ANARCHY-ZCITY"
+    local gitHubURL = "https://github.com/ARCXIV/ARXIV-ZCITY"
+    local gitHubText = "GitHub: github.com/ARCXIV/ARXIV-ZCITY"
 
     local git = vgui.Create("DLabel", bottomDock)
     git:Dock(BOTTOM)
