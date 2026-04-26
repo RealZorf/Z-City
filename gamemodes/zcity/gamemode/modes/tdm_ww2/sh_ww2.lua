@@ -59,14 +59,14 @@ AddItemToBUY("Walther PPK", "Weapon", "weapon_ppk", 600, "Pistols", {}, nil, TEA
 --Submachine guns
 AddItemToBUY("Suomi KP-31 Drum", "Weapon", "weapon_kp31", 4200, "Submachine Guns", {}, nil, TEAM_GERMAN)
 AddItemToBUY("PPSh-41 Drum", "Weapon", "weapon_ppshboss", 4200, "Submachine Guns", {}, nil, TEAM_AMERICAN)
-AddItemToBUY("Thompson M1A1", "Weapon", "weapon_thompson", 3100, "Submachine Guns", {}, nil, TEAM_AMERICAN)
+AddItemToBUY("Thompson M1A1", "Weapon", "weapon_thompson", 3000, "Submachine Guns", {}, nil, TEAM_AMERICAN)
 AddItemToBUY("MP40", "Weapon", "weapon_mp40", 2400, "Submachine Guns", {}, nil, TEAM_GERMAN)
 AddItemToBUY("M3 Grease Gun", "Weapon", "weapon_m3greasegun", 2400, "Submachine Guns", {}, nil, TEAM_AMERICAN)
 
 --Rifles
 AddItemToBUY("Gewehr 43", "Weapon", "weapon_gewehr43", 3200, "Rifles", {})
-AddItemToBUY("Karabiner 98k", "Weapon", "weapon_kar98", 2100, "Rifles", {"optic12"}, nil, TEAM_GERMAN)
-AddItemToBUY("Mosin-Nagant", "Weapon", "weapon_mosin", 2100, "Rifles", {"optic12"}, nil, TEAM_AMERICAN)
+AddItemToBUY("Karabiner 98k", "Weapon", "weapon_kar98", 2000, "Rifles", {"optic12"}, nil, TEAM_GERMAN)
+AddItemToBUY("Mosin-Nagant", "Weapon", "weapon_mosin", 2000, "Rifles", {"optic12"}, nil, TEAM_AMERICAN)
 
 --Assault rifles
 AddItemToBUY("FG 42", "Weapon", "weapon_fg42", 4400, "Assault Rifles", {}, nil, TEAM_GERMAN)
