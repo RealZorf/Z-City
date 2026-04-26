@@ -1341,7 +1341,10 @@ local IsValid = IsValid
 			(ply:GetNWBool("TauntLeftHand", false) and ply:GetNWFloat("StartTaunt", 0) + 0.1 < CurTime()) or
 			IsValid(ply.flashlight)) and !ply:GetNetVar("handcuffed") and (wep and not wep.reload)) or
 			(deploying) or
-			(ent != ply and math.abs(ent:GetManipulateBoneAngles(ent:LookupBone("ValveBiped.Bip01_L_Finger11"))[2]) > 5 and !ply:InVehicle()) or
+			(ent != ply and (function()
+				local finger = ent:LookupBone("ValveBiped.Bip01_L_Finger11")
+				return finger and math.abs(ent:GetManipulateBoneAngles(finger)[2]) > 5
+			end)() and !ply:InVehicle()) or
 			( ply:InVehicle() and (wep and not IsValid(wep)) and not wep.reload) and hg.isdriveablevehicle(ply:GetVehicle()) )) or ply.zmanipstart
 	end
 

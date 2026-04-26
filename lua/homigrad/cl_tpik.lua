@@ -702,24 +702,34 @@ function hg.MainTPIKFunction(ent, ply, wpn)
     if ent ~= ply and ent.organism and ent.organism.stamina and ent.organism.stamina[1] then
         local stammul = math_Clamp(1 - ent.organism.stamina[1] / 90, 0, 1)
 
-        local holdingrh = ent:GetManipulateBoneAngles(ent:LookupBone("ValveBiped.Bip01_R_Finger11"))[2] < 0
+        local holdingrh = false
+        local rhFinger = ent:LookupBone("ValveBiped.Bip01_R_Finger11")
+        if rhFinger then
+            holdingrh = ent:GetManipulateBoneAngles(rhFinger)[2] < 0
+        end
         if holdingrh then
             local rh = ent:LookupBone("ValveBiped.Bip01_R_Hand")
-            local rhmat = ent:GetBoneMatrix(rh)
+            local rhmat = rh and ent:GetBoneMatrix(rh)
 
-            rhmat:SetTranslation(rhmat:GetTranslation() + VectorRand(-0.2, 0.2) * stammul)
-
-            hg.bone_apply_matrix(ent, rh, rhmat)
+            if rh and rhmat then
+                rhmat:SetTranslation(rhmat:GetTranslation() + VectorRand(-0.2, 0.2) * stammul)
+                hg.bone_apply_matrix(ent, rh, rhmat)
+            end
         end
         
-        local holdinglh = ent:GetManipulateBoneAngles(ent:LookupBone("ValveBiped.Bip01_L_Finger11"))[2] < 0
+        local holdinglh = false
+        local lhFinger = ent:LookupBone("ValveBiped.Bip01_L_Finger11")
+        if lhFinger then
+            holdinglh = ent:GetManipulateBoneAngles(lhFinger)[2] < 0
+        end
         if holdinglh then
             local lh = ent:LookupBone("ValveBiped.Bip01_L_Hand")
-            local lhmat = ent:GetBoneMatrix(lh)
+            local lhmat = lh and ent:GetBoneMatrix(lh)
 
-            lhmat:SetTranslation(lhmat:GetTranslation() + VectorRand(-0.2, 0.2) * stammul)
-
-            hg.bone_apply_matrix(ent, lh, lhmat)
+            if lh and lhmat then
+                lhmat:SetTranslation(lhmat:GetTranslation() + VectorRand(-0.2, 0.2) * stammul)
+                hg.bone_apply_matrix(ent, lh, lhmat)
+            end
         end
     end
 end

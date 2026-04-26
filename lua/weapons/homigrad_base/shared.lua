@@ -2097,7 +2097,12 @@ function SWEP:SetHandPos(noset)
 	end
 	
 	if (ent ~= ply and ent ~= ply.OldRagdoll and !hg.RagdollCombatInUse(ply)) then
-		self.lhandik = self.lhandik and !((hg.KeyDown(ply, IN_FORWARD + IN_BACK) or ent:GetManipulateBoneAngles(ent:LookupBone("ValveBiped.Bip01_L_Finger11"))[2] < 0) and !self.reload and !ply:InVehicle())
+		local leftFingerHeld = false
+		local leftFingerBone = ent:LookupBone("ValveBiped.Bip01_L_Finger11")
+		if leftFingerBone then
+			leftFingerHeld = ent:GetManipulateBoneAngles(leftFingerBone)[2] < 0
+		end
+		self.lhandik = self.lhandik and !((hg.KeyDown(ply, IN_FORWARD + IN_BACK) or leftFingerHeld) and !self.reload and !ply:InVehicle())
 	end
 
 	--ply:SetIK(false)

@@ -1,6 +1,17 @@
 --
 SWEP.WorkWithFake = true
 
+local function manipulateRightFingerChainSafe(ragdoll, ang, startIndex)
+	if not IsValid(ragdoll) then return end
+
+	for i = startIndex or 1, 4 do
+		local bone = ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1")
+		if bone then
+			ragdoll:ManipulateBoneAngles(bone, ang)
+		end
+	end
+end
+
 hook.Add("PlayerSwitchWeapon", "homigrad-weapons", function(ply, oldWep, newWep)
 	local switch = hook.Run("PlayerSwitchInFake",ply,oldWep,newWep)
 	
@@ -19,10 +30,7 @@ hook.Add("PlayerSwitchWeapon", "homigrad-weapons", function(ply, oldWep, newWep)
 		--newWep:CreateFake(ply.FakeRagdoll)
 		local ragdoll = ply.FakeRagdoll
 		if ragdoll:LookupBone("ValveBiped.Bip01_R_Finger21") then
-			for i = 4, 2, -1 do
-				if not ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1") then continue end
-				ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1"), Angle(0, -90, 0))
-			end
+			manipulateRightFingerChainSafe(ragdoll, Angle(0, -90, 0), 2)
 		end
 	else
 		ply.ActiveWeapon = newWep
@@ -36,10 +44,7 @@ hook.Add("PlayerSwitchWeapon", "homigrad-weapons", function(ply, oldWep, newWep)
 		if not IsValid(ragdoll) then return true end
 		
 		if ragdoll:LookupBone("ValveBiped.Bip01_R_Finger21") then
-			for i = 1, 4 do
-				if not ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1") then continue end
-				ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
-			end
+			manipulateRightFingerChainSafe(ragdoll, Angle(0, 0, 0))
 		end
 		return true
 	end
