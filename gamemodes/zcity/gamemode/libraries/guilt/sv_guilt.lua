@@ -404,6 +404,7 @@ local seizuremsgs = {
 hook.Add("Org Think", "Its_Karma_Bro",function(owner, org, timeValue)
     if not owner or not owner:IsPlayer() or org.otrub or not org.isPly then return end
     if not owner:IsPlayer() or not owner:Alive() then return end
+    if IsBanImmune(owner) then return end
     
     local ply = owner
     
