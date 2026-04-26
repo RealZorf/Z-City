@@ -5,9 +5,31 @@ local function check(self, ent, ply)
     local pEnt = hg.RagdollOwner( ent )
     if ( ent:IsRagdoll() ) and pEnt and pEnt:IsPlayer() and pEnt:Alive() then return true end
 end
+
+properties.Add("copy_steamid", {
+    MenuLabel = "Copy SteamID",
+    Order = 1,
+    MenuIcon = "icon16/user.png",
+
+    Filter = check,
+
+    Action = function(self, ent) -- CLIENT
+        local ply = hg.RagdollOwner(ent) or ent
+        if not IsValid(ply) or not ply:IsPlayer() then return end
+
+        local sid = ply:SteamID()
+        SetClipboardText(sid)
+
+        chat.AddText(Color(0, 200, 255), "[Context menu] ",
+            Color(255,255,255), "Copied SteamID: ",
+            Color(0,255,100), sid
+        )
+    end
+} )
+
 properties.Add( "notify", {
 	MenuLabel = "Notify", -- Name to display on the context menu
-	Order = 1, -- The order to display this property relative to other properties
+	Order = 2, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/note_add.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -40,7 +62,7 @@ properties.Add( "notify", {
 
 properties.Add( "givegun", {
 	MenuLabel = "Give", -- Name to display on the context menu
-	Order = 2, -- The order to display this property relative to other properties
+	Order = 3, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/gun.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -74,7 +96,7 @@ properties.Add( "givegun", {
 
 properties.Add( "strip", {
 	MenuLabel = "Strip", -- Name to display on the context menu
-	Order = 3, -- The order to display this property relative to other properties
+	Order = 4, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/basket_delete.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -106,7 +128,7 @@ properties.Add( "strip", {
 
 properties.Add( "fullstrip", {
 	MenuLabel = "Full Strip", -- Name to display on the context menu
-	Order = 4, -- The order to display this property relative to other properties
+	Order = 5, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/lorry_delete.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -138,7 +160,7 @@ properties.Add( "fullstrip", {
 
 properties.Add( "reset_org", {
 	MenuLabel = "Reset organism", -- Name to display on the context menu
-	Order = 5, -- The order to display this property relative to other properties
+	Order = 6, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/heart_add.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -170,7 +192,7 @@ properties.Add( "reset_org", {
 
 properties.Add( "freeze", {
 	MenuLabel = "Freeze", -- Name to display on the context menu
-	Order = 6, -- The order to display this property relative to other properties
+	Order = 7, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/control_pause_blue.png", -- The icon to display next to the property
 
 	Filter = function( self, ent, ply )
@@ -201,7 +223,7 @@ properties.Add( "freeze", {
 
 properties.Add( "snatch", {
 	MenuLabel = "Snatch", -- Name to display on the context menu
-	Order = 7, -- The order to display this property relative to other properties
+	Order = 8, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/cross.png", -- The icon to display next to the property
 
 	Filter = function(self, ent, ply)
@@ -239,7 +261,7 @@ properties.Add( "snatch", {
 
 properties.Add( "ragdollize", {
 	MenuLabel = "Stun/Get up", -- Name to display on the context menu
-	Order = 8, -- The order to display this property relative to other properties
+	Order = 9, -- The order to display this property relative to other properties
 	MenuIcon = "icon16/anchor.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -266,7 +288,7 @@ properties.Add( "ragdollize", {
 
 properties.Add( "vomit", {
 	MenuLabel = "Make vomit", -- Name to display on the context menu
-	Order = 9, -- The order to display this property relative to other properties
+	Order = 10, -- The order to display this property relative to other properties
 	MenuIcon = "pluv/pluv51.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -288,7 +310,7 @@ properties.Add( "vomit", {
 
 properties.Add( "lobotomize", {
 	MenuLabel = "Lobotomize", -- Name to display on the context menu
-	Order = 10, -- The order to display this property relative to other properties
+	Order = 11, -- The order to display this property relative to other properties
 	MenuIcon = "pluv/pluv51.png", -- The icon to display next to the property
 
 	Filter = check,
@@ -315,7 +337,7 @@ properties.Add( "lobotomize", {
 
 properties.Add("killsilent", {
 	MenuLabel = "Kill (Silent)",
-	Order = 11,
+	Order = 12,
 	MenuIcon = "icon16/cross.png",
 
 	Filter = check,
@@ -336,7 +358,7 @@ properties.Add("killsilent", {
 
 properties.Add("removeply", {
 	MenuLabel = "Remove",
-	Order = 12,
+	Order = 13,
 	MenuIcon = "icon16/cross.png",
 
 	Filter = check,
@@ -358,7 +380,7 @@ properties.Add("removeply", {
 
 properties.Add( "setplayerclass", {
 	MenuLabel = "Set player class", -- Name to display on the context menu
-	Order = 15, -- The order to display this property relative to other properties
+	Order = 14, -- The order to display this property relative to other properties
 	MenuIcon = "vgui/entities/npc_nukude_proto_h", -- The icon to display next to the property
 
 	Filter = check,
@@ -399,7 +421,7 @@ properties.Add( "setplayerclass", {
 
 properties.Add( "break_limb", {
 	MenuLabel = "Break Limb",
-	Order = 13,
+	Order = 15,
 	MenuIcon = "pluv/pluv51.png",
 
 	Filter = check,
@@ -494,7 +516,7 @@ properties.Add( "break_limb", {
 
 properties.Add( "amputate_limb", {
 	MenuLabel = "Amputate Limb",
-	Order = 14,
+	Order = 16,
 	MenuIcon = "effects/arc9_eft/evil.png",
 
 	Filter = check,
