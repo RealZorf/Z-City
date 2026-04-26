@@ -39,15 +39,15 @@ local function GetPlayerKarmaCap(ply)
 end
 
 local IMMUNE_GROUPS = {
-    superadmin = true,
-    headadmin = true,
-    developer = true,
+    "superadmin",
+    "headadmin",
+    "developer"
 }
 
 local function IsBanImmune(ply)
     if not IsValid(ply) or not ply:IsPlayer() then return false end
     local grp = string.lower(ply:GetUserGroup() or "")
-    return IMMUNE_GROUPS[grp] == true
+    return table.HasValue(IMMUNE_GROUPS, grp)
 end
 
 local function IsRefundableWrongKill(attacker, victim, rnd)
@@ -304,6 +304,8 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     zb.HarmDoneKarma[Victim][Attacker] = zb.HarmDoneKarma[Victim][Attacker] + add
 
     if shouldBanGuilt and Attacker.Guilt >= 100 then
+        if Attacker.GuiltBanSent then return end 
+        Attacker.GuiltBanSent = true
 
         if not IsBanImmune(Attacker) then
             ULib.addBan(Attacker:SteamID(), 30, "Kicked and banned for dealing too much team damage.", Attacker:Name(), "System")
