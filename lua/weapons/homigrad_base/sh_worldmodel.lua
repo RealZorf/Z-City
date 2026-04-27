@@ -12,6 +12,46 @@ end
 
 SWEP.weaponAng = Angle(0, 0, 0)
 local angZero = Angle(0, 0, 0)
+
+local function initializeWorldModelSequenceState(mdl)
+	if not IsValid(mdl) then return end
+
+	mdl.ZCLastSequenceModel = mdl:GetModel()
+	mdl.ZCSequenceReadyAt = CurTime() + 0.25
+	mdl.ZCAnimAssigned = false
+
+	if mdl.ResetSequenceInfo then
+		mdl:ResetSequenceInfo()
+	end
+end
+
+local function normalizeWorldModelSequenceState(mdl, desiredModel)
+	if not IsValid(mdl) then return false end
+
+	if desiredModel and mdl:GetModel() ~= desiredModel then
+		mdl:SetModel(desiredModel)
+	end
+
+	local currentModel = mdl:GetModel()
+	if mdl.ZCLastSequenceModel ~= currentModel then
+		mdl.ZCLastSequenceModel = currentModel
+		mdl.ZCSequenceReadyAt = CurTime() + 0.1
+		mdl.ZCAnimAssigned = false
+	end
+
+	if (mdl.ZCSequenceReadyAt or 0) > CurTime() then return false end
+
+	local seqCount = mdl.GetSequenceCount and mdl:GetSequenceCount() or 0
+	if seqCount <= 0 then return false end
+
+	local seq = mdl:GetSequence()
+	if not isnumber(seq) or seq < 0 or seq >= seqCount then
+		mdl.ZCAnimAssigned = false
+		return false
+	end
+
+	return true
+end
 local math_max, math_Clamp = math.max, math.Clamp
 function SWEP:GetAnimPos_Shoot2(time, timeSpan)
 	local animpos = math.max(time - RealTime() + timeSpan,0) / timeSpan
@@ -374,7 +414,22 @@ local function DrawWorldModel(self, force)
 				end
 			end
 			
-			if self.seq then self:GetWM():SetSequence(self.seq) end
+			local desiredModel = localdraw and self.WorldModelReal or self.worldModel:GetModel()
+			if not normalizeWorldModelSequenceState(self.worldModel, desiredModel) then return end
+
+			if self.seq then
+				local wm = self:GetWM()
+				local seq = self.seq
+				if isstring(seq) then
+					seq = wm:LookupSequence(seq)
+				end
+				if isnumber(seq) and seq >= 0 and (not wm.GetSequenceCount or seq < wm:GetSequenceCount()) then
+					self.seq = seq
+					wm:SetSequence(seq)
+				else
+					self.seq = nil
+				end
+			end
 			local timing
 			if not self.cycling then
 				timing = (1 - math.Clamp((self.animtime - CurTime()) / self.animspeed, 0, 1))
@@ -470,6 +525,7 @@ function SWEP:CreateWorldModel()
 	
 	local model = ClientsideModel(self.WorldModelFake or self.WorldModel)
 	self.worldModel = model
+	initializeWorldModelSequenceState(model)
 
 	--[[for i, tex in ipairs(model:GetMaterials()) do
 		local mat = Material(tex)

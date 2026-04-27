@@ -145,6 +145,7 @@ end
 
 SWEP.modelscale = 1
 SWEP.modelscale2 = 1
+
 if CLIENT then
     function PrintBones( entity )
         for i = 0, entity:GetBoneCount() - 1 do
@@ -265,17 +266,13 @@ if CLIENT then
                 WorldModel:SetCycle(timing)
             end
 
-            if WorldModel:GetModel() ~= self.WorldModelReal then WorldModel:SetModel(self.WorldModelReal) end
-            
             local pos, ang = self:ModelAnim(WorldModel)
 
-			WorldModel:SetRenderOrigin(pos)
+            WorldModel:SetRenderOrigin(pos)
 			WorldModel:SetRenderAngles(ang)
             WorldModel:SetPos(pos)
             WorldModel:SetAngles(ang)
 		else
-            if WorldModel:GetModel() ~= self.WorldModel then WorldModel:SetModel(self.WorldModel) end
-			
             WorldModel:SetRenderOrigin(self:GetPos())
 			WorldModel:SetRenderAngles(self:GetAngles())
             WorldModel:SetPos(self:GetPos())
@@ -1699,8 +1696,9 @@ function SWEP:PlayAnim(anim, time, cycling, callback, reverse, sendtoclient)
 		end
 		return
 	end
-    self.tries = 10
 
+    local mdl = self:GetWM()
+    self.tries = 10
     if self:GetWM():GetModel() ~= self.WorldModelReal then self:GetWM():SetModel(self.WorldModelReal) end
     
     self:GetWM():SetSequence(self.AnimList[anim] or anim)

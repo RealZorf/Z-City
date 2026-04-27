@@ -76,12 +76,53 @@ local SLAMPlacementRadius = 80
 end]]
 
 if CLIENT then
+	local function initializeSequenceState(mdl)
+		if not IsValid(mdl) then return end
+
+		mdl.ZCLastSequenceModel = mdl:GetModel()
+		mdl.ZCSequenceReadyAt = CurTime() + 0.25
+		mdl.ZCAnimAssigned = false
+
+		if mdl.ResetSequenceInfo then
+			mdl:ResetSequenceInfo()
+		end
+	end
+
+	local function normalizeSequenceState(mdl, desiredModel)
+		if not IsValid(mdl) then return false end
+
+		if desiredModel and mdl:GetModel() ~= desiredModel then
+			mdl:SetModel(desiredModel)
+		end
+
+		local currentModel = mdl:GetModel()
+		if mdl.ZCLastSequenceModel ~= currentModel then
+			mdl.ZCLastSequenceModel = currentModel
+			mdl.ZCSequenceReadyAt = CurTime() + 0.1
+			mdl.ZCAnimAssigned = false
+		end
+
+		if (mdl.ZCSequenceReadyAt or 0) > CurTime() then return false end
+
+		local seqCount = mdl.GetSequenceCount and mdl:GetSequenceCount() or 0
+		if seqCount <= 0 then return false end
+
+		local seq = mdl:GetSequence()
+		if not isnumber(seq) or seq < 0 or seq >= seqCount then
+			mdl.ZCAnimAssigned = false
+			return false
+		end
+
+		return true
+	end
+
 	function SWEP:DrawWorldModel2()
 		render.SetColorModulation(0.45,0.52,1)
 		local owner = self:GetOwner()
 
 		if not IsValid(self.worldModel) then
 			self.worldModel = ClientsideModel(self.WorldModel)
+            initializeSequenceState(self.worldModel)
 			local model = self.worldModel
 			self.worldModel:SetSkin(self.WMSkin or 0)
 			self:CallOnRemove("remove_worldmodel1",function()
@@ -103,6 +144,7 @@ if CLIENT then
 		local ent = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
 
 		if (IsValid(owner)) and (ent == owner or hg.KeyDown(owner,IN_USE) or (owner:GetNetVar("lastFake",0) > CurTime())) then
+			if not normalizeSequenceState(WorldModel, self.WorldModelReal) then return end
 			local timing = 0
 			if not self.cycling then
 				timing = (1 - math.Clamp((self.animtime - CurTime()) / self.animspeed,0,1))
@@ -124,8 +166,6 @@ if CLIENT then
 			local ang = owner:EyeAngles()
 			if not tr then return end
 
-			if WorldModel:GetModel() ~= self.WorldModelReal then WorldModel:SetModel(self.WorldModelReal) end
-
 			local pos = tr.StartPos + ang:Forward() * (self.HoldPos[1] - 4) + ang:Right() * self.HoldPos[2] + ang:Up() * self.HoldPos[3]
 			--pos = pos + ang:Forward() * self.AttackPos[1] * self.attackanim + ang:Right() * self.AttackPos[2] * self.attackanim + ang:Up() * self.AttackPos[3] * self.attackanim
 			local ang = owner:EyeAngles()
@@ -141,7 +181,7 @@ if CLIENT then
 			WorldModel:SetRenderOrigin(pos)
 			WorldModel:SetRenderAngles(ang)
 		else
-			if WorldModel:GetModel() ~= self.WorldModel then WorldModel:SetModel(self.WorldModel) end
+			if not normalizeSequenceState(WorldModel, self.WorldModel) then return end
 			
 			WorldModel:SetRenderOrigin(self:GetPos())
 			WorldModel:SetRenderAngles(self:GetAngles())
@@ -170,6 +210,7 @@ if CLIENT then
 		if IsValid(self.worldModel) and self.WorldModelExchange then
 			if not IsValid(self.worldModel2) then
 				self.worldModel2 = ClientsideModel(self.WorldModelExchange)
+                initializeSequenceState(self.worldModel2)
 				local model = self.worldModel2
 				self:CallOnRemove("remove_worldmodel2",function()
 					if IsValid(model) then

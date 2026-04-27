@@ -77,9 +77,13 @@ hook.Add( "CalcMainActivity", "Glide.OverridePlayerActivity", function( ply )
     end
 
     local anim = vehicle:GetPlayerSitSequence( ply:GlideGetSeatIndex() )
+    local defaultSequence = ply:LookupSequence( anim )
+    if defaultSequence < 0 then
+        defaultSequence = 0
+    end
 
     plyTbl.CalcIdeal = 47 -- ACT_STAND
-    plyTbl.CalcSeqOverride = ply:LookupSequence( anim )
+    plyTbl.CalcSeqOverride = defaultSequence
 
     -- We only apply a sit sequence when the vehicle actually uses one.
     if anim == "sit" and ply:GetAllowWeaponsInVehicle() then

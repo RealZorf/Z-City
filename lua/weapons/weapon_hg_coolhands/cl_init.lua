@@ -153,22 +153,62 @@ end
 
 -- Settings...
 local blocking_ang = Angle(-40,0,0)
+	local function initializeSequenceState(mdl)
+		if not IsValid(mdl) then return end
+
+		mdl.ZCLastSequenceModel = mdl:GetModel()
+		mdl.ZCSequenceReadyAt = CurTime() + 0.25
+		mdl.ZCAnimAssigned = false
+
+		if mdl.ResetSequenceInfo then
+			mdl:ResetSequenceInfo()
+		end
+	end
+
+local function normalizeSequenceState(mdl)
+	if not IsValid(mdl) then return false end
+
+		local currentModel = mdl:GetModel()
+		if mdl.ZCLastSequenceModel ~= currentModel then
+			mdl.ZCLastSequenceModel = currentModel
+			mdl.ZCSequenceReadyAt = CurTime() + 0.1
+			mdl.ZCAnimAssigned = false
+		end
+
+		if (mdl.ZCSequenceReadyAt or 0) > CurTime() then return false end
+
+		local seqCount = mdl.GetSequenceCount and mdl:GetSequenceCount() or 0
+		if seqCount <= 0 then return false end
+
+		local seq = mdl:GetSequence()
+		if not isnumber(seq) or seq < 0 or seq >= seqCount then
+			mdl.ZCAnimAssigned = false
+			return false
+		end
+
+		return true
+	end
+
 function SWEP:DrawWorldModel()
 	local owner = self:GetOwner()
 
 	if not IsValid(self.worldModel) then
 		self.worldModel = ClientsideModel(self.WorldModel)
+        initializeSequenceState(self.worldModel)
 	end
 
-	if owner.PlayerClassName == "furry" and self.worldModel != "models/weapons/salat/anims/furry_fists.mdl" then
+	if owner.PlayerClassName == "furry" and self.worldModel:GetModel() ~= "models/weapons/salat/anims/furry_fists.mdl" then
 		self.worldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
 	end
 
 	if not self:GetFists() then return end
 
 	local WorldModel = self.worldModel
+	if not normalizeSequenceState(WorldModel) then return end
 
-	WorldModel:SetCycle(1 - math_Clamp(self.animtime - CurTime(),0,1))
+	if WorldModel.ZCAnimAssigned then
+		WorldModel:SetCycle(1 - math_Clamp(self.animtime - CurTime(),0,1))
+	end
 
 	self.blockinganim = qerp(0.05 * FrameTime() / engine.TickInterval(),self.blockinganim,self:GetBlocking() and 1 or 0)
 
@@ -652,7 +692,10 @@ function SWEP:PrimaryAttack(forcespecial)
 	end
 
 	if CLIENT and self.IsLocal and not self:IsLocal() then
-		owner:AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,owner:LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l"),0,true)
+		local seqID = owner:LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l")
+		if isnumber(seqID) and seqID >= 0 and seqID < owner:GetSequenceCount() then
+			owner:AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD, seqID, 0, true)
+		end
 	end
 end
 

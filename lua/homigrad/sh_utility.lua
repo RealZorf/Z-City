@@ -363,7 +363,14 @@ hg.ConVars = hg.ConVars or {}
 		if !IsValid(target) then return end
 
 		local oldCollision = target:GetCollisionGroup()
-		target:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
+		if hg.QueueSetCollisionGroup then
+			hg.QueueSetCollisionGroup(target, COLLISION_GROUP_PASSABLE_DOOR)
+			if hg.QueueCollisionRulesChanged then
+				hg.QueueCollisionRulesChanged(target)
+			end
+		else
+			target:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
+		end
 
 		timer.Simple(min or 0, function()
 			if !IsValid(target) then return end
@@ -387,7 +394,14 @@ hg.ConVars = hg.ConVars or {}
 
 				if (!penetrating and !tooNearPlayer) or i >= (math.Round(time / checkdtime) - 1) then
 					if target:GetCollisionGroup() == COLLISION_GROUP_PASSABLE_DOOR then -- if it somehow changed, we shouldn't touch it
-						target:SetCollisionGroup(oldCollision)
+						if hg.QueueSetCollisionGroup then
+							hg.QueueSetCollisionGroup(target, oldCollision)
+							if hg.QueueCollisionRulesChanged then
+								hg.QueueCollisionRulesChanged(target)
+							end
+						else
+							target:SetCollisionGroup(oldCollision)
+						end
 					end
 
 					timer.Destroy(target:SteamID64().."_checkBounds_cycle")

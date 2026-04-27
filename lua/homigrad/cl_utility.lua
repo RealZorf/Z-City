@@ -118,6 +118,20 @@ hg.ConVars = hg.ConVars or {}
 --\\ Remove cl models on cleanup
 	hg.oldClientsideModel = hg.oldClientsideModel or ClientsideModel
 	hg.ClientsideModels = hg.ClientsideModels or {}
+	local EntityMeta = FindMetaTable("Entity")
+
+	if hg.ZCClientsideModelGuardsInstalled then
+		if hg.oldEntitySetModel then
+			EntityMeta.SetModel = hg.oldEntitySetModel
+		end
+		if hg.oldEntitySetSequence then
+			EntityMeta.SetSequence = hg.oldEntitySetSequence
+		end
+		if hg.oldEntitySetCycle then
+			EntityMeta.SetCycle = hg.oldEntitySetCycle
+		end
+		hg.ZCClientsideModelGuardsInstalled = nil
+	end
 
 	function ClientsideModel(...)
 		local model = hg.oldClientsideModel(...)

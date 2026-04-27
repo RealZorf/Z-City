@@ -94,6 +94,25 @@ local hg_newfakecam = ConVarExists("hg_newfakecam") and GetConVar("hg_newfakecam
 local rollang = 0
 local ctime
 local vecUpX, vecUpY, vecUpZ = Vector(1, 0, 0), Vector(0, 1, 0), Vector(0, 0, 1)
+local function getCachedHeadBone(ent)
+	if not IsValid(ent) then return end
+	local bone = ent.ZCHeadBoneFakeCam
+	if bone == nil and ent.LookupBone then
+		bone = ent:LookupBone("ValveBiped.Bip01_Head1")
+		ent.ZCHeadBoneFakeCam = bone or false
+	end
+
+	return bone == false and nil or bone
+end
+
+local function setHeadScaleIfNeeded(ent, wantedScale)
+	local bone = getCachedHeadBone(ent)
+	if not bone then return end
+	local current = ent:GetManipulateBoneScale(bone)
+	if current and current:IsEqualTol(wantedScale, 0.001) then return end
+	ent:ManipulateBoneScale(bone, wantedScale)
+end
+
 hook.Add("HG.InputMouseApply", "fakeCameraAngles2", function(tbl)
 	if IsValid(follow) and ctime != CurTime() then
 		ctime = CurTime()
@@ -256,7 +275,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 
 	if not IsValid(ply) then return end
 	if not IsValid(follow) then return end
-	if not follow:LookupBone("ValveBiped.Bip01_Head1") then return end
+	if not getCachedHeadBone(follow) then return end
 	
 	local vpang = GetViewPunchAngles2() + GetViewPunchAngles3()
 	vpang[3] = 0
@@ -327,16 +346,12 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 			deathlerp = LerpFT(0.05,deathlerp,1)
 			local angdeath = LerpAngle(deathlerp,deathLocalAng,att_Ang)
 
-			if not follow:GetManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1")):IsEqualTol(vecZero,0.001) then
-				follow:ManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1"), firstPerson and vecPochtiZero or vecFull )
-			end
+			setHeadScaleIfNeeded(follow, firstPerson and vecPochtiZero or vecFull)
 
 			view.origin = pos
 			view.angles = att_Ang
 		else
-			if not follow:GetManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1")):IsEqualTol(vecZero,0.001) then
-				follow:ManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1"),lerpasad > 0.9 and vecFull or vecPochtiZero)
-			end
+			setHeadScaleIfNeeded(follow, lerpasad > 0.9 and vecFull or vecPochtiZero)
 
 			lerpasad = Lerp(0.1, lerpasad, (IsAimingNoScope(ply) and 0 or 1))
 
@@ -671,7 +686,7 @@ hook.Add("Player Spawn", "fuckingremoveragdoll", function(ply)
 	
 	if IsValid(ragdoll) then
 		ragdoll:SetNWEntity("ply", NULL)
-		ragdoll:ManipulateBoneScale(ragdoll:LookupBone("ValveBiped.Bip01_Head1"), Vector(1, 1, 1))
+		setHeadScaleIfNeeded(ragdoll, vecFull)
 	end
 	--FUCKING SHIT
 	if IsValid(ply.FakeRagdoll) then

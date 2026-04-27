@@ -295,6 +295,24 @@ hg.TPIKBonesLH = TPIKBonesLH
 
 local math, Vector, Angle, util, IsValid, CurTime, game, FrameTime, LerpAngle = math, Vector, Angle, util, IsValid, CurTime, game, FrameTime, LerpAngle
 local math_Clamp = math.Clamp
+local function cachedLookupBone(ent, boneName)
+    if not IsValid(ent) then return end
+
+    local model = ent.GetModel and ent:GetModel() or ""
+    if ent.ZCTPIKBoneCacheModel ~= model then
+        ent.ZCTPIKBoneCacheModel = model
+        ent.ZCTPIKBoneCache = {}
+    end
+
+    local cache = ent.ZCTPIKBoneCache
+    local bone = cache[boneName]
+    if bone == nil then
+        bone = ent:LookupBone(boneName)
+        cache[boneName] = bone or false
+    end
+
+    return bone == false and nil or bone
+end
 
 local developer = GetConVar("developer")
 
@@ -686,9 +704,12 @@ function hg.MainTPIKFunction(ent, ply, wpn)
         end
 		
 		if IsValid(wpn) and wpn:GetClass() == "weapon_hands_sh" and ply:GetNetVar("headcrab") then
-			local bone_matrix = ent:GetBoneMatrix(ply:LookupBone("ValveBiped.Bip01_Head1"))
-			local pos, ang = bone_matrix:GetTranslation(), bone_matrix:GetAngles()
-			hg.DragHandsToPos(ply, ply:GetActiveWeapon(), pos + ang:Right() * 7 - ang:Forward() * 5, true, 5.5, ang:Right(), ang_head1, ang_head2)
+			local headBone = cachedLookupBone(ent, "ValveBiped.Bip01_Head1")
+			local bone_matrix = headBone and ent:GetBoneMatrix(headBone)
+			if bone_matrix then
+				local pos, ang = bone_matrix:GetTranslation(), bone_matrix:GetAngles()
+				hg.DragHandsToPos(ply, ply:GetActiveWeapon(), pos + ang:Right() * 7 - ang:Forward() * 5, true, 5.5, ang:Right(), ang_head1, ang_head2)
+			end
 		end
         
         //print("DragHands: ", SysTime() - systime)
@@ -703,12 +724,12 @@ function hg.MainTPIKFunction(ent, ply, wpn)
         local stammul = math_Clamp(1 - ent.organism.stamina[1] / 90, 0, 1)
 
         local holdingrh = false
-        local rhFinger = ent:LookupBone("ValveBiped.Bip01_R_Finger11")
+        local rhFinger = cachedLookupBone(ent, "ValveBiped.Bip01_R_Finger11")
         if rhFinger then
             holdingrh = ent:GetManipulateBoneAngles(rhFinger)[2] < 0
         end
         if holdingrh then
-            local rh = ent:LookupBone("ValveBiped.Bip01_R_Hand")
+            local rh = cachedLookupBone(ent, "ValveBiped.Bip01_R_Hand")
             local rhmat = rh and ent:GetBoneMatrix(rh)
 
             if rh and rhmat then
@@ -718,12 +739,12 @@ function hg.MainTPIKFunction(ent, ply, wpn)
         end
         
         local holdinglh = false
-        local lhFinger = ent:LookupBone("ValveBiped.Bip01_L_Finger11")
+        local lhFinger = cachedLookupBone(ent, "ValveBiped.Bip01_L_Finger11")
         if lhFinger then
             holdinglh = ent:GetManipulateBoneAngles(lhFinger)[2] < 0
         end
         if holdinglh then
-            local lh = ent:LookupBone("ValveBiped.Bip01_L_Hand")
+            local lh = cachedLookupBone(ent, "ValveBiped.Bip01_L_Hand")
             local lhmat = lh and ent:GetBoneMatrix(lh)
 
             if lh and lhmat then
@@ -758,9 +779,19 @@ function hg.CoolGloves(ent, ply)
     end
 	--ply.c_hands:Remove()
     local mdl = ply.c_hands
-    mdl:SetSequence(2)
+    local gloveModel = gloves[hg_change_gloves:GetInt()]
+    if mdl:GetModel() ~= gloveModel then
+        mdl:SetModel(gloveModel)
+        mdl.ZCCoolGloveSequence = nil
+    end
+
+    local gloveSequence = mdl:GetSequenceCount() > 2 and 2 or 0
+    if gloveSequence >= 0 and gloveSequence < mdl:GetSequenceCount() and mdl.ZCCoolGloveSequence ~= gloveSequence then
+        mdl:SetSequence(gloveSequence)
+        mdl.ZCCoolGloveSequence = gloveSequence
+    end
+
     mdl:SetCycle(1)--TRI TOPORA
-    mdl:SetModel(gloves[hg_change_gloves:GetInt()])
 	if (mdl:GetModel() == durachok and mdl:GetBodygroup(1) ~= 1) then
 		mdl:SetBodygroup(1, 1)
 		mdl:SetBodygroup(2, 1)
@@ -777,23 +808,30 @@ function hg.CoolGloves(ent, ply)
     --ply.c_hands:SetParent(ent2)
     
     local mdlmodel = mdl:GetModel()
-    cached_huy[mdlmodel] = cached_huy[mdlmodel] or {}
+    cached_huy[mdlmodel] = cached_huy[mdlmodel] or {names = {}, indices = {}}
+    local modelCache = cached_huy[mdlmodel]
     
     --mdl:RemoveEffects(EF_BONEMERGE)
     --mdl:AddEffects(EF_BONEMERGE)
     
     for bone1 = 0, mdl:GetBoneCount() - 1 do
-        if not cached_huy[mdlmodel][bone1] then cached_huy[mdlmodel][bone1] = mdl:GetBoneName(bone1) end
-        local bone = cached_huy[mdlmodel][bone1]
+        if not modelCache.names[bone1] then modelCache.names[bone1] = mdl:GetBoneName(bone1) end
+        local bone = modelCache.names[bone1]
         
-        local wm_boneindex = mdl:LookupBone(bone)
+        local wm_boneindex = modelCache.indices[bone]
+        if wm_boneindex == nil then
+            wm_boneindex = mdl:LookupBone(bone)
+            modelCache.indices[bone] = wm_boneindex or false
+        end
+        wm_boneindex = wm_boneindex == false and nil or wm_boneindex
         if !wm_boneindex then continue end
         local wm_bonematrix = mdl:GetBoneMatrix(wm_boneindex)
         if !wm_bonematrix then continue end
         
-        local ply_boneindex = ent:LookupBone(bone) or TPIKBonesTranslate[bone] and ent:LookupBone(TPIKBonesTranslate[bone])
+        local translatedBone = TPIKBonesTranslate[bone]
+        local ply_boneindex = cachedLookupBone(ent, bone) or translatedBone and cachedLookupBone(ent, translatedBone)
         if !ply_boneindex then continue end
-        local ply_bonematrix = ent:GetBoneMatrix(ply_boneindex) or TPIKBonesTranslate[bone] and ent:GetBoneMatrix(ent:LookupBone(TPIKBonesTranslate[bone]))
+        local ply_bonematrix = ent:GetBoneMatrix(ply_boneindex) or translatedBone and ent:GetBoneMatrix(cachedLookupBone(ent, translatedBone))
         if !ply_bonematrix then continue end
 
         local bonepos = ply_bonematrix:GetTranslation()
@@ -803,7 +841,7 @@ function hg.CoolGloves(ent, ply)
         if TPIKBonesTranslate[bone] == bone then
             ply_bonematrix:SetScale(vector_small2)
             //ply_bonematrix:SetTranslation(ent:GetBoneMatrix(ent:GetBoneParent(ply_boneindex)):GetTranslation())
-            ent:SetBoneMatrix(ent:LookupBone(bone), ply_bonematrix)
+            ent:SetBoneMatrix(cachedLookupBone(ent, bone), ply_bonematrix)
             ply_bonematrix:SetScale(scl)
         end
         
@@ -894,30 +932,30 @@ local function ensureArmSegments( segments, upperarmMatrix, forearmMatrix, handM
 end
 
 function hg.DoTPIK(ply, ent)
-    local ply_spine_index = ent:LookupBone("ValveBiped.Bip01_Head1")
+    local ply_spine_index = cachedLookupBone(ent, "ValveBiped.Bip01_Head1")
     if !ply_spine_index then return end
     local ply_spine_matrix = ent:GetBoneMatrix(ply_spine_index)
 
-    local ply_pelvis_index = ent:LookupBone("ValveBiped.Bip01_Pelvis")
+    local ply_pelvis_index = cachedLookupBone(ent, "ValveBiped.Bip01_Pelvis")
     if !ply_pelvis_index then return end
     local ply_pelvis_matrix = ent:GetBoneMatrix(ply_pelvis_index)
 
-    local ply_head_index = ent:LookupBone("ValveBiped.Bip01_Head1")
+    local ply_head_index = cachedLookupBone(ent, "ValveBiped.Bip01_Head1")
     if !ply_head_index then return end
     local ply_head_matrix = ent:GetBoneMatrix(ply_head_index)
 
-    local ply_l_clavicle_index = ent:LookupBone("ValveBiped.Bip01_L_Clavicle")
-    local ply_r_clavicle_index = ent:LookupBone("ValveBiped.Bip01_R_Clavicle")
-    local ply_l_upperarm_index = ent:LookupBone("ValveBiped.Bip01_L_UpperArm")
-    local ply_r_upperarm_index = ent:LookupBone("ValveBiped.Bip01_R_UpperArm")
-    local ply_l_forearm_index = ent:LookupBone("ValveBiped.Bip01_L_Forearm")
-    local ply_r_forearm_index = ent:LookupBone("ValveBiped.Bip01_R_Forearm")
-    local ply_l_hand_index = ent:LookupBone("ValveBiped.Bip01_L_Hand")
-    local ply_r_hand_index = ent:LookupBone("ValveBiped.Bip01_R_Hand")
-    local ply_l_ulna_index = ent:LookupBone("ValveBiped.Bip01_L_Ulna")
-    local ply_r_ulna_index = ent:LookupBone("ValveBiped.Bip01_R_Ulna")
-    local ply_l_wrist_index = ent:LookupBone("ValveBiped.Bip01_L_Wrist")
-    local ply_r_wrist_index = ent:LookupBone("ValveBiped.Bip01_R_Wrist")
+    local ply_l_clavicle_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_Clavicle")
+    local ply_r_clavicle_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_Clavicle")
+    local ply_l_upperarm_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_UpperArm")
+    local ply_r_upperarm_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_UpperArm")
+    local ply_l_forearm_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_Forearm")
+    local ply_r_forearm_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_Forearm")
+    local ply_l_hand_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_Hand")
+    local ply_r_hand_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_Hand")
+    local ply_l_ulna_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_Ulna")
+    local ply_r_ulna_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_Ulna")
+    local ply_l_wrist_index = cachedLookupBone(ent, "ValveBiped.Bip01_L_Wrist")
+    local ply_r_wrist_index = cachedLookupBone(ent, "ValveBiped.Bip01_R_Wrist")
 
     if !ply_l_upperarm_index then return end
     if !ply_r_upperarm_index then return end
@@ -936,8 +974,8 @@ function hg.DoTPIK(ply, ent)
     local ply_r_clavicle_matrix = ent:GetBoneMatrix(ply_r_clavicle_index)
     local ply_r_ulna_matrix 
     local ply_r_wrist_matrix
-    if ply_l_ulna_index and ply_r_wrist_matrixthen then
-        ply_r_ulna_matrix = ent:GetBoneMatrix(ply_l_ulna_index)
+    if ply_r_ulna_index and ply_r_wrist_index then
+        ply_r_ulna_matrix = ent:GetBoneMatrix(ply_r_ulna_index)
         ply_r_wrist_matrix = ent:GetBoneMatrix(ply_r_wrist_index)
     end
 
@@ -948,7 +986,7 @@ function hg.DoTPIK(ply, ent)
     local ply_l_clavicle_matrix = ent:GetBoneMatrix(ply_l_clavicle_index)
     local ply_l_ulna_matrix 
     local ply_l_wrist_matrix
-    if ply_l_ulna_index and ply_l_wrist_matrix then
+    if ply_l_ulna_index and ply_l_wrist_index then
         ply_l_ulna_matrix = ent:GetBoneMatrix(ply_l_ulna_index)
         ply_l_wrist_matrix = ent:GetBoneMatrix(ply_l_wrist_index)
     end
@@ -1148,7 +1186,7 @@ function hg.DoTPIK(ply, ent)
 
         local angrotate = math.NormalizeAngle(-eyeang.r + ply_r_hand_matrix:GetAngles().r + math.NormalizeAngle((eyeang.y - ply_r_hand_matrix:GetAngles().y)) * (math.NormalizeAngle(ply_r_hand_matrix:GetAngles().p)) / 90 + -90)
         
-        local wrst = ent:LookupBone("ValveBiped.Bip01_R_Ulna")
+        local wrst = ply_r_ulna_index
         local wmat = wrst and ent:GetBoneMatrix(wrst)
         if wrst and wmat then
             ang:RotateAroundAxis(ang:Forward(), angrotate * 0.5 + -30)
@@ -1156,7 +1194,7 @@ function hg.DoTPIK(ply, ent)
             ent:SetBoneMatrix(wrst, wmat)
         end
 
-        local wrst = ent:LookupBone("ValveBiped.Bip01_R_Wrist")
+        local wrst = ply_r_wrist_index
         local wmat = wrst and ent:GetBoneMatrix(wrst)
         if wrst and wmat then
             ang:RotateAroundAxis(ang:Forward(), angrotate * 0.5 - 30)
@@ -1283,7 +1321,7 @@ function hg.DoTPIK(ply, ent)
 
         local angrotate = math.NormalizeAngle(-eyeang.r + ply_l_hand_matrix:GetAngles().r + math.NormalizeAngle((eyeang.y - ply_l_hand_matrix:GetAngles().y)) * (math.NormalizeAngle(ply_l_hand_matrix:GetAngles().p)) / 90 - 45)
 
-        local wrst = ent:LookupBone("ValveBiped.Bip01_L_Ulna")
+        local wrst = ply_l_ulna_index
         local wmat = wrst and ent:GetBoneMatrix(wrst)
         if wrst and wmat then
             ang:RotateAroundAxis(ang:Forward(), angrotate * 0.5 + 00)
@@ -1291,7 +1329,7 @@ function hg.DoTPIK(ply, ent)
             ent:SetBoneMatrix(wrst, wmat)
         end
 
-        local wrst = ent:LookupBone("ValveBiped.Bip01_L_Wrist")
+        local wrst = ply_l_wrist_index
         local wmat = wrst and ent:GetBoneMatrix(wrst)
         if wrst and wmat then
             ang:RotateAroundAxis(ang:Forward(), angrotate * 0.5 + 00)
@@ -1416,12 +1454,12 @@ function hg.FlashlightPos(ply)
     if flashlightwep then if IsValid(ply.flashlight) then ply.flashlight:Remove() end return end -- может хуки добавить для подобной хрени
     
     local ent = ply.FakeRagdoll
-	local rh,lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	local rh,lh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand"), cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 
 	local rhmat = ply:GetBoneMatrix(rh)
 	local lhmat = ply:GetBoneMatrix(lh)
 
-    local headmat = ply:GetBoneMatrix(ply:LookupBone("ValveBiped.Bip01_Head1"))
+    local headmat = ply:GetBoneMatrix(cachedLookupBone(ply, "ValveBiped.Bip01_Head1"))
 	
     local veclh,lang
     if ply == lply and ply == GetViewEntity() then
@@ -1453,7 +1491,7 @@ local ang2 = Angle(-30,-5,110)
 function hg.DragHands(ply,self)
     if not IsValid(ply) then return end
     	
-    local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+    local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
     if !ply_spine_index then return end
     local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
     local wmpos = ply_spine_matrix:GetTranslation()
@@ -1498,7 +1536,7 @@ function hg.DragHands(ply,self)
 		norm = wanted_pos - ply:EyePos()
 	end
 
-	local rh,lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	local rh,lh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand"), cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 	local rhmat,lhmat = ply:GetBoneMatrix(rh), ply:GetBoneMatrix(lh)
     
 	if pos then
@@ -1578,7 +1616,7 @@ end
 function hg.DragRightHand(ply,self,pos,norm,anglh)
     if not IsValid(ply) then return end   	
 
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
 	if !ply_spine_index then return end
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	local wmpos = ply_spine_matrix:GetTranslation()
@@ -1591,7 +1629,7 @@ function hg.DragRightHand(ply,self,pos,norm,anglh)
 	
 	local norm = norm
 
-	local rh = ply:LookupBone("ValveBiped.Bip01_R_Hand")
+	local rh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand")
 	local rhmat = ply:GetBoneMatrix(rh)
     
     self.rhandik = true
@@ -1616,7 +1654,7 @@ end
 function hg.DragLeftHand(ply, self, pos, norm, anglh)
     if not IsValid(ply) then return end
 
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
 	if !ply_spine_index then return end
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	local wmpos = ply_spine_matrix:GetTranslation()
@@ -1629,7 +1667,7 @@ function hg.DragLeftHand(ply, self, pos, norm, anglh)
 	
 	local norm = norm
 
-	local lh = ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	local lh = cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 	local lhmat = ply:GetBoneMatrix(lh)
     
     self.lhandik = true
@@ -1654,12 +1692,12 @@ end
 function hg.DragLeftHand_Ex(ply, self, pos, ang, anglh)
     if not IsValid(ply) then return end
 
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
 	if !ply_spine_index then return end
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	local wmpos = ply_spine_matrix:GetTranslation()
 
-	local lh = ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	local lh = cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 	local lhmat = ply:GetBoneMatrix(lh)
     
     self.lhandik = true
@@ -1684,12 +1722,12 @@ end
 function hg.DragRightHand_Ex(ply, self, pos, ang, angrh)
     if not IsValid(ply) then return end
 
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
 	if !ply_spine_index then return end
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	local wmpos = ply_spine_matrix:GetTranslation()
 
-	local rh = ply:LookupBone("ValveBiped.Bip01_R_Hand")
+	local rh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand")
 	local rhmat = ply:GetBoneMatrix(rh)
     
     self.rhandik = true
@@ -1714,12 +1752,12 @@ end
 function hg.DragHandsToPos(ply,self,pos,twohanded,twohanddist,norm,angrh,anglh)
     if not IsValid(ply) then return end
     	
-    local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+    local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
     if !ply_spine_index then return end
     local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
     local wmpos = ply_spine_matrix:GetTranslation()
 
-	local ply_spine_index = ply:LookupBone("ValveBiped.Bip01_Spine4")
+	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
 	if !ply_spine_index then return end
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	local wmpos = ply_spine_matrix:GetTranslation()
@@ -1733,7 +1771,7 @@ function hg.DragHandsToPos(ply,self,pos,twohanded,twohanddist,norm,angrh,anglh)
 	
 	local norm = norm
 
-	local rh,lh = ply:LookupBone("ValveBiped.Bip01_R_Hand"), ply:LookupBone("ValveBiped.Bip01_L_Hand")
+	local rh,lh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand"), cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 	local rhmat,lhmat = ply:GetBoneMatrix(rh),ply:GetBoneMatrix(lh)
     
     self.lhandik = true

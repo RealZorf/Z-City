@@ -159,7 +159,13 @@ function hg.RunZManipAnim(ply, anim, revers, timeOveride, addtbl)
 		ply.NextFoley = CurTime() + (ply.zmaniptime or 1)
 	end
 	
-	zmdl:SetSequence(tbl.seq)
+	local seq = tbl.seq
+	if isstring(seq) then
+		seq = zmdl:LookupSequence(seq)
+	end
+	if isnumber(seq) and seq >= 0 and (not zmdl.GetSequenceCount or seq < zmdl:GetSequenceCount()) then
+		zmdl:SetSequence(seq)
+	end
 end
 
 net.Receive("RunZManipAnim", function()

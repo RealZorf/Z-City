@@ -45,14 +45,42 @@ local min_reasonable_pos 		= -25000
 
 hg = hg or {}
 hg._queuedCollisionRuleRefresh = hg._queuedCollisionRuleRefresh or {}
+hg._queuedCollisionGroupChanges = hg._queuedCollisionGroupChanges or {}
+hg._queuedCustomCollisionChecks = hg._queuedCustomCollisionChecks or {}
 
 function hg.QueueCollisionRulesChanged(ent)
 	if not IsValid(ent) then return end
 	hg._queuedCollisionRuleRefresh[ent] = true
 end
 
+function hg.QueueSetCollisionGroup(ent, collisionGroup)
+	if not IsValid(ent) then return end
+	hg._queuedCollisionGroupChanges[ent] = collisionGroup
+end
+
+function hg.QueueSetCustomCollisionCheck(ent, enabled)
+	if not IsValid(ent) then return end
+	hg._queuedCustomCollisionChecks[ent] = enabled and true or false
+end
+
 if SERVER then
 	hook.Add("Tick", "hg_queue_collision_rules_changed", function()
+		for ent, enabled in pairs(hg._queuedCustomCollisionChecks) do
+			hg._queuedCustomCollisionChecks[ent] = nil
+
+			if IsValid(ent) and ent:GetCustomCollisionCheck() ~= enabled then
+				ent:SetCustomCollisionCheck(enabled)
+			end
+		end
+
+		for ent, collisionGroup in pairs(hg._queuedCollisionGroupChanges) do
+			hg._queuedCollisionGroupChanges[ent] = nil
+
+			if IsValid(ent) and ent:GetCollisionGroup() ~= collisionGroup then
+				ent:SetCollisionGroup(collisionGroup)
+			end
+		end
+
 		for ent in pairs(hg._queuedCollisionRuleRefresh) do
 			hg._queuedCollisionRuleRefresh[ent] = nil
 

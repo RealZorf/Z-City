@@ -437,7 +437,11 @@ function SWEP:SetCarrying(ent, bone, pos, dist)
 		end
 
 		if not self.CarryEnt:GetCustomCollisionCheck() then
-			self.CarryEnt:SetCustomCollisionCheck(true)
+			if hg.QueueSetCustomCollisionCheck then
+				hg.QueueSetCustomCollisionCheck(self.CarryEnt, true)
+			else
+				self.CarryEnt:SetCustomCollisionCheck(true)
+			end
 			if hg.QueueCollisionRulesChanged then
 				hg.QueueCollisionRulesChanged(self.CarryEnt)
 				hg.QueueCollisionRulesChanged(owner)

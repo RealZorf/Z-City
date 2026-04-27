@@ -63,7 +63,10 @@ end
 
 hook.Add("CalcMainActivity","Swarm",function(ply,vel)
 	if(SWARM_KnockoutEnd)then
-		return ACT_INVALID,ply:LookupSequence("seq_cower")
+		local seqID = ply:LookupSequence("seq_cower")
+		if seqID >= 0 then
+			return ACT_INVALID, seqID
+		end
 	end
 end)
 

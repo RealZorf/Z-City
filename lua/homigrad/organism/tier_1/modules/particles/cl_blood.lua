@@ -18,14 +18,19 @@ local render_SetMaterial = render.SetMaterial
 local render_DrawSprite = render.DrawSprite
 local render_DrawBeam = render.DrawBeam
 local render_GetLightColor = render.GetLightColor
+local render_ComputeLighting = render.ComputeLighting
+local math_ceil = math.ceil
+local math_min = math.min
+local math_max = math.max
 
 local hg_blood_draw_distance = ConVarExists("hg_blood_draw_distance") and GetConVar("hg_blood_draw_distance") or CreateClientConVar("hg_blood_draw_distance", 1024, true, nil, "distance to draw blood", 0, 4096)
 local hg_blood_sprites = ConVarExists("hg_blood_sprites") and GetConVar("hg_blood_sprites") or CreateClientConVar("hg_blood_sprites", 1, true, nil, "blood is sprites or trails", 0, 1)
-local BLOOD_DRAW_SOFT_CAP = 320
-local BLOOD_PARTICLE_HARD_CAP = 500
-local BLOOD_POSITION_RESET_CAP = 3500
-local BLOOD_DECALS_PER_POS = 4
-local BLOOD_POOL_DECAL_THRESHOLD = 24
+local BLOOD_DRAW_SOFT_CAP = 240
+local BLOOD_PARTICLE_HARD_CAP = 380
+local BLOOD_POSITION_RESET_CAP = 2500
+local BLOOD_DECALS_PER_POS = 3
+local BLOOD_POOL_DECAL_THRESHOLD = 18
+local BLOOD_LIGHT_UPDATE_INTERVAL = 0.08
 
 hook.Add("PostCleanupMap","removeblooddroplets",function()
 	hg.bloodparticles1 = {}
@@ -36,46 +41,52 @@ end)
 local mat_huy = Material("effects/blood_core")
 local lightcolor = Color(0, 0, 0, 255)
 bloodparticles_hook[1] = function(anim_pos, mul)
-	 
 	local int = hg_blood_draw_distance:GetInt()
-	local pos = lply:EyePos()
-	--render.OverrideBlend( true, BLEND_SRC_ALPHA, BLEND_ONE, BLENDFUNC_ADD )
+	local lply = LocalPlayer()
+	if not IsValid(lply) then return end
+
+	local eyePos = lply:EyePos()
+	local eyeForward = lply:EyeAngles():Forward()
 	local dstsqr = int * int
-	local lplypos = LocalPlayer():EyePos()
-	local lplyang = LocalPlayer():EyeAngles():Forward()
 	local particleCount = #hg.bloodparticles1
-	local step = particleCount > BLOOD_DRAW_SOFT_CAP and math.ceil(particleCount / BLOOD_DRAW_SOFT_CAP) or 1
+	local step = particleCount > BLOOD_DRAW_SOFT_CAP and math_ceil(particleCount / BLOOD_DRAW_SOFT_CAP) or 1
+	local curTime = CurTime()
 	for i = 1, particleCount, step do
 		local part = hg.bloodparticles1[i]
 		if not part then continue end
-		if (pos - lplypos):Dot(lplyang) < 0 then continue end
-		if (part[2] - pos):LengthSqr() > dstsqr then continue end
+		local startPos = part[1]
+		local endPos = part[2]
+		if (startPos - eyePos):Dot(eyeForward) < 0 then continue end
+		if (endPos - eyePos):LengthSqr() > dstsqr then continue end
 		--if !hg.isVisible(part[1],LocalPlayer():GetShootPos(),LocalPlayer(),MASK_VISIBLE) then continue end
 		--render_SetMaterial(part[4])
-		local pos = LerpVector(anim_pos, part[2], part[1])
-		
-		local light1 = render.GetLightColor(pos)
-		local light2 = render.ComputeLighting(pos, vector_up * 1)
-		local light3 = render.ComputeDynamicLighting(pos, vector_up * 1)
+		local pos = LerpVector(anim_pos, endPos, startPos)
 
-		local light = (light1 + light2 + light3) * 3
+		if (part.nextLightSample or 0) <= curTime then
+			local light1 = render_GetLightColor(pos)
+			local light2 = render_ComputeLighting(pos, vector_up)
+			part.cachedLightR = math_max((light1[1] + light2[1]) * 2, 0.05)
+			part.nextLightSample = curTime + BLOOD_LIGHT_UPDATE_INTERVAL
+		end
+
+		local lightR = part.cachedLightR or 0.25
 
 		if part.kishki then
 			render_SetMaterial(part[4])
-			lightcolor.r = math.min((part.artery and 45 or 10) * light[1], 255)
+			lightcolor.r = math_min((part.artery and 45 or 10) * lightR, 255)
 			render_DrawSprite(pos, part[5], part[6], lightcolor)
 		else
-			local len = (part[2] - part[1]):LengthSqr()
+			local len = (endPos - startPos):LengthSqr()
 			--part.lerpeddiff = LerpVector(FrameTime() * 1, part.lerpeddiff or Vector(), (part[2] - part[1]))
 			--if len > 1 * 1 then
 				render_SetMaterial(mat_huy)
-				lightcolor.r = math.min((part.artery and 45 or 20) * light[1], 255)
+				lightcolor.r = math_min((part.artery and 45 or 20) * lightR, 255)
 				--part.lerpedshit = LerpFT(!part.lasthit and 1 or mul * 1, part.lerpedshit or 1, part.lasthit and 7 or 1)
 				--render_DrawBeam(pos - (len < 2 and (part[2] - part[1]):GetNormalized() * part.lerpedshit or (part[2] - part[1])) * 0.5 / mul / 24,pos + (part[2] - part[1]) * 0.5 / mul / 24, part.lerpedshit, 0, 1, part[9] or lightcolor )
 				--render_DrawBeam(pos - (part[2] - part[1]) * part.lerpedshit / mul / 24 * 0.5,pos + (part[2] - part[1]) * part.lerpedshit / mul / 24 * 0.5, part.lerpedshit, 0, 1, part[9] or lightcolor )
 				
 				--render_DrawBeam(pos - (len < 2 and (part[2] - part[1]):GetNormalized() * 2 or (part[2] - part[1])) * 0.5 / mul / 24,pos + (part[2] - part[1]) * 0.5 / mul / 24, 1, 0, 1, part[9] or lightcolor )
-				render_DrawBeam(pos - (part[2] - part[1]) * 1 / mul / 24 * 0.5,pos + (part[2] - part[1]) * 1 / mul / 24 * 0.5, 1, 0, 1, part[9] or lightcolor )
+				render_DrawBeam(pos - (endPos - startPos) * 1 / mul / 24 * 0.5,pos + (endPos - startPos) * 1 / mul / 24 * 0.5, 1, 0, 1, part[9] or lightcolor )
 
 				--lightcolor.r = lightcolor.r * 0.25
 				--debugoverlay.Line(part[2], part[1], 1, lightcolor, false)	

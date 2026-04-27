@@ -1150,7 +1150,13 @@ function SWEP:CoreStep()
 		end
 	//end
 
-	if CLIENT and IsValid(self:GetWM()) and (self:GetWM():GetSequence() == 0) then self:PlayAnim("idle", 0, not self.NoIdleLoop) end
+	if CLIENT and IsValid(self:GetWM()) then
+		local wm = self:GetWM()
+		local seqCount = wm.GetSequenceCount and wm:GetSequenceCount() or 0
+		if not wm.ZCAnimAssigned and (wm.ZCSequenceReadyAt or 0) <= CurTime() and seqCount > 0 and wm:GetSequence() == 0 then
+			self:PlayAnim("idle", 0, not self.NoIdleLoop)
+		end
+	end
 	
 	if SERVER and self.deploy then
 		owner.suiciding = false
@@ -2382,9 +2388,23 @@ function SWEP:PlayAnim(anim, data, cycling, callback, reverse, sendtoclient)
 	end
 	
 	local mdl = self:GetWM()
+    if (mdl.ZCSequenceReadyAt or 0) > CurTime() or ((mdl.GetSequenceCount and mdl:GetSequenceCount()) or 0) <= 0 then
+		local delay = math.max((mdl.ZCSequenceReadyAt or 0) - CurTime(), 0.03)
+		timer.Simple(delay,function()
+            if not IsValid(self) then return end
+			self:PlayAnim(anim, data, cycling, callback, reverse)
+		end)
+		return
+	end
 	self.tries = 10
-	self.seq = self.AnimList[anim] or anim
-	mdl:SetSequence(self.seq)
+	local seq = self.AnimList[anim] or anim
+	if isstring(seq) then
+		seq = mdl:LookupSequence(seq)
+	end
+	if not isnumber(seq) or seq < 0 or (mdl.GetSequenceCount and seq >= mdl:GetSequenceCount()) then return end
+	self.seq = seq
+	mdl.ZCAnimAssigned = true
+	mdl:SetSequence(seq)
     self.animtime = CurTime() + time - start
     self.animspeed = time
     self.cycling = cycling

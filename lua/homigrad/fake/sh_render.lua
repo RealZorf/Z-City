@@ -5,6 +5,12 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 	local vecSmall = Vector(0.01, 0.01, 0.01)
 	function hg.SmoothUnfake(ent, ply)
 		if ply.gettingup and (ply.gettingup + 1 - CurTime()) > 0 and IsValid(ply) then
+			local headBone = ent.ZCHeadBoneRender
+			if headBone == nil and ent.LookupBone then
+				headBone = ent:LookupBone("ValveBiped.Bip01_Head1")
+				ent.ZCHeadBoneRender = headBone or false
+			end
+			headBone = headBone == false and nil or headBone
 			for i = 0, ent:GetBoneCount() - 1 do
 				local m1 = ent:GetBoneMatrix(i)
 				local m2 = ply:GetBoneMatrix(i)
@@ -26,7 +32,7 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 				newmat:SetAngles(q3:Angle())
 				newmat:SetScale(m1:GetScale())
 
-				if i == ent:LookupBone("ValveBiped.Bip01_Head1") and lply == GetViewEntity() and lply == ply then
+				if i == headBone and lply == GetViewEntity() and lply == ply then
 					newmat:SetScale(vecSmall)
 					//ply.headm = newmat
 				end
@@ -52,6 +58,7 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 	local vector_full = Vector(1, 1, 1)
 	local vector_small = Vector(0.01, 0.01, 0.01)
+	local DETAIL_RENDER_DIST_SQR = 2000 * 2000
 	local angfuck = Angle()
 	function DrawPlayerRagdoll(ent, ply) --// actually not only ragdoll render but player too
 		if ply.prevragdoll_index != nil and ply.prevragdoll_index != ply.ragdoll_index and ply.ragdoll_index == 0 then
@@ -65,10 +72,16 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		local wep = ply.GetActiveWeapon and ply:GetActiveWeapon()
 
-		local lkp = ent.LookupBone and ent:LookupBone("ValveBiped.Bip01_Head1")
+		local lkp = ent.ZCHeadBoneRender
+		if lkp == nil and ent.LookupBone then
+			lkp = ent:LookupBone("ValveBiped.Bip01_Head1")
+			ent.ZCHeadBoneRender = lkp or false
+		end
+		lkp = lkp == false and nil or lkp
 		if !ent.GetManipulateBoneScale or !lkp then return end
 
-		if IsValid(ply.OldRagdoll) then
+		local smoothingUnfake = IsValid(ply.OldRagdoll) and ply.gettingup and (ply.gettingup + 1 - CurTime()) > 0
+		if smoothingUnfake then
 			ply:SetupBones()
 		end
 
@@ -78,7 +91,7 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		hg.MainTPIKFunction(ent, ply, wep)
 
-		if IsValid(ply.OldRagdoll) then
+		if smoothingUnfake then
 			hg.SmoothUnfake(ent, ply)
 		end
 
@@ -96,9 +109,11 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 			RenderArmors(ply, armors, ent)
 		end
 
-		hg.RenderBandages(ent, ply)
-
-		hg.RenderTourniquets(ent, ply)
+		local detailRender = EyePos():DistToSqr(ent:GetPos()) <= DETAIL_RENDER_DIST_SQR
+		if detailRender then
+			hg.RenderBandages(ent, ply)
+			hg.RenderTourniquets(ent, ply)
+		end
 
 		hg.GoreCalc(ent, ply)
 
@@ -123,8 +138,10 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		--hg.CoolGloves(ent, ply, wep)
 
-		hg.ProjectilesDraw(ent, ply)
+		if detailRender then
+			hg.ProjectilesDraw(ent, ply)
+		end
 
-		if ply:GetNetVar("headcrab") then hg.RenderHeadcrab(ent, ply) end
+		if detailRender and ply:GetNetVar("headcrab") then hg.RenderHeadcrab(ent, ply) end
 	end
 --//
