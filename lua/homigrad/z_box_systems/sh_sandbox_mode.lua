@@ -1160,7 +1160,7 @@ if CLIENT then
 
         local timeLeft = math.max(0, math.ceil(respawnAt - CurTime()))
         local ready = timeLeft <= 0
-        local mainText = ready and "Press SPACE to respawn now" or "Press SPACE to respawn after 30 seconds"
+        local mainText = ready and "Press SPACE to respawn now" or "Press SPACE to respawn"
         local timerText = ready and "Respawn ready" or ("Respawn available in " .. tostring(timeLeft) .. "s")
         local x = ScrW() * 0.5
         local y = ScrH() * 0.82
