@@ -69,6 +69,15 @@ local dislocated_leg = {
 	"THE ANKLE'S TWISTED- BUT THE KNEE'S THE REAL PROBLEM!",
 }
 
+local function hasClimbGripActive(owner)
+	if not IsValid(owner) or not owner:IsPlayer() then return false end
+
+	local rag = owner.FakeRagdoll
+	if not IsValid(rag) then return false end
+
+	return (IsValid(rag.ConsLH) and rag.ConsLH.ZCClimbGrip) or (IsValid(rag.ConsRH) and rag.ConsRH.ZCClimbGrip)
+end
+
 local function legs(org, bone, dmg, dmgInfo, key, boneindex, dir, hit, ricochet)
 	local oldDmg = org[key]
 	local dmg = dmg * 4
@@ -129,6 +138,11 @@ end
 local function arms(org, bone, dmg, dmgInfo, key, boneindex, dir, hit, ricochet)
 	local oldDmg = org[key]
 	local dmg = dmg * 4
+	local climbGrip = hasClimbGripActive(org.owner)
+
+	if climbGrip and (dmgInfo:IsDamageType(DMG_CRUSH) or dmgInfo:IsDamageType(DMG_FALL)) then
+		dmg = dmg * 0.35
+	end
 	
 	if dmgInfo:IsDamageType(DMG_CRUSH) and dmg > 4 and !org[key.."amputated"] then
 		hg.organism.AmputateLimb(org, key)
@@ -141,10 +155,11 @@ local function arms(org, bone, dmg, dmgInfo, key, boneindex, dir, hit, ricochet)
 	local result, vecrand = damageBone(org, 0.3, dmg, dmgInfo, key, boneindex, dir, hit, ricochet)
 	
 	local dmg = org[key]
+	local dislocationThreshold = climbGrip and 0.82 or 0.6
 	
 	org[key] = org[key] * 0.5
 
-	if dmg < 0.6 then return 0 end
+	if dmg < dislocationThreshold then return 0 end
 	if dmg < 1 and !dmgInfo:IsDamageType(DMG_CLUB+DMG_CRUSH+DMG_FALL) then return 0 end
 
 	if org.isPly and !org[key.."amputated"] then org.just_damaged_bone = CurTime() end
@@ -165,7 +180,7 @@ local function arms(org, bone, dmg, dmgInfo, key, boneindex, dir, hit, ricochet)
 		org[key.."dislocation"] = true
 		//org[key] = 0.5
 
-		org.painadd = org.painadd + 35
+		org.painadd = org.painadd + (climbGrip and 20 or 35)
 		org.owner:AddNaturalAdrenaline(0.5)
 		org.fearadd = org.fearadd + 0.5
 
