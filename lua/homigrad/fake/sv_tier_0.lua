@@ -80,6 +80,29 @@ end
 
 hg.cacheModel = cacheModel
 
+local function cacheFakeRagdollData(ragdoll)
+	if not IsValid(ragdoll) then return end
+
+	ragdoll.ZCPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
+	ragdoll.ZCBoneLookup = ragdoll.ZCBoneLookup or {}
+	ragdoll.ZCAttachmentLookup = ragdoll.ZCAttachmentLookup or {}
+
+	local spine2 = ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
+	ragdoll.ZCBoneLookup["ValveBiped.Bip01_Spine2"] = spine2 or false
+	ragdoll.ZCSpine2Bone = spine2 or false
+
+	local head1 = ragdoll:LookupBone("ValveBiped.Bip01_Head1")
+	ragdoll.ZCBoneLookup["ValveBiped.Bip01_Head1"] = head1 or false
+	ragdoll.ZCHeadBone = head1 or false
+	ragdoll.ZCHeadPhysBone = head1 and ragdoll:TranslateBoneToPhysBone(head1) or -1
+
+	local eyes = ragdoll:LookupAttachment("eyes")
+	ragdoll.ZCAttachmentLookup["eyes"] = eyes or false
+	ragdoll.ZCEyesAttachment = eyes or false
+end
+
+hg.CacheFakeRagdollData = cacheFakeRagdollData
+
 local IdealMassPlayer = hg.IdealMassPlayer
 
 local fixbones = {
@@ -111,13 +134,13 @@ function hg.Ragdoll_Create(ply)
 	--ply:AddFlags(FL_NOTARGET)
 
 	hg.queue_ragdolls[ragdoll] = {}
+	cacheFakeRagdollData(ragdoll)
 
 	if IsValid(ply.bull) then ply.bull:Remove() ply.bull = nil end
 	ragdoll.bull = ents.Create("npc_bullseye")
 	local bull = ragdoll.bull
 	bull.ply = ply
 	bull.rag = ragdoll
-	local eyeatt = ragdoll:GetAttachment(ragdoll:LookupAttachment("eyes"))
 	local bodyphy = ragdoll:GetPhysicsObjectNum(10)
 	if !bodyphy then return end
 	bull:SetPos(bodyphy:GetPos()+bodyphy:GetAngles():Right()*7)
