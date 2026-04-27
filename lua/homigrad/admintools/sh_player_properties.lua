@@ -21,7 +21,7 @@ properties.Add("copy_steamid", {
         SetClipboardText(sid)
 
         chat.AddText(Color(0, 200, 255), "[Context menu] ",
-            Color(255,255,255), "Copied SteamID: ",
+            Color(255,255,255), "copied SteamID: ",
             Color(0,255,100), sid
         )
     end
