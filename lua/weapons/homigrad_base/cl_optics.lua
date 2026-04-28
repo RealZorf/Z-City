@@ -96,6 +96,18 @@ lodset = false
 local hg_optimise_scopes = GetConVar("hg_optimise_scopes") or CreateClientConVar("hg_optimise_scopes", "1", true, false, "Enable this if scoping makes your fps cry (1 - lowers quality of props around you, 2 - \"disables\" main render)", 0, 2)
 local hg_show_hitposmuzzle = ConVarExists("hg_show_hitposmuzzle") and GetConVar("hg_show_hitposmuzzle") or CreateClientConVar("hg_show_hitposmuzzle", "0", false, false, "shows weapons crosshair, work only ведьма admin rank or sv_cheats 1")
 
+local SCOPE_RT_MAX_REUSE = 0.05
+local SCOPE_RT_ORIGIN_THRESHOLD_SQR = 0.35 * 0.35
+local SCOPE_RT_SCOPE_OFFSET_THRESHOLD_SQR = 1.5 * 1.5
+local SCOPE_RT_ANGLE_THRESHOLD = 0.1
+local SCOPE_RT_FOV_THRESHOLD = 0.02
+
+local function scopeAngleDelta(a, b)
+	return math.abs(math.AngleDifference(a[1], b[1]))
+		+ math.abs(math.AngleDifference(a[2], b[2]))
+		+ math.abs(math.AngleDifference(a[3], b[3]))
+end
+
 local angaddhuy = Angle(0,0,0)
 local scrw, scrh = ScrW(), ScrH() --retarded
 function SWEP:DoRT()
@@ -176,89 +188,103 @@ function SWEP:DoRT()
 	local scr2 = point:ToScreen()
 	local diffa = Vector((scr1.x-scr2.x) / scrw,(scr1.y-scr2.y) / scrh)
 
-	render.PushRenderTarget(rtmat, 0, 0, rtsize, rtsize)
-	RENDERING_SCOPE = self
-	render.Clear(1, 1, 1, 255)
-	render.SetWriteDepthToDestAlpha( false )
-
-	local old = DisableClipping(true)
-
 	diffa[1] = diffa[1] * ScrW() * 2
 	diffa[2] = diffa[2] * ScrH() * 2
+	local scopeOffsetLenSqr = diffa[1] * diffa[1] + diffa[2] * diffa[2]
+	local now = CurTime()
+	local forceFresh = owner:KeyDown(IN_ATTACK) or (self:GetNextPrimaryFire() - now) > -0.05 or self:GetNetVar("shootgunReload", 0) > now
+	local scopeState = self.ZCScopeRTState or {}
+	self.ZCScopeRTState = scopeState
+	local shouldRenderScopeRT = true
 
-	if diffa:LengthSqr() < 10000.0 * (rtsize / 512) / (self.scope_blackout / 400) then
-		if hg_optimise_scopes:GetInt() >= 2 then
-			--LOW_RENDER = true
-			--render.UpdateScreenEffectTexture()
-			--render.UpdateFullScreenDepthTexture()
-			--local screen = render.GetScreenEffectTexture()
+	if scopeState.valid and not forceFresh then
+		local originChanged = not scopeState.origin or scopeState.origin:DistToSqr(rt.origin) > SCOPE_RT_ORIGIN_THRESHOLD_SQR
+		local angleChanged = not scopeState.angles or scopeAngleDelta(scopeState.angles, rt.angles) > SCOPE_RT_ANGLE_THRESHOLD
+		local offsetChanged = not scopeState.scopeOffsetLenSqr or math.abs(scopeState.scopeOffsetLenSqr - scopeOffsetLenSqr) > SCOPE_RT_SCOPE_OFFSET_THRESHOLD_SQR
+		local fovChanged = not scopeState.fov or math.abs(scopeState.fov - rt.fov) > SCOPE_RT_FOV_THRESHOLD
+		local stale = (scopeState.lastRender or 0) + SCOPE_RT_MAX_REUSE < now
 
-			--render.CopyTexture( screen, rtmat )
-
-			--render.DrawTextureToScreen(rtmat_spare)
-    		--render.UpdateFullScreenDepthTexture()
-		end
-		
-		render.RenderView(rt)
-
-		cam.Start3D()
-			local aimWay = (ang:Forward()) * 10000000000
-			local toscreen = aimWay:ToScreen()
-			local x, y = toscreen.x, toscreen.y
-			local hitPos
-			if hg_show_hitposmuzzle:GetBool() then
-				hitPos = self:GetTrace(true).HitPos:ToScreen()
-			end
-		cam.End3D()
-		
-		local cocking = self:GetNetVar("shootgunReload", 0) > CurTime()
-		
-		if cocking then
-			local val = (CurTime() - self:GetNetVar("shootgunReload", 0)) * 1024
-			--x = x + val
-			--diffa[1] = diffa[1] - val
-			--y = y - 0
-		end
-
-		local distMul = math.min(15, 1.2 * 2.5 * (15 / self.ZoomFOV))
-		
-		local dist = math.sqrt(((x - scrw / 2) * distMul)^2 + ((y - scrh / 2) * distMul)^2)
-		
-		if dist > 2048 then
-			render.Clear(0, 0, 0, 255)
-		end
-
-		render.PushFilterMin(TEXFILTER.ANISOTROPIC)
-		render.PushFilterMag(TEXFILTER.ANISOTROPIC)
-		cam.Start2D()
-			if hg_show_hitposmuzzle:GetBool() then
-				draw.RoundedBox(0, hitPos.x / (scrw / ScrW()) - 2, hitPos.y / (scrh / ScrH()) - 2, 4, 4, color_red)
-			end
-			local blackout = self.blackoutsize * 0.75
-			surface.SetDrawColor(255, 255, 255, 255)
-			surface.SetMaterial(self.perekrestie)
-			surface.DrawTexturedRectRotatedHuy(0, 0, (self.sizeperekrestie * rtsize / 512) / ((self.perekrestieSize and 4 ) or self.ZoomFOV / 3), (self.sizeperekrestie * rtsize / 512) / ((self.perekrestieSize and 4 ) or self.ZoomFOV / 3), 0, y / (scrh / ScrH()), x / (scrw / ScrW()), self.rot)
-
-			surface.SetDrawColor(100, 100, 100)
-			surface.SetMaterial(self.scopemat)
-			surface.DrawTexturedRectRotatedHuy(0, 0, blackout * rtsize / 512 * 2 + 512, blackout * rtsize / 512 * 2 + 512, 0, (ScrH() - y / (scrh / ScrH()) - rtsize / 2) * distMul * 1 + rtsize / 2, (ScrW() - x / (scrw / ScrW()) - rtsize / 2) * distMul * 1 + rtsize / 2)
-			surface.SetDrawColor(0, 0, 0, 255)
-			surface.SetMaterial(self.scopemat)
-			local x1 = x * math.atan(math.rad(math.cos(CurTime()) * 1))
-			local y1 = y * math.atan(math.rad(math.sin(CurTime()) * 1))
-			surface.DrawTexturedRectRotatedHuy(0, 0, blackout * 0.75 * rtsize / 512 + 512, blackout * rtsize / 512 * 0.75 + 512, 0, (y1 * 1 / (scrh / ScrH())) * distMul + rtsize / 2, (x1 * 1 / (scrw / ScrW()) * distMul) + rtsize / 2)
-			surface.DrawTexturedRectRotatedHuy(0, 0, blackout * 0.75 * rtsize / 512 + 512, blackout * rtsize / 512 * 0.75 + 512, 0, -diffa[2] * 2 * distMul + rtsize / 2, -diffa[1] * 2 * distMul + rtsize / 2)
-			if self.SightDrawFunc then self:SightDrawFunc() end
-			if optic and foundatt.SightDrawFunc then foundatt.SightDrawFunc(self) end
-			--surface.DrawTexturedRectRotatedHuy(rtsize / 2, rtsize / 2, blackout * rtsize / 512 + 100, blackout * rtsize / 512 + 100, self.rot, -scope_pos[3] * (self.scope_blackout * blackout / 4000), -scope_pos[2] * (self.scope_blackout * blackout / 4000))
-		cam.End2D()
-		render.PopFilterMin()
-		render.PopFilterMag()
+		shouldRenderScopeRT = originChanged or angleChanged or offsetChanged or fovChanged or stale
 	end
 
-	DisableClipping(old)
-	RENDERING_SCOPE = false
-	render.PopRenderTarget()
+	if shouldRenderScopeRT then
+		render.PushRenderTarget(rtmat, 0, 0, rtsize, rtsize)
+		RENDERING_SCOPE = self
+		render.Clear(1, 1, 1, 255)
+		render.SetWriteDepthToDestAlpha( false )
+
+		local old = DisableClipping(true)
+
+		if scopeOffsetLenSqr < 10000.0 * (rtsize / 512) / (self.scope_blackout / 400) then
+			if hg_optimise_scopes:GetInt() >= 2 then
+				--LOW_RENDER = true
+				--render.UpdateScreenEffectTexture()
+				--render.UpdateFullScreenDepthTexture()
+				--local screen = render.GetScreenEffectTexture()
+
+				--render.CopyTexture( screen, rtmat )
+
+				--render.DrawTextureToScreen(rtmat_spare)
+    			--render.UpdateFullScreenDepthTexture()
+			end
+			
+			render.RenderView(rt)
+
+			cam.Start3D()
+				local aimWay = (ang:Forward()) * 10000000000
+				local toscreen = aimWay:ToScreen()
+				local x, y = toscreen.x, toscreen.y
+				local hitPos
+				if hg_show_hitposmuzzle:GetBool() then
+					hitPos = self:GetTrace(true).HitPos:ToScreen()
+				end
+			cam.End3D()
+			
+			local distMul = math.min(15, 1.2 * 2.5 * (15 / self.ZoomFOV))
+			local dist = math.sqrt(((x - scrw / 2) * distMul)^2 + ((y - scrh / 2) * distMul)^2)
+			
+			if dist > 2048 then
+				render.Clear(0, 0, 0, 255)
+			end
+
+			render.PushFilterMin(TEXFILTER.ANISOTROPIC)
+			render.PushFilterMag(TEXFILTER.ANISOTROPIC)
+			cam.Start2D()
+				if hg_show_hitposmuzzle:GetBool() then
+					draw.RoundedBox(0, hitPos.x / (scrw / ScrW()) - 2, hitPos.y / (scrh / ScrH()) - 2, 4, 4, color_red)
+				end
+				local blackout = self.blackoutsize * 0.75
+				surface.SetDrawColor(255, 255, 255, 255)
+				surface.SetMaterial(self.perekrestie)
+				surface.DrawTexturedRectRotatedHuy(0, 0, (self.sizeperekrestie * rtsize / 512) / ((self.perekrestieSize and 4 ) or self.ZoomFOV / 3), (self.sizeperekrestie * rtsize / 512) / ((self.perekrestieSize and 4 ) or self.ZoomFOV / 3), 0, y / (scrh / ScrH()), x / (scrw / ScrW()), self.rot)
+
+				surface.SetDrawColor(100, 100, 100)
+				surface.SetMaterial(self.scopemat)
+				surface.DrawTexturedRectRotatedHuy(0, 0, blackout * rtsize / 512 * 2 + 512, blackout * rtsize / 512 * 2 + 512, 0, (ScrH() - y / (scrh / ScrH()) - rtsize / 2) * distMul * 1 + rtsize / 2, (ScrW() - x / (scrw / ScrW()) - rtsize / 2) * distMul * 1 + rtsize / 2)
+				surface.SetDrawColor(0, 0, 0, 255)
+				surface.SetMaterial(self.scopemat)
+				local x1 = x * math.atan(math.rad(math.cos(CurTime()) * 1))
+				local y1 = y * math.atan(math.rad(math.sin(CurTime()) * 1))
+				surface.DrawTexturedRectRotatedHuy(0, 0, blackout * 0.75 * rtsize / 512 + 512, blackout * rtsize / 512 * 0.75 + 512, 0, (y1 * 1 / (scrh / ScrH())) * distMul + rtsize / 2, (x1 * 1 / (scrw / ScrW()) * distMul) + rtsize / 2)
+				surface.DrawTexturedRectRotatedHuy(0, 0, blackout * 0.75 * rtsize / 512 + 512, blackout * rtsize / 512 * 0.75 + 512, 0, -diffa[2] * 2 * distMul + rtsize / 2, -diffa[1] * 2 * distMul + rtsize / 2)
+				if self.SightDrawFunc then self:SightDrawFunc() end
+				if optic and foundatt.SightDrawFunc then foundatt.SightDrawFunc(self) end
+			cam.End2D()
+			render.PopFilterMin()
+			render.PopFilterMag()
+		end
+
+		DisableClipping(old)
+		RENDERING_SCOPE = false
+		render.PopRenderTarget()
+
+		scopeState.valid = true
+		scopeState.lastRender = now
+		scopeState.origin = Vector(rt.origin[1], rt.origin[2], rt.origin[3])
+		scopeState.angles = Angle(rt.angles[1], rt.angles[2], rt.angles[3])
+		scopeState.scopeOffsetLenSqr = scopeOffsetLenSqr
+		scopeState.fov = rt.fov
+	end
 
 	--surface.SetDrawColor(255, 255, 255, 255)
 	--surface.SetMaterial(mat)

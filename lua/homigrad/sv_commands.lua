@@ -553,7 +553,7 @@ if SERVER then
 		ply.cloak = !ply.cloak
         ply:SetMaterial(ply.cloak and "NULL" or nil)
 		ply:DrawShadow(!ply.cloak)
-		ply:SetCollisionGroup(ply.cloak and COLLISION_GROUP_DEBRIS or COLLISION_GROUP_PLAYER)
+		hg.SafeSetCollisionGroup(ply, ply.cloak and COLLISION_GROUP_DEBRIS or COLLISION_GROUP_PLAYER)
 		ply:RemoveAllDecals()
 		ply:Notify(ply.cloak and "now i'm invisible..." or "now i'm visible") -- walking by the wall
 		return

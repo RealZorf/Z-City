@@ -624,17 +624,22 @@ end
 	--CopyRight("ЖДИ ДОКС ЖДИ СВАТ","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
 --end)
 
+local getCachedHudTrace
+local getCachedHudTraceScreen
+
 hook.Add("HUDPaint","Identifier",function()
 	if lply.organism and lply.organism.otrub then return end
 	if !lply:Alive() then return end
 	if lply:GetNetVar("disappearance", nil) then return end 
 	
-	local trace = hg.eyeTrace(lply)
+	local cache = getCachedHudTrace()
+	local trace = cache.trace
 	
 	if not trace then return end
 
-	local Size = math.max(math.min(1 - trace.Fraction, 1), 0.1)
-	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
+	local Size = cache.size
+	local x, y = getCachedHudTraceScreen(trace)
+	if not x then return end
 
 	if trace.Hit and (trace.Entity:IsRagdoll() or trace.Entity:IsPlayer()) then
 		if trace.Entity.PlayerClassName == "sc_infiltrator" then return end
@@ -668,6 +673,62 @@ function scare()
 end
 
 local hint
+local HUD_TRACE_UPDATE_INTERVAL = 0.03
+local hudTraceCache = {
+	nextUpdate = 0,
+	trace = nil,
+	entity = nil,
+	screenFrame = -1,
+	screenX = 0,
+	screenY = 0,
+	size = 0.1
+}
+
+getCachedHudTrace = function()
+	local now = CurTime()
+	if hudTraceCache.nextUpdate > now then return hudTraceCache end
+
+	hudTraceCache.nextUpdate = now + HUD_TRACE_UPDATE_INTERVAL
+	hudTraceCache.screenFrame = -1
+
+	if lply.organism and lply.organism.otrub then
+		hudTraceCache.trace = nil
+		hudTraceCache.entity = nil
+		hudTraceCache.size = 0.1
+		return hudTraceCache
+	end
+
+	if not lply:Alive() or lply:GetNetVar("disappearance", nil) then
+		hudTraceCache.trace = nil
+		hudTraceCache.entity = nil
+		hudTraceCache.size = 0.1
+		return hudTraceCache
+	end
+
+	local trace = hg.eyeTrace(lply)
+	hudTraceCache.trace = trace
+	hudTraceCache.entity = trace and trace.Entity or nil
+	hudTraceCache.size = trace and math.max(math.min(1 - trace.Fraction, 1), 0.1) or 0.1
+
+	return hudTraceCache
+end
+
+getCachedHudTraceScreen = function(trace)
+	if not trace then return nil, nil end
+
+	local frame = FrameNumber()
+	if hudTraceCache.screenFrame == frame then
+		return hudTraceCache.screenX, hudTraceCache.screenY
+	end
+
+	local scr = trace.HitPos:ToScreen()
+	hudTraceCache.screenFrame = frame
+	hudTraceCache.screenX = scr.x
+	hudTraceCache.screenY = scr.y
+
+	return scr.x, scr.y
+end
+
 local hg_hints = ConVarExists("hg_hints") and GetConVar("hg_hints") or CreateClientConVar("hg_hints", "1", true, false, "Toggle UI hints")
 
 local HintBackgroundColor = Color( 0, 0, 0, 200 )
@@ -677,7 +738,8 @@ hook.Add("HUDPaint","EntHints",function()
 	if lply.organism and lply.organism.otrub then return end
 	if !lply:Alive() then return end
 	
-	local trace = hg.eyeTrace(lply)
+	local cache = getCachedHudTrace()
+	local trace = cache.trace
 
 	if not trace then return end
 
@@ -691,7 +753,8 @@ function hg.BasicHudHint(ent, trace)
 
 	if not hint then return end
 
-	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
+	local x, y = getCachedHudTraceScreen(trace)
+	if not x then return end
 	y = y + 145 + -45
 
 	draw.RoundedBox(2, x - hint:GetWidth() / 2 - 2.5, y - 2.5, hint:GetWidth() + 5, hint:GetHeight() + 5, HintBackgroundColor)

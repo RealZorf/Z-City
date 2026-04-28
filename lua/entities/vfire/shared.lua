@@ -1187,6 +1187,8 @@ if CLIENT then
 		lightCalls[i] = {}
 	end
 	local glowCalls = {}
+	local FIRE_GLOW_DIST_SQR = 1800 * 1800
+	local FIRE_LIGHT_DIST_SQR = 2200 * 2200
 
 	local blue = 10
 	local yellow = 100
@@ -1221,12 +1223,14 @@ if CLIENT then
 
 
 		local pos = self:GetPos() + self:GetForward() * 7
+		local eyePos = EyePos()
+		local distSqr = pos:DistToSqr( eyePos )
 		local aSqrd = a * a
 
 		local potato = hg_potatopc:GetBool()
 
 
-		if vFireEnableGlows and not potato then
+		if vFireEnableGlows and not potato and distSqr <= FIRE_GLOW_DIST_SQR then
 			local vis = util.PixelVisible(pos, 1, self.pVis)
 			if vis > 0 then -- Only draw the sprite if it'll be visible
 				local glowSize = vis * aSqrd * 6
@@ -1244,7 +1248,7 @@ if CLIENT then
 		if self.LOD then return end
 
 
-		if true and not potato then
+		if true and not potato and distSqr <= FIRE_LIGHT_DIST_SQR then
 			-- Load information onto our light calls table
 			local entIndex = self:EntIndex()
 			lightCalls[state][entIndex] = {
@@ -1265,8 +1269,10 @@ if CLIENT then
 	-- Draw our glow calls, arguably better than drawing seperate sprites because we
 	-- only set our material once?
 	hook.Add("PostDrawTranslucentRenderables", "_vFireLightCallbacks", function()
+		local eyePos = EyePos()
 		render.SetMaterial(lightmat)
 		for key, glowData in pairs(glowCalls) do
+			if glowData.pos:DistToSqr(eyePos) > FIRE_GLOW_DIST_SQR then continue end
 			render.DrawSprite(
 				glowData.pos, -- Position
 				glowData.glowSize, -- Width
@@ -1282,11 +1288,13 @@ if CLIENT then
 
 	-- Draw our light calls so that priority is given to larger fires
 	hook.Add("Think", "_vFireLightCallbacks", function()
+		local eyePos = EyePos()
 
 		-- Draw lights from biggest to smallest to prioritize big lights in case of limit breach
 		local lightsDrawn = 0
 		for state = vFireMaxState, 1, -1 do
 			for entIndex, callback in pairs(lightCalls[state]) do
+				if callback[1]:DistToSqr( eyePos ) > FIRE_LIGHT_DIST_SQR then continue end
 				local dLight = DynamicLight(entIndex)
 				if dLight then
 					dLight.Pos = callback[1]

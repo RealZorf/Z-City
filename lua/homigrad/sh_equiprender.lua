@@ -30,6 +30,18 @@ if CLIENT then
 	local PixVis
 	hook.Add("Initialize", "SetupPixVis", function() PixVis = util.GetPixelVisibleHandle() end)
 	local islply
+	local ARMOR_RENDER_DIST_SQR = 1450 * 1450
+
+	local function cachedArmorBone(ent, boneName)
+		ent.ZCArmorBones = ent.ZCArmorBones or {}
+		local idx = ent.ZCArmorBones[boneName]
+		if idx == nil then
+			idx = ent:LookupBone(boneName)
+			ent.ZCArmorBones[boneName] = idx or false
+		end
+
+		return idx == false and nil or idx
+	end
 	
 	local blmodels = {
 		["models/monolithservers/kerry/swat_male_02.mdl"] = true,
@@ -96,7 +108,8 @@ if CLIENT then
 		
 		local wep = ply:IsPlayer() and ply:GetActiveWeapon()
 		
-		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer()))
+		local viewPly = LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect", LocalPlayer())
+		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == viewPly and GetViewEntity() == viewPly
 	
 		if islply and IsValid(wep) and whitelist[wep:GetClass()] then
 			if not ent.modelArmor then return end
@@ -118,6 +131,10 @@ if CLIENT then
 					v = nil
 				end
 			end
+			return
+		end
+
+		if not islply and EyePos():DistToSqr(ent:GetPos()) > ARMOR_RENDER_DIST_SQR then
 			return
 		end
 		
@@ -190,7 +207,9 @@ if CLIENT then
 				model:SetFlexWeight(model:GetFlexIDByName(mdl),1)
 			end
 			
-			local matrix = ent:GetBoneMatrix(ent:LookupBone(armorData["bone"]))
+			local armorBone = cachedArmorBone(ent, armorData["bone"])
+			if not armorBone then return end
+			local matrix = ent:GetBoneMatrix(armorBone)
 			if not matrix then
 				return
 			end
@@ -201,7 +220,7 @@ if CLIENT then
 			model:SetRenderOrigin(pos)
 			model:SetRenderAngles(ang)
 
-			model:SetParent(ent,ent:LookupBone(armorData["bone"]))
+			model:SetParent(ent, armorBone)
 			
 			--model:SetupBones()
 			

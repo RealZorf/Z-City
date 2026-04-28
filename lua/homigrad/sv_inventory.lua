@@ -144,7 +144,8 @@ hook.Add("PlayerDropWeapon", "homigrad-inventory", function(ply)
     local bon = ent:LookupBone("ValveBiped.Bip01_R_Hand")
 
     if wep.RemoveFake then wep:RemoveFake() end
-    wep:SetCollisionGroup(COLLISION_GROUP_WORLD)
+    hg.SafeSetCollisionGroup(wep, COLLISION_GROUP_WORLD)
+    hg.SafeCollisionRulesChanged(wep)
     ply:DropWeapon(wep, ply:EyePos(), vecZero)
     wep:SetPos(ply:EyePos())
     ply.inventory.Weapons[wep:GetClass()] = nil
@@ -171,7 +172,8 @@ hook.Add("PlayerDropWeapon", "homigrad-inventory", function(ply)
         wep:SetPos(localpos)
         wep:SetAngles(localang)
         wep:SetVelocity(vector_origin)
-        wep:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+        hg.SafeSetCollisionGroup(wep, COLLISION_GROUP_WEAPON)
+        hg.SafeCollisionRulesChanged(wep)
 
         local physbone = ent:TranslateBoneToPhysBone(bon)
         local physbonetorso = ent:TranslateBoneToPhysBone(ent:LookupBone("ValveBiped.Bip01_Spine2"))

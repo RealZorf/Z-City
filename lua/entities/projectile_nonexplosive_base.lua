@@ -307,6 +307,7 @@ elseif CLIENT then
 		end
 
 		if ent.organism and ent.organism.LodgedEntities then
+			ent.ZCLodgedBones = ent.ZCLodgedBones or {}
 			for i, settings in ipairs(ent.organism.LodgedEntities) do				
 				local arrow = hg.lodgedmodels[settings.model] or arrowasdasd
 				
@@ -321,7 +322,16 @@ elseif CLIENT then
 					arrow = hg.lodgedmodels[settings.model]
 				end
 
-				local mat = ent:GetBoneMatrix(ent:TranslatePhysBoneToBone(settings.PhysBoneID))
+				local bone = ent.ZCLodgedBones[settings.PhysBoneID]
+				if bone == nil then
+					bone = ent:TranslatePhysBoneToBone(settings.PhysBoneID)
+					ent.ZCLodgedBones[settings.PhysBoneID] = bone or false
+				end
+				bone = bone == false and nil or bone
+				if not bone then continue end
+
+				local mat = ent:GetBoneMatrix(bone)
+				if not mat then continue end
 				local pos, ang = LocalToWorld(settings.OffsetPos, settings.OffsetAng, mat:GetTranslation(), mat:GetAngles())
 	
 				arrow:SetPos(pos)

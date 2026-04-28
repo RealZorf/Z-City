@@ -493,12 +493,20 @@ function hg._DeprecatedDoTPIK(ply, ent, rhmat, lhmat)
                 else
                     lerp = math.ease.InOutSine(1 - math.abs(((ply.pullingTowardsStart + ply.pullingTowardsTime - CurTime()) / ply.pullingTowardsTime) * 2 - 1))
                     
-                    local ang = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_Spine2")):GetAngles()
+                    local spine2Bone = cachedLookupBone(ent, "ValveBiped.Bip01_Spine2")
+                    local spine2Matrix = spine2Bone and ent:GetBoneMatrix(spine2Bone)
+                    local pullBone = ply.pullingTowards and cachedLookupBone(ent, ply.pullingTowards)
+                    local pullMatrix = pullBone and ent:GetBoneMatrix(pullBone)
+                    if not spine2Matrix or not pullMatrix then return end
+
+                    local ang = spine2Matrix:GetAngles()
                     ang:RotateAroundAxis(ang:Right(), -90)
                     ang:RotateAroundAxis(ang:Up(), 90)
                     ang:RotateAroundAxis(ang:Right(), -30)
 
-                    ply_l_hand_matrix:SetTranslation(LerpVector(lerp, ply_l_hand_matrix:GetTranslation(), (ent:GetBoneMatrix(ent:LookupBone(ply.pullingTowards)):GetTranslation() + ent:GetBoneMatrix(ent:LookupBone(ply.pullingTowards)):GetAngles():Right() * -4 + ent:GetBoneMatrix(ent:LookupBone(ply.pullingTowards)):GetAngles():Up() * 5) or pos))
+                    local pullAng = pullMatrix:GetAngles()
+                    local pullTarget = pullMatrix:GetTranslation() + pullAng:Right() * -4 + pullAng:Up() * 5
+                    ply_l_hand_matrix:SetTranslation(LerpVector(lerp, ply_l_hand_matrix:GetTranslation(), pullTarget or pos))
                     ply_l_hand_matrix:SetAngles(LerpAngle(math.min(lerp * 2,1), ply_l_hand_matrix:GetAngles(), ang))
 
                     if ((((ply.pullingTowardsStart + ply.pullingTowardsTime - CurTime()) / ply.pullingTowardsTime) * 2 - 1) < 0) then// || ply.pullingMagNow then
@@ -506,15 +514,19 @@ function hg._DeprecatedDoTPIK(ply, ent, rhmat, lhmat)
                             local pos2, ang2 = LocalToWorld(ply.pullingTowardsOffsets[1], ply.pullingTowardsOffsets[2], ply_l_hand_matrix:GetTranslation(), ply_l_hand_matrix:GetAngles())
                             local lerp = math.max(((((1 - (ply.pullingTowardsStart + ply.pullingTowardsTime - CurTime()) / ply.pullingTowardsTime)) - 0.5) * 2 - 0.6) / 0.4,0)
                             
-                            local pos1, ang1 = LocalToWorld(ply.pullingTowardsOffsets[4], ply.pullingTowardsOffsets[5], self:GetWM():GetBoneMatrix(ply.pullingTowardsOffsets[3]):GetTranslation(), self:GetWM():GetBoneMatrix(ply.pullingTowardsOffsets[3]):GetAngles())
-                            ang1:RotateAroundAxis(ang1:Up(),-90)
-                            
-                            local pos = LerpVector(lerp, pos2, pos1)
-                            local ang = LerpAngle(lerp, ang2, ang1)
-                            
-                            ply.pullingTowardsModel:SetPos(pos)
-                            ply.pullingTowardsModel:SetAngles(ang)
-                            ply.pullingTowardsModel:DrawModel()
+                            local wm = self:GetWM()
+                            local pullOffsetMatrix = IsValid(wm) and wm:GetBoneMatrix(ply.pullingTowardsOffsets[3]) or nil
+                            if pullOffsetMatrix then
+                                local pos1, ang1 = LocalToWorld(ply.pullingTowardsOffsets[4], ply.pullingTowardsOffsets[5], pullOffsetMatrix:GetTranslation(), pullOffsetMatrix:GetAngles())
+                                ang1:RotateAroundAxis(ang1:Up(),-90)
+                                
+                                local pos = LerpVector(lerp, pos2, pos1)
+                                local ang = LerpAngle(lerp, ang2, ang1)
+                                
+                                ply.pullingTowardsModel:SetPos(pos)
+                                ply.pullingTowardsModel:SetAngles(ang)
+                                ply.pullingTowardsModel:DrawModel()
+                            end
                         end
                     end
                 end
@@ -1455,11 +1467,8 @@ function hg.FlashlightPos(ply)
     
     local ent = ply.FakeRagdoll
 	local rh,lh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand"), cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
-
-	local rhmat = ply:GetBoneMatrix(rh)
-	local lhmat = ply:GetBoneMatrix(lh)
-
-    local headmat = ply:GetBoneMatrix(cachedLookupBone(ply, "ValveBiped.Bip01_Head1"))
+	local rhmat = rh and ply:GetBoneMatrix(rh)
+	local lhmat = lh and ply:GetBoneMatrix(lh)
 	
     local veclh,lang
     if ply == lply and ply == GetViewEntity() then
@@ -1467,8 +1476,6 @@ function hg.FlashlightPos(ply)
     else
         veclh,lang = hg.FlashlightTransform(ply,false)
     end
-
-	local rhmat,lhmat = ply:GetBoneMatrix(rh),ply:GetBoneMatrix(lh)
 
     if IsValid(ply.FakeRagdoll) then return end
     if not rhmat or not lhmat then return end
@@ -1494,7 +1501,8 @@ function hg.DragHands(ply,self)
     local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
     if !ply_spine_index then return end
     local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-    local wmpos = ply_spine_matrix:GetTranslation()
+    if not ply_spine_matrix then return end
+    local ply_spine_pos = ply_spine_matrix:GetTranslation()
 
     local eyetr = hg.eyeTrace(ply)
 
@@ -1512,18 +1520,19 @@ function hg.DragHands(ply,self)
     local TraceResult
     if IsValid(ent) then
 		local bone = ent:TranslatePhysBoneToBone(bon)
-		local wanted_pos = bone and ent:GetBoneMatrix(bone) or ent:GetPos()
+		local wantedBoneMatrix = bone and ent:GetBoneMatrix(bone) or nil
+		local wanted_pos = wantedBoneMatrix or ent:GetPos()
 
         if lpos then
             if not ent:IsRagdoll()then
                 wanted_pos = ent:LocalToWorld(lpos)
-            elseif ismatrix(wanted_pos) then
-                wanted_pos = LocalToWorld(lpos, angle_zero, wanted_pos:GetTranslation(), wanted_pos:GetAngles())
+            elseif wantedBoneMatrix then
+                wanted_pos = LocalToWorld(lpos, angle_zero, wantedBoneMatrix:GetTranslation(), wantedBoneMatrix:GetAngles())
             end
         end
-        dist = wanted_pos:Distance(ply_spine_matrix:GetTranslation())
+        dist = wanted_pos:Distance(ply_spine_pos)
 
-		local start = ply_spine_matrix:GetTranslation()
+		local start = ply_spine_pos
 		local len = (wanted_pos - start):Length()
 		len = math.min(len,40)
         local tr = {}
@@ -1540,7 +1549,7 @@ function hg.DragHands(ply,self)
 	local rhmat,lhmat = ply:GetBoneMatrix(rh), ply:GetBoneMatrix(lh)
     
 	if pos then
-        local dot = (pos - ply_spine_matrix:GetTranslation()):GetNormalized():Dot(eyetr.Normal:Angle():Right())
+        local dot = (pos - ply_spine_pos):GetNormalized():Dot(eyetr.Normal:Angle():Right())
 
 		if wep and not ishgweapon(wep) then -- ЮЗЛЕСС ПРАТСИИИИ ПРАСТИИИИИИИИ
 			hg.bone.Set(ply, "spine", vector_origin, Angle(0, 0, -dot * 20), "holding")
@@ -1557,7 +1566,7 @@ function hg.DragHands(ply,self)
 
 		local amputee = ply.organism and ply.organism.larmamputated
 
-		local posDot = (pos - ply_spine_matrix:GetTranslation()):GetNormalized():Dot(ply_spine_matrix:GetAngles():Forward()) * -50
+		local posDot = (pos - ply_spine_pos):GetNormalized():Dot(ply_spine_matrix:GetAngles():Forward()) * -50
 		local posMul = math_Clamp(-(-posDot / 20), 0.1, 1.5)
 		local posMul2 = math_Clamp(-posDot / 20, -1, 1)
 		local posMul3 = math_Clamp((-posDot + 30) / 20, 1, 2)
@@ -1615,12 +1624,7 @@ end
 
 function hg.DragRightHand(ply,self,pos,norm,anglh)
     if not IsValid(ply) then return end   	
-
-	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	local wmpos = ply_spine_matrix:GetTranslation()
-
+	
 	--local ent = IsValid(ply:GetNetVar("carryent")) and ply:GetNetVar("carryent") or IsValid(ply:GetNetVar("carryent2")) and ply:GetNetVar("carryent2")
 	--local pos = IsValid(ent) and ent:GetPos() or false
 	--local bon = ply:GetNetVar("carrybone",0) ~= 0 and ply:GetNetVar("carrybone",0) or ply:GetNetVar("carrybone2",0)
@@ -1653,12 +1657,7 @@ end
 
 function hg.DragLeftHand(ply, self, pos, norm, anglh)
     if not IsValid(ply) then return end
-
-	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	local wmpos = ply_spine_matrix:GetTranslation()
-
+	
 	--local ent = IsValid(ply:GetNetVar("carryent")) and ply:GetNetVar("carryent") or IsValid(ply:GetNetVar("carryent2")) and ply:GetNetVar("carryent2")
 	--local pos = IsValid(ent) and ent:GetPos() or false
 	--local bon = ply:GetNetVar("carrybone",0) ~= 0 and ply:GetNetVar("carrybone",0) or ply:GetNetVar("carrybone2",0)
@@ -1692,11 +1691,6 @@ end
 function hg.DragLeftHand_Ex(ply, self, pos, ang, anglh)
     if not IsValid(ply) then return end
 
-	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	local wmpos = ply_spine_matrix:GetTranslation()
-
 	local lh = cachedLookupBone(ply, "ValveBiped.Bip01_L_Hand")
 	local lhmat = ply:GetBoneMatrix(lh)
     
@@ -1721,11 +1715,6 @@ end
 
 function hg.DragRightHand_Ex(ply, self, pos, ang, angrh)
     if not IsValid(ply) then return end
-
-	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	local wmpos = ply_spine_matrix:GetTranslation()
 
 	local rh = cachedLookupBone(ply, "ValveBiped.Bip01_R_Hand")
 	local rhmat = ply:GetBoneMatrix(rh)
@@ -1755,12 +1744,7 @@ function hg.DragHandsToPos(ply,self,pos,twohanded,twohanddist,norm,angrh,anglh)
     local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
     if !ply_spine_index then return end
     local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-    local wmpos = ply_spine_matrix:GetTranslation()
-
-	local ply_spine_index = cachedLookupBone(ply, "ValveBiped.Bip01_Spine4")
-	if !ply_spine_index then return end
-	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
-	local wmpos = ply_spine_matrix:GetTranslation()
+    if !ply_spine_matrix then return end
 
 	--local ent = IsValid(ply:GetNetVar("carryent")) and ply:GetNetVar("carryent") or IsValid(ply:GetNetVar("carryent2")) and ply:GetNetVar("carryent2")
 	--local pos = IsValid(ent) and ent:GetPos() or false

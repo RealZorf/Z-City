@@ -13,6 +13,7 @@ local HEAD_BONES = {
 }
 local DEFAULT_EYES_TO_MOUTH_OFFSET = Vector( 0.95, 0, -4.65 )
 local DEFAULT_HEAD_TO_MOUTH_OFFSET = Vector( 4.85, 0, -1.85 )
+local DRAW_DIST_SQR = 1200 * 1200
 local MODEL_MOUTH_OFFSET_FIXES = {
     ["models/player/group01/male_06.mdl"] = Vector( 0.15, 0, 0.1 ),
     ["models/player/group03/male_06.mdl"] = Vector( 0.15, 0, 0.1 ),
@@ -206,6 +207,7 @@ if CLIENT then
 
     hook.Add( "PostDrawTranslucentRenderables", "HG.DuctTapeMouth.Draw", function()
         render.SetMaterial( TAPE_MAT )
+        local eyePos = EyePos()
 
         for _, ply in ipairs( player.GetAll() ) do
             if not MouthTape.IsTaped( ply ) or not ply:Alive() then
@@ -214,6 +216,14 @@ if CLIENT then
 
             local ent = getCurrentCharacter( ply )
             if not IsValid( ent ) or ent:GetNoDraw() then
+                continue
+            end
+
+            if ent.GetPos and ent:GetPos():DistToSqr( eyePos ) > DRAW_DIST_SQR then
+                continue
+            end
+
+            if ent.shouldTransmit == false or ent.NotSeen then
                 continue
             end
 

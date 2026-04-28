@@ -896,15 +896,20 @@ function SWEP:DrawWorldModel()
 	end
 end
 
+local ACTIVE_WEAPON_RENDER_DIST_SQR = 3400 * 3400
+local HOLSTERED_WEAPON_RENDER_DIST_SQR = 2200 * 2200
+
 --hook.Add("PostDrawPlayerRagdoll", "huyCock", function(ent,owner)
-function hg.RenderWeapons(ent, owner)
+function hg.RenderWeapons(ent, owner, distSqr, criticalView)
 	local wep = owner.GetActiveWeapon and owner:GetActiveWeapon()
+	local canDrawActive = criticalView or distSqr == nil or distSqr <= ACTIVE_WEAPON_RENDER_DIST_SQR
+	local canDrawHolstered = criticalView or distSqr == nil or distSqr <= HOLSTERED_WEAPON_RENDER_DIST_SQR
 	
-	if IsValid(wep) and wep.ishgweapon then
+	if canDrawActive and IsValid(wep) and wep.ishgweapon then
 		DrawWorldModel(wep)
     end
 
-	if owner.GetWeapons then
+	if canDrawHolstered and owner.GetWeapons then
 		local weps = owner:GetWeapons()
 		for i = 1, #weps do
 			local wep2 = weps[i]
@@ -915,7 +920,7 @@ function hg.RenderWeapons(ent, owner)
 	end
 
 	local inv = ent:GetNetVar("Inventory",nil) or ent.PredictedInventory
-	if ent == owner and not owner:IsPlayer()  and inv != nil and inv["Weapons"] then
+	if canDrawHolstered and ent == owner and not owner:IsPlayer()  and inv != nil and inv["Weapons"] then
 		if not ent.shouldTransmit then return end
 		if ent.NotSeen then return end
 	
@@ -932,15 +937,21 @@ end
 
 local table_IsEmpty = table.IsEmpty
 local string_find = string.find
+local LASER_RENDER_DIST_SQR = 1800 * 1800
 
 hook.Add("PostDrawTranslucentRenderables", "huyCock333", function()
 	hg.weapons = hg.weapons or {}
+	local eyePos = EyePos()
 	for i=1, #hg.weapons do
 		self = hg.weapons[i]
 		if not IsValid(self) then table.remove(hg.weapons,i) continue end
 		if IsValid(self:GetOwner()) and self:GetOwner().GetActiveWeapon and self:GetOwner():GetActiveWeapon() ~= self and self.shouldntDrawHolstered then removeFlashlights(self) continue end
 		if not self.attachments then continue end
 		if not self.lasertoggle then removeFlashlights(self) end
+		if self:GetPos():DistToSqr(eyePos) > LASER_RENDER_DIST_SQR then
+			removeFlashlights(self)
+			continue
+		end
 		if self.attachments.underbarrel and not table_IsEmpty(self.attachments.underbarrel) and string_find(self.attachments.underbarrel[1], "laser") or self.laser then self:DrawLaser() end
 	end
 end)

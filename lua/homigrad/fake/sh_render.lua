@@ -11,13 +11,13 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 				ent.ZCHeadBoneRender = headBone or false
 			end
 			headBone = headBone == false and nil or headBone
-			for i = 0, ent:GetBoneCount() - 1 do
+			local k = math_Clamp(1 - (ply.gettingup + 0.8 - CurTime()) / 0.8, 0, 1)
+			local boneCount = ent:GetBoneCount()
+			for i = 0, boneCount - 1 do
 				local m1 = ent:GetBoneMatrix(i)
 				local m2 = ply:GetBoneMatrix(i)
 
 				if not m1 or not m2 then continue end
-
-				local k = math_Clamp(1 - (ply.gettingup + 0.8 - CurTime()) / 0.8, 0, 1)
 
 				local q1 = Quaternion()
 				q1:SetMatrix(m1)
@@ -58,6 +58,8 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 	local vector_full = Vector(1, 1, 1)
 	local vector_small = Vector(0.01, 0.01, 0.01)
+	local FULL_POSE_RENDER_DIST_SQR = 1100 * 1100
+	local ARMOR_RENDER_DIST_SQR = 1450 * 1450
 	local DETAIL_RENDER_DIST_SQR = 2000 * 2000
 	local angfuck = Angle()
 	function DrawPlayerRagdoll(ent, ply) --// actually not only ragdoll render but player too
@@ -81,23 +83,32 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 		if !ent.GetManipulateBoneScale or !lkp then return end
 
 		local smoothingUnfake = IsValid(ply.OldRagdoll) and ply.gettingup and (ply.gettingup + 1 - CurTime()) > 0
+		local distSqr = EyePos():DistToSqr(ent:GetPos())
+		local criticalView = ply == lply or GetViewEntity() == ply or follow == ent or smoothingUnfake
+		local fullPoseRender = criticalView or distSqr <= FULL_POSE_RENDER_DIST_SQR
+		local armorRender = criticalView or distSqr <= ARMOR_RENDER_DIST_SQR
+		local detailRender = distSqr <= DETAIL_RENDER_DIST_SQR
 		if smoothingUnfake then
 			ply:SetupBones()
 		end
 
-		hg.RenderWeapons(ent, ply)
+		hg.RenderWeapons(ent, ply, distSqr, criticalView)
 
-		ent:SetupBones()
+		if fullPoseRender then
+			ent:SetupBones()
+		end
 
-		hg.MainTPIKFunction(ent, ply, wep)
+		if fullPoseRender then
+			hg.MainTPIKFunction(ent, ply, wep)
+		end
 
-		if smoothingUnfake then
+		if smoothingUnfake and fullPoseRender then
 			hg.SmoothUnfake(ent, ply)
 		end
 
-		if ply:GetNetVar("handcuffed", false) then hg.CuffedAnim(ent, ply) end
+		if ply:GetNetVar("handcuffed", false) and fullPoseRender then hg.CuffedAnim(ent, ply) end
 
-		if IsValid(wep) then
+		if fullPoseRender and IsValid(wep) then
 			//if wep.isTPIKBase then hg.RenderTPIKBase(ent, ply, wep) end
 			//if wep.ismelee then hg.RenderMelees(ent, ply, wep) end
 			if wep.DrawWorldModel2 then wep:DrawWorldModel2() end
@@ -105,17 +116,18 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		local armors = ply:GetNetVar("Armor") or ent.PredictedArmor
 		local hideArmorRender = ply:GetNetVar("HideArmorRender", false) or ent.PredictedHideArmorRender
-		if armors and next(armors) and not hideArmorRender then
+		if armorRender and armors and next(armors) and not hideArmorRender then
 			RenderArmors(ply, armors, ent)
 		end
 
-		local detailRender = EyePos():DistToSqr(ent:GetPos()) <= DETAIL_RENDER_DIST_SQR
 		if detailRender then
 			hg.RenderBandages(ent, ply)
 			hg.RenderTourniquets(ent, ply)
 		end
 
-		hg.GoreCalc(ent, ply)
+		if fullPoseRender then
+			hg.GoreCalc(ent, ply)
+		end
 
 		--local current = ent:GetManipulateBoneScale(lkp)
 		local fountains = GetNetVar("fountains") or {}
@@ -123,17 +135,20 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 		--print(ent, wawanted, GetViewEntity(), ply, (GetViewEntity() != ply), !fountains[ent], !(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1))
 		--if !current:IsEqualTol(wawanted, 0.01) then
 			--ent:ManipulateBoneScale(lkp, wawanted)
-			local mat = ent:GetBoneMatrix(lkp)
-			
-			if (!hg_thirdperson:GetBool() and !hg_gopro:GetBool() and (ent == ply or (!hg_ragdollcombat:GetBool() or hg_firstperson_ragdoll:GetBool()))) or (hg_firstperson_death:GetBool() and follow == ent) then
-				mat:SetScale(wawanted)
+			if fullPoseRender then
+				local mat = ent:GetBoneMatrix(lkp)
+				if mat then
+					if (!hg_thirdperson:GetBool() and !hg_gopro:GetBool() and (ent == ply or (!hg_ragdollcombat:GetBool() or hg_firstperson_ragdoll:GetBool()))) or (hg_firstperson_death:GetBool() and follow == ent) then
+						mat:SetScale(wawanted)
+					end
+					--angfuck[3] = -GetViewPunchAngles2()[2] - GetViewPunchAngles3()[2]
+
+					--local _, ang = LocalToWorld(vector_origin, angfuck, vector_origin, mat:GetAngles())
+					--mat:SetAngles(ang)
+
+					hg.bone_apply_matrix(ent, lkp, mat)
+				end
 			end
-			--angfuck[3] = -GetViewPunchAngles2()[2] - GetViewPunchAngles3()[2]
-
-			--local _, ang = LocalToWorld(vector_origin, angfuck, vector_origin, mat:GetAngles())
-			--mat:SetAngles(ang)
-
-			hg.bone_apply_matrix(ent, lkp, mat)
 		--end
 
 		--hg.CoolGloves(ent, ply, wep)

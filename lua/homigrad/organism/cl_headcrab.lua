@@ -30,7 +30,13 @@ function hg.RenderHeadcrab(ent, ply)
     end
     local model = ply.headcrabmodel
 
-    local head = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_Head1"))
+    local headBone = ent.ZCHeadcrabBone
+    if headBone == nil then
+        headBone = ent:LookupBone("ValveBiped.Bip01_Head1")
+        ent.ZCHeadcrabBone = headBone or false
+    end
+    headBone = headBone == false and nil or headBone
+    local head = headBone and ent:GetBoneMatrix(headBone)
     if not head then
         if IsValid(model) then
             model:Remove()

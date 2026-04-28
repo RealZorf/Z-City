@@ -68,11 +68,7 @@ local function RestoreOptimizedProp(ent)
 
 	if ent:GetCollisionGroup() == COLLISION_GROUP_DEBRIS then
 		local wantedCollisionGroup = ent.hg_prop_optimizer_collision_group or COLLISION_GROUP_NONE
-		if hg.QueueSetCollisionGroup then
-			hg.QueueSetCollisionGroup(ent, wantedCollisionGroup)
-		else
-			ent:SetCollisionGroup(wantedCollisionGroup)
-		end
+		hg.SafeSetCollisionGroup(ent, wantedCollisionGroup)
 	end
 
 	ent.hg_prop_optimizer_collision_changed = nil
@@ -121,11 +117,7 @@ timer.Create("hg_prop_optimizer", 4, 0, function()
 			if useDebrisCollision and ent:GetCollisionGroup() ~= COLLISION_GROUP_DEBRIS then
 				ent.hg_prop_optimizer_collision_group = ent:GetCollisionGroup()
 				ent.hg_prop_optimizer_collision_changed = true
-				if hg.QueueSetCollisionGroup then
-					hg.QueueSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
-				else
-					ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
-				end
+				hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
 			end
 
 			phys:Sleep()

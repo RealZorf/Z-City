@@ -89,6 +89,51 @@ local velocityAddVel = Vector()
 local walkLerped = 0
 local walkTime = 0
 
+local function cachedCameraBone(ent, boneName)
+	if not IsValid(ent) then return nil end
+
+	local model = ent:GetModel()
+	if ent.ZCCameraBoneCacheModel ~= model then
+		ent.ZCCameraBoneCacheModel = model
+		ent.ZCCameraBoneCache = {}
+	end
+
+	local cache = ent.ZCCameraBoneCache
+	local bone = cache[boneName]
+	if bone == nil then
+		bone = ent:LookupBone(boneName) or false
+		cache[boneName] = bone
+	end
+
+	return bone ~= false and bone or nil
+end
+
+local function cachedCameraAttachment(ent, attachmentName)
+	if not IsValid(ent) then return nil end
+
+	local model = ent:GetModel()
+	if ent.ZCCameraAttachmentCacheModel ~= model then
+		ent.ZCCameraAttachmentCacheModel = model
+		ent.ZCCameraAttachmentCache = {}
+	end
+
+	local cache = ent.ZCCameraAttachmentCache
+	local attachment = cache[attachmentName]
+	if attachment == nil then
+		attachment = ent:LookupAttachment(attachmentName) or 0
+		cache[attachmentName] = attachment
+	end
+
+	return attachment > 0 and attachment or nil
+end
+
+local function getCachedAttachmentData(ent, attachmentName)
+	local attachment = cachedCameraAttachment(ent, attachmentName)
+	if not attachment then return nil end
+
+	return ent:GetAttachment(attachment)
+end
+
 local lerped_ang = Angle(0,0,0)
 function HGAddView(ply, origin, angles, velLen)
 	if ply:Alive() then
@@ -291,7 +336,8 @@ end)
 function SpecCam(ply, vec, ang, fov, znear, zfar)
 	if !ply:Alive() then return end
 	--local hand = ply:GetAttachment(ply:LookupAttachment("anim_attachment_rh"))
-	local eye = ply:GetAttachment(ply:LookupAttachment("eyes"))
+	local eye = getCachedAttachmentData(ply, "eyes")
+	if not eye then return end
 	--local org = eye.Pos
 	local ang1 = eye.Ang + Angle(5, 2, 0)
 	local org1 = eye.Pos + eye.Ang:Up() * 6 + eye.Ang:Forward() * -3 + eye.Ang:Right() * 6.5
@@ -377,7 +423,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 		end
 	end
 
-	if not IsValid(ply) or not ply.LookupBone or not ply:LookupBone("ValveBiped.Bip01_Head1") then return end
+	if not IsValid(ply) or not ply.LookupBone or not cachedCameraBone(ply, "ValveBiped.Bip01_Head1") then return end
 	
 	if not ply.GetAimVector then return end
 
@@ -388,7 +434,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	
 	if not firstPerson then return end
 	
-	att = ply:GetAttachment(ply:LookupAttachment("eyes"))
+	att = getCachedAttachmentData(ply, "eyes")
 	if not att or not istable(att) then return end
 	
 	--ply:SetupBones()
@@ -577,9 +623,12 @@ function hg.cam_things(ply, view, angles)
 	eyeAngs[3] = 0
 	local oldviewa = oldview or view
 	local ent = hg.GetCurrentCharacter(ply)
-	if not ent:LookupBone("ValveBiped.Bip01_Spine") then return end
-	if not ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_Spine")) then return end
-	local torso = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_Spine")):GetAngles()
+	if not IsValid(ent) then return end
+	local spineBone = cachedCameraBone(ent, "ValveBiped.Bip01_Spine")
+	if not spineBone then return end
+	local spineMatrix = ent:GetBoneMatrix(spineBone)
+	if not spineMatrix then return end
+	local torso = spineMatrix:GetAngles()
 	--local oldorigin = originnew or ply:EyePos()
 	oldviewa = not ply:Alive() and view or oldviewa
 	

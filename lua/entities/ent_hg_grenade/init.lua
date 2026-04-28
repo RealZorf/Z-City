@@ -44,6 +44,12 @@ local GRENADE_PHYSICS_PUSH_CAP = 10
 local GRENADE_SHRAPNEL_SAMPLE_CAP = 96
 local GRENADE_SHRAPNEL_BATCH_RESUMES = 3
 local GRENADE_SHRAPNEL_SLICE_TIME = 0.0008
+local GRENADE_CROWD_PLAYER_THRESHOLD = 10
+local GRENADE_CROWD_PLAYER_THRESHOLD_EXTREME = 16
+local GRENADE_CROWD_SHRAPNEL_SAMPLE_CAP = 24
+local GRENADE_CROWD_SHRAPNEL_SAMPLE_CAP_EXTREME = 12
+local GRENADE_CROWD_ENTITY_CAP = 12
+local GRENADE_CROWD_ENTITY_CAP_EXTREME = 8
 
 local function sendFarSound(self, nearSound, farSound, waterSound)
 	local recipients = {}
@@ -315,13 +321,28 @@ function ENT:Explode()
 
 	local dis = self.BlastDis / 0.01905
 	local disorientation_dis = 6 / 0.01905
+	local nearbyPlayerCount = 0
+	for _, ply in ipairs(player.GetHumans()) do
+		if not IsValid(ply) or not ply:Alive() then continue end
+		if ply:GetPos():DistToSqr(selfPos) <= disorientation_dis * disorientation_dis then
+			nearbyPlayerCount = nearbyPlayerCount + 1
+		end
+	end
+
+	local nearbyEntityCap = GRENADE_NEARBY_ENTITY_CAP
+	if nearbyPlayerCount >= GRENADE_CROWD_PLAYER_THRESHOLD_EXTREME then
+		nearbyEntityCap = GRENADE_CROWD_ENTITY_CAP_EXTREME
+	elseif nearbyPlayerCount >= GRENADE_CROWD_PLAYER_THRESHOLD then
+		nearbyEntityCap = GRENADE_CROWD_ENTITY_CAP
+	end
+
 	local entsCount = 0
 	local processedEnts = 0
 	local disorientationTargets = 0
 	local playerPushTargets = 0
 	local physicsPushes = 0
 	for i, enta in ipairs(ents.FindInSphere(selfPos, disorientation_dis)) do
-		if processedEnts >= GRENADE_NEARBY_ENTITY_CAP then break end
+		if processedEnts >= nearbyEntityCap then break end
 		if not IsValid(enta) then continue end
 		processedEnts = processedEnts + 1
 
@@ -391,6 +412,11 @@ function ENT:Explode()
 		local ammo = "Metal Debris"
 		local ammotype = hg.ammotypeshuy[ammo].BulletSettings
 		local sampleCount = math.min(self.Fragmentation, GRENADE_SHRAPNEL_SAMPLE_CAP)
+		if nearbyPlayerCount >= GRENADE_CROWD_PLAYER_THRESHOLD_EXTREME then
+			sampleCount = math.min(sampleCount, GRENADE_CROWD_SHRAPNEL_SAMPLE_CAP_EXTREME)
+		elseif nearbyPlayerCount >= GRENADE_CROWD_PLAYER_THRESHOLD then
+			sampleCount = math.min(sampleCount, GRENADE_CROWD_SHRAPNEL_SAMPLE_CAP)
+		end
 
 		self.ShrapnelDone = false
 		self.ShrapnelCoroutine = coroutine.create(function()

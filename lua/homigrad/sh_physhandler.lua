@@ -63,6 +63,36 @@ function hg.QueueSetCustomCollisionCheck(ent, enabled)
 	hg._queuedCustomCollisionChecks[ent] = enabled and true or false
 end
 
+function hg.SafeSetCustomCollisionCheck(ent, enabled)
+	if not IsValid(ent) then return end
+
+	if hg.QueueSetCustomCollisionCheck then
+		hg.QueueSetCustomCollisionCheck(ent, enabled)
+	else
+		ent:SetCustomCollisionCheck(enabled)
+	end
+end
+
+function hg.SafeSetCollisionGroup(ent, collisionGroup)
+	if not IsValid(ent) then return end
+
+	if hg.QueueSetCollisionGroup then
+		hg.QueueSetCollisionGroup(ent, collisionGroup)
+	else
+		ent:SetCollisionGroup(collisionGroup)
+	end
+end
+
+function hg.SafeCollisionRulesChanged(ent)
+	if not IsValid(ent) then return end
+
+	if hg.QueueCollisionRulesChanged then
+		hg.QueueCollisionRulesChanged(ent)
+	else
+		ent:CollisionRulesChanged()
+	end
+end
+
 if SERVER then
 	hook.Add("Tick", "hg_queue_collision_rules_changed", function()
 		for ent, enabled in pairs(hg._queuedCustomCollisionChecks) do

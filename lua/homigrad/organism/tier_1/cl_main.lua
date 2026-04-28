@@ -685,6 +685,17 @@ local muffedClasses = {
 
 local hg_heartbeat_volume = ConVarExists("hg_heartbeat_volume") and GetConVar("hg_heartbeat_volume") or CreateClientConVar("hg_heartbeat_volume", 1, true, nil, "heartbeat loudness", 0, 4)
 
+local function cachedClientThinkBone(ent, boneName)
+	ent.ZCClientThinkBones = ent.ZCClientThinkBones or {}
+	local bone = ent.ZCClientThinkBones[boneName]
+	if bone == nil then
+		bone = ent:LookupBone(boneName)
+		ent.ZCClientThinkBones[boneName] = bone or false
+	end
+
+	return bone == false and nil or bone
+end
+
 hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, ent, time)
 	--local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 	--print(ply,ent,ply.organism.owner,ply.new_organism.owner)
@@ -705,7 +716,7 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 		local speed = math.Clamp(org.heartbeat / 60, 1, 3.3) * 0.5 * (org.o2[1] < 8 and 0 or 1)
 		org.pulsethink = org.pulsethink + (org.heartbeat > 1 and 1 or 0) * (org.holdingbreath and 0 or 1) * FrameTime() * 5.6 * (speed) * (org.lungsfunction and 1 or 0) * ((org.alive and !ent.headexploded) and 1 or 0)
 		
-		local torso = ent:LookupBone("ValveBiped.Bip01_Spine2")
+		local torso = cachedClientThinkBone(ent, "ValveBiped.Bip01_Spine2")
 		--local chest = ent:LookupBone("ValveBiped.Bip01_Spine1")
 		
 		if torso then
@@ -867,16 +878,17 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 				local size = math.random(0, 1) * math.max(math.min(wound[1], 1), 0.5)
 				
 				if wound[5] + beatsPerSecond < time then
-					if seen and ent:LookupBone(wound[4]) then
+					local woundBone = cachedClientThinkBone(ent, wound[4])
+					if seen and woundBone then
 						local bone = wound[4]
 						local should = !(hg.amputatedlimbs2[bone] and org[hg.amputatedlimbs2[bone].."amputated"])
 
 						if !should then continue end
 
-						local mat = ent:GetBoneMatrix(ent:LookupBone(bone))
-						if not mat then return end
+						local mat = ent:GetBoneMatrix(woundBone)
+						if not mat then continue end
 						local bonePos, boneAng = mat:GetTranslation(), mat:GetAngles()
-						if not wound[2] or not wound[3] or not bonePos or not boneAng then return end
+						if not wound[2] or not wound[3] or not bonePos or not boneAng then continue end
 						local pos, ang = LocalToWorld(wound[2], wound[3], bonePos, boneAng)
 
 						local water = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER
@@ -909,21 +921,22 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 	if org and org.blood and org.blood > 10 and arterialwounds and #arterialwounds > 0 then
 		for i, wound in pairs(arterialwounds) do
 			local addtime = seen and 1 / math.Clamp(org.pulse or 70, 1,15) * 0.25 or 0.06
-			if wound[5] + addtime < time and ent:LookupBone(wound[4]) then
-				local pos, ang = ent:GetBonePosition(ent:LookupBone(wound[4]))
+			local woundBone = cachedClientThinkBone(ent, wound[4])
+			if wound[5] + addtime < time and woundBone then
+				local pos, ang = ent:GetBonePosition(woundBone)
 				if (owner:IsPlayer() and owner:Alive()) or not owner:IsPlayer() then
 					local size = math.random(1, 2) * math.max(math.min(wound[1], 1), 0.5)
-					if seen and ent:LookupBone(wound[4]) then
+					if seen then
 						local bone = wound[4]
 
 						local should = !(hg.amputatedlimbs2[bone] and org[hg.amputatedlimbs2[bone].."amputated"])
 
 						if !should then continue end
 						
-						local mat = ent:GetBoneMatrix(ent:LookupBone(bone))
-						if not mat then return end
+						local mat = ent:GetBoneMatrix(woundBone)
+						if not mat then continue end
 						local bonePos, boneAng = mat:GetTranslation(), mat:GetAngles()
-						if not wound[2] or not wound[3] or not bonePos or not boneAng then return end
+						if not wound[2] or not wound[3] or not bonePos or not boneAng then continue end
 						local pos = LocalToWorld(wound[2], wound[3], bonePos, boneAng)
 
 						local dir = wound[6]
@@ -1004,11 +1017,26 @@ local vecFull = Vector(1, 1, 1)
 function hg.GoreCalc(ent, ply)
 	local org = ent.new_organism or ent.organism
 	if !org then return end
+	local model = ent:GetModel()
+	if ent.ZCGoreModel ~= model then
+		ent.ZCGoreModel = model
+		ent.ZCGoreFemale = ThatPlyIsFemale(ent) and 1 or 0
+		ent.ZCGoreBones = {}
+	end
+
+	local boneCache = ent.ZCGoreBones
+	local fem = ent.ZCGoreFemale or 0
 
 	for bone, nam in pairs(limbs) do
-		if !org[bone.."amputated"] then
-			local bon = ent:LookupBone(nam)
+		local bon = boneCache[nam]
+		if bon == nil then
+			bon = ent:LookupBone(nam)
+			boneCache[nam] = bon or false
+		end
+		bon = bon == false and nil or bon
+		if not bon then continue end
 
+		if !org[bone.."amputated"] then
 			if !ent:GetManipulateBoneScale(bon):IsEqualTol(vecFull, 0.01) then
 				ent:ManipulateBoneScale(bon, vecFull)
 			end
@@ -1016,9 +1044,9 @@ function hg.GoreCalc(ent, ply)
 			continue
 		end
 		
-		local bon = ent:LookupBone(nam)
 		local mat = ent:GetBoneMatrix(bon)
 		local mat2 = ent:GetBoneMatrix(bon - 1)
+		if not mat or not mat2 then continue end
 		mat:SetScale(vecalmostzero)
 		
 		hg.bone_apply_matrix(ent, bon, mat)
@@ -1027,8 +1055,6 @@ function hg.GoreCalc(ent, ply)
 			hg.bone_apply_matrix(ply, bon, mat)
 		end
 
-		local fem = ThatPlyIsFemale(ent) and 1 or 0
-		
 		if !modelPlacements[fem][nam] then continue end
 
 		local pos, ang = LocalToWorld(modelPlacements[fem][nam][1], modelPlacements[fem][nam][2], mat2:GetTranslation(), mat2:GetAngles())
