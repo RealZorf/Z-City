@@ -414,6 +414,18 @@ net.Receive("OnlyGet_Appearance",function(len,client)
     local bRandom = !tAppearance or table.IsEmpty(tAppearance)
     --client:ChatPrint(bRandom)
     client.CachedAppearance = bRandom and APmodule.GetRandomAppearance() or tAppearance
+
+    if APmodule.IsPermamodelEnabled(client) then return end
+    if !client:Alive() then return end
+    if !APmodule.AppearanceValidater(client.CachedAppearance) then return end
+
+    timer.Simple(0, function()
+        if !IsValid(client) or !client:Alive() then return end
+        if APmodule.IsPermamodelEnabled(client) then return end
+        if !APmodule.AppearanceValidater(client.CachedAppearance) then return end
+
+        WearAppearance(client, table.Copy(client.CachedAppearance))
+    end)
 end)
 
 APmodule.ApplyAppearance = ApplyAppearance
