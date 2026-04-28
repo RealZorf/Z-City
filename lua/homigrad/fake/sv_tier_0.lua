@@ -128,7 +128,7 @@ function hg.Ragdoll_Create(ply)
 	local bodygroups = ply:GetBodyGroups()
 	ragdoll:Spawn()
 	ragdoll:Activate()
-	hg.ApplySetCollisionGroupNow(ragdoll, COLLISION_GROUP_NONE)
+	hg.ApplySetCollisionGroupNow(ragdoll, COLLISION_GROUP_WEAPON)
 	ragdoll:AddEFlags(EFL_NO_DAMAGE_FORCES + EFL_DONTBLOCKLOS)
 	--ragdoll:AddFlags(FL_NOTARGET)
 	--ply:AddFlags(FL_NOTARGET)
@@ -1412,6 +1412,48 @@ local function IsLiveManagedRagdoll(rag)
 	return IsValid(owner) and owner:IsPlayer() and owner:Alive()
 end
 
+local function GetLiveManagedRagdollOwner(rag)
+	if not IsValid(rag) or not rag:IsRagdoll() then return end
+
+	local owner = hg.RagdollOwner(rag)
+	if not IsValid(owner) then
+		owner = rag:GetNWEntity("ply")
+	end
+
+	if not IsValid(owner) or not owner:IsPlayer() or not owner:Alive() then
+		return
+	end
+
+	if owner.FakeRagdoll ~= rag then
+		return
+	end
+
+	return owner
+end
+
+hook.Add("ShouldCollide", "hg_fake_ragdoll_player_block", function(ent1, ent2)
+	local ply, rag
+
+	if ent1:IsPlayer() and ent2:IsRagdoll() then
+		ply, rag = ent1, ent2
+	elseif ent2:IsPlayer() and ent1:IsRagdoll() then
+		ply, rag = ent2, ent1
+	else
+		return
+	end
+
+	if not IsValid(ply) or not ply:Alive() then
+		return
+	end
+
+	local owner = GetLiveManagedRagdollOwner(rag)
+	if not owner or owner == ply then
+		return
+	end
+
+	return true
+end)
+
 local function RagdollIsSettled(rag)
 	for i = 0, rag:GetPhysicsObjectCount() - 1 do
 		local phys = rag:GetPhysicsObjectNum(i)
@@ -1459,7 +1501,7 @@ timer.Create("hg_corpse_optimizer", 5, 0, function()
 			rag.hg_corpseSettled = nil
 
 			if rag:GetCollisionGroup() == COLLISION_GROUP_DEBRIS then
-				hg.SafeSetCollisionGroup(rag, COLLISION_GROUP_NONE)
+				hg.SafeSetCollisionGroup(rag, COLLISION_GROUP_WEAPON)
 			end
 
 			continue
