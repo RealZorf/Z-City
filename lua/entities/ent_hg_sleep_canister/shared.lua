@@ -1,0 +1,11 @@
+ENT.Type = "anim"
+ENT.Base = "base_gmodentity"
+ENT.PrintName = "Sleeping canister"
+ENT.Spawnable = false
+ENT.totalparticles = 30
+ENT.Model = "models/jordfood/jtun.mdl"
+ENT.ExposureRadius = 64
+ENT.TranquilizerPerTick = 4
+ENT.TranquilizerCap = 20
+ENT.ActiveDelay = 10
+ENT.ActiveLifetime = 90

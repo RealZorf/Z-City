@@ -9,6 +9,22 @@ MODE.DisarmReach = 90
 MODE.NoDisarmWeapons = {
 	["weapon_hands_sh"] = true,
 }
+MODE.ShadowCamouflageChargeTime = 5
+MODE.ShadowCamouflageWallDistance = 34
+MODE.ShadowCamouflageMoveSpeed = 10
+MODE.ShadowCamouflageGraceTime = 0.35
+MODE.ShadowCamouflageAlpha = 96
+MODE.ShadowCamouflageTint = Color(110, 120, 132, 96)
+MODE.ShadowCamouflageBlend = 0.34
+MODE.ShadowCamouflageColorModulation = {
+	0.42,
+	0.45,
+	0.5
+}
+
+function MODE.IsShadowRole(subrole)
+	return subrole == "traitor_shadow" or subrole == "traitor_shadow_soe"
+end
 
 --\\
 function MODE.GetPlayerTraceToOtherVictim(ply, victim, dist)

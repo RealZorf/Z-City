@@ -135,6 +135,30 @@ local islply
 
 local hg_firstperson_death = ConVarExists("hg_firstperson_death") and GetConVar("hg_firstperson_death") or CreateClientConVar("hg_firstperson_death", "0", "first person death", true, false, 0, 1)
 
+local function IsShadowCamouflageActiveOnEnt(ent, ply)
+	if IsValid(ent) and ent.GetNWBool and ent:GetNWBool("HMCD_ShadowCamouflageActive", false) then
+		return true
+	end
+
+	if IsValid(ply) and ply.GetNWBool and ply:GetNWBool("HMCD_ShadowCamouflageActive", false) then
+		return true
+	end
+
+	return false
+end
+
+local function ClearAccessoryModels(ent)
+	if not IsValid(ent) or not ent.modelAccess then return end
+
+	for key, model in pairs(ent.modelAccess) do
+		if IsValid(model) then
+			model:Remove()
+		end
+
+		ent.modelAccess[key] = nil
+	end
+end
+
 function RenderAccessories(ply, accessories, setup)
 
 	if not IsValid(ply) or not accessories then return end
@@ -151,25 +175,18 @@ function RenderAccessories(ply, accessories, setup)
 	local fountains = GetNetVar("fountains") or {}
 	if ent == follow and hg_firstperson_death:GetBool() and !fountains[ent] then islply = true end
 
+	if IsShadowCamouflageActiveOnEnt(ent, ply) then
+		ClearAccessoryModels(ent)
+		return
+	end
+
 	if islply and IsValid(wep) and whitelist[wep:GetClass()] then
-		if not ent.modelAccess then return end
-		for k,v in ipairs(ent.modelAccess) do
-			if IsValid(v) then
-				v:Remove()
-				v = nil
-			end
-		end
+		ClearAccessoryModels(ent)
 		return
 	end
 
 	if not ent.shouldTransmit or ent.NotSeen then
-		if not ent.modelAccess then return end
-		for k,v in ipairs(ent.modelAccess) do
-			if IsValid(v) then
-				v:Remove()
-				v = nil
-			end
-		end
+		ClearAccessoryModels(ent)
 		return
 	end
 
@@ -314,6 +331,18 @@ function DrawAppearance(ent, ply, setup)
 	if setup then return end
 	
 	if not ply:IsPlayer() then return end
+
+	if IsShadowCamouflageActiveOnEnt(ent, ply) then
+		if ply.flashlight then
+			ply.flashlight:Remove()
+			ply.flashlight = nil
+		end
+		if ply.flmodel then
+			ply.flmodel:Remove()
+			ply.flmodel = nil
+		end
+		return
+	end
 	
 	local inv = ply:GetNetVar("Inventory",{})
 	if not inv["Weapons"] or not inv["Weapons"]["hg_flashlight"] then

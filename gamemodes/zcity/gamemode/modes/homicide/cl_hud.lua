@@ -8,6 +8,9 @@ local vgui_color_text_main = Color(150, 50, 0, 255)
 local vgui_color_text_shadow = Color(0, 0, 0, 255)
 
 local mat_gradientdown = Material("vgui/gradient_down")
+local mat_shadow_camouflage = Material("models/debug/debugwhite")
+local color_white = Color(255, 255, 255, 255)
+local vector_origin = Vector(0, 0, 0)
 
 local function draw_shadow_text(text, cx, cy)
 	draw.DrawText(text, "HomigradFontMedium", cx + 1, cy + 1, vgui_color_text_shadow, TEXT_ALIGN_CENTER)
@@ -39,6 +42,126 @@ local function draw_RotatedText(text, font, x, y, color, ang, scale)
 	render.PopFilterMag()
 	render.PopFilterMin()
 end
+
+function MODE.GetShadowCamouflageVisuals(ply)
+	if not IsValid(ply) then
+		return {
+			tint = MODE.ShadowCamouflageTint or color_white,
+			modulation = MODE.ShadowCamouflageColorModulation or {0.42, 0.45, 0.5},
+			blend = MODE.ShadowCamouflageBlend or 0.34
+		}
+	end
+
+	local now = CurTime()
+	local cache = ply.HMCD_ShadowCamouflageVisualCache
+	if cache and cache.expires > now then
+		return cache
+	end
+
+	local origin = ply:WorldSpaceCenter()
+	origin.z = ply:GetPos().z + math.max(ply:OBBMaxs().z * 0.4, 35)
+
+	local sampled = vector_origin
+	local hitCount = 0
+
+	for yaw = 0, 330, 30 do
+		local dir = Angle(0, yaw, 0):Forward()
+		local tr = util.TraceLine({
+			start = origin,
+			endpos = origin + dir * (MODE.ShadowCamouflageWallDistance or 34),
+			filter = ply,
+			mask = MASK_PLAYERSOLID,
+		})
+
+		if tr.Hit and not tr.HitSky then
+			local surfaceColor = render.GetSurfaceColor(tr.HitPos + tr.HitNormal * 2, tr.HitPos - tr.HitNormal * 12)
+			if surfaceColor and surfaceColor:LengthSqr() > 0.001 then
+				sampled = sampled + surfaceColor
+				hitCount = hitCount + 1
+			end
+		end
+	end
+
+	local tint
+	local modulation
+	local blend
+
+	if hitCount > 0 then
+		local avg = sampled / hitCount
+		local brightness = math.Clamp((avg.x + avg.y + avg.z) / 3, 0.08, 0.95)
+		local strongest = math.max(avg.x, avg.y, avg.z, 0.001)
+		local hue = avg / strongest
+		local hueBoost = Vector(
+			math.Clamp(hue.x, 0.18, 1),
+			math.Clamp(hue.y, 0.18, 1),
+			math.Clamp(hue.z, 0.18, 1)
+		)
+		local colorStrength = math.Clamp(1.05 + brightness * 0.45, 1.05, 1.35)
+
+		tint = Color(
+			math.Clamp(math.floor(hueBoost.x * 255 * brightness * colorStrength), 24, 245),
+			math.Clamp(math.floor(hueBoost.y * 255 * brightness * colorStrength), 24, 245),
+			math.Clamp(math.floor(hueBoost.z * 255 * brightness * colorStrength), 24, 245),
+			MODE.ShadowCamouflageAlpha or 96
+		)
+
+		modulation = {
+			math.Clamp(hueBoost.x * brightness * 1.05, 0.16, 1),
+			math.Clamp(hueBoost.y * brightness * 1.05, 0.16, 1),
+			math.Clamp(hueBoost.z * brightness * 1.08, 0.16, 1)
+		}
+
+		blend = math.Clamp(0.18 + brightness * 0.18, 0.22, 0.42)
+	else
+		tint = MODE.ShadowCamouflageTint or color_white
+		modulation = MODE.ShadowCamouflageColorModulation or {0.42, 0.45, 0.5}
+		blend = MODE.ShadowCamouflageBlend or 0.34
+	end
+
+	cache = {
+		tint = tint,
+		modulation = modulation,
+		blend = blend,
+		expires = now + 0.04
+	}
+	ply.HMCD_ShadowCamouflageVisualCache = cache
+
+	return cache
+end
+
+local function applyShadowCamouflageRenderState(visuals)
+	local tint = visuals.tint or color_white
+	local modulation = visuals.modulation or {0.42, 0.45, 0.5}
+
+	render.MaterialOverride(mat_shadow_camouflage)
+	render.SetBlend(visuals.blend or 0.34)
+	render.SetColorModulation(modulation[1] or 0.42, modulation[2] or 0.45, modulation[3] or 0.5)
+	render.SuppressEngineLighting(true)
+	render.SetModelLighting(BOX_FRONT, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetModelLighting(BOX_BACK, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetModelLighting(BOX_TOP, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetModelLighting(BOX_BOTTOM, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetModelLighting(BOX_LEFT, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetModelLighting(BOX_RIGHT, tint.r / 255, tint.g / 255, tint.b / 255)
+end
+
+hook.Add("PrePlayerDraw", "HMCD_ShadowCamouflage_PrePlayerDraw", function(ply)
+	if not MODE.IsShadowRole or not MODE.IsShadowRole(ply.SubRole) then return end
+	if not ply:GetNWBool("HMCD_ShadowCamouflageActive") then return end
+
+	applyShadowCamouflageRenderState(MODE.GetShadowCamouflageVisuals(ply))
+end)
+
+hook.Add("PostPlayerDraw", "HMCD_ShadowCamouflage_PostPlayerDraw", function(ply)
+	if not MODE.IsShadowRole or not MODE.IsShadowRole(ply.SubRole) then return end
+	if not ply:GetNWBool("HMCD_ShadowCamouflageActive") then return end
+
+	render.MaterialOverride(nil)
+	render.SuppressEngineLighting(false)
+	render.SetBlend(1)
+	render.SetColorModulation(1, 1, 1)
+	render.ResetModelLighting(1, 1, 1)
+end)
 
 hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 	local ply = LocalPlayer()
@@ -141,6 +264,29 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 						
 						bar_x = bar_x - bar_width - after_side_bar_offset
 					end
+				end
+			end
+
+			if(MODE.IsShadowRole(ply.SubRole))then
+				local active = ply:GetNWBool("HMCD_ShadowCamouflageActive")
+				local charge_start = ply:GetNWFloat("HMCD_ShadowCamouflageChargeStart", 0)
+				local ready_at = ply:GetNWFloat("HMCD_ShadowCamouflageReadyAt", 0)
+
+				if(active or charge_start > 0)then
+					local text = active and "CAMOUFLAGED" or "Stand still by a wall to camouflage"
+					local tw, th = surface.GetTextSize(text)
+					local cx, cy = ScrW() * 0.5, ScrH() * 0.68 + y_offset
+
+					draw_shadow_text(text, cx, cy)
+
+					if(not active and ready_at > charge_start)then
+						local frac = math.Clamp(1 - ((ready_at - CurTime()) / MODE.ShadowCamouflageChargeTime), 0, 1)
+
+						surface.SetDrawColor(vgui_color_text_main)
+						surface.DrawRect(cx - tw / 2, cy + th, tw * frac, math.max(ScreenScale(1), 2))
+					end
+
+					y_offset = y_offset + th + after_text_offset
 				end
 			end
 		end

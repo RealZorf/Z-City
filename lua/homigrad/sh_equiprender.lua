@@ -30,7 +30,75 @@ if CLIENT then
 	local PixVis
 	hook.Add("Initialize", "SetupPixVis", function() PixVis = util.GetPixelVisibleHandle() end)
 	local islply
+	local color_white = Color(255, 255, 255, 255)
 	local ARMOR_RENDER_DIST_SQR = 1450 * 1450
+	local function getShadowArmorVisuals(ent)
+		if not IsValid(ent) or not ent.GetNWBool or not ent:GetNWBool("HMCD_ShadowCamouflageActive", false) then return end
+
+		local owner = ent
+		if ent:IsRagdoll() then
+			owner = hg.RagdollOwner(ent) or ent
+		end
+
+		if MODE and MODE.GetShadowCamouflageVisuals then
+			return MODE.GetShadowCamouflageVisuals(owner)
+		end
+
+		return {
+			tint = Color(110, 120, 132, 96),
+			modulation = {0.42, 0.45, 0.5},
+			blend = 0.34
+		}
+	end
+
+	local function clearArmorModels(ent)
+		if not IsValid(ent) or not ent.modelArmor then return end
+
+		for key, model in pairs(ent.modelArmor) do
+			if IsValid(model) then
+				model:Remove()
+			end
+
+			ent.modelArmor[key] = nil
+		end
+	end
+
+	local function beginShadowArmorCamouflage(ent, model)
+		local visuals = getShadowArmorVisuals(ent)
+		if not visuals then return false end
+
+		local tint = visuals.tint or Color(110, 120, 132, 96)
+		local modulation = visuals.modulation or {0.42, 0.45, 0.5}
+
+		render.SetBlend(visuals.blend or 0.34)
+		render.SetColorModulation(modulation[1], modulation[2], modulation[3])
+		render.SuppressEngineLighting(true)
+		render.SetModelLighting(BOX_FRONT, tint.r / 255, tint.g / 255, tint.b / 255)
+		render.SetModelLighting(BOX_BACK, tint.r / 255, tint.g / 255, tint.b / 255)
+		render.SetModelLighting(BOX_TOP, tint.r / 255, tint.g / 255, tint.b / 255)
+		render.SetModelLighting(BOX_BOTTOM, tint.r / 255, tint.g / 255, tint.b / 255)
+		render.SetModelLighting(BOX_LEFT, tint.r / 255, tint.g / 255, tint.b / 255)
+		render.SetModelLighting(BOX_RIGHT, tint.r / 255, tint.g / 255, tint.b / 255)
+
+		if IsValid(model) then
+			model:SetRenderMode(RENDERMODE_TRANSCOLOR)
+			model:SetColor(tint)
+		end
+
+		return true
+	end
+
+	local function endShadowArmorCamouflage(model)
+		if IsValid(model) then
+			model:SetRenderMode(RENDERMODE_NORMAL)
+			model:SetColor(color_white)
+		end
+
+		render.SuppressEngineLighting(false)
+		render.SetBlend(1)
+		render.SetColorModulation(1, 1, 1)
+		render.ResetModelLighting(1, 1, 1)
+	end
 
 	local function cachedArmorBone(ent, boneName)
 		ent.ZCArmorBones = ent.ZCArmorBones or {}
@@ -110,27 +178,20 @@ if CLIENT then
 		
 		local viewPly = LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect", LocalPlayer())
 		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == viewPly and GetViewEntity() == viewPly
+
+		if getShadowArmorVisuals(ent) then
+			clearArmorModels(ent)
+			return
+		end
 	
 		if islply and IsValid(wep) and whitelist[wep:GetClass()] then
-			if not ent.modelArmor then return end
-			for k,v in ipairs(ent.modelArmor) do
-				if IsValid(v) then
-					v:Remove()
-					v = nil
-				end
-			end
+			clearArmorModels(ent)
 			return
 		end
 		
 	
 		if not ent.shouldTransmit or ent.NotSeen then
-			if not ent.modelArmor then return end
-			for k,v in ipairs(ent.modelArmor) do
-				if IsValid(v) then
-					v:Remove()
-					v = nil
-				end
-			end
+			clearArmorModels(ent)
 			return
 		end
 
@@ -225,7 +286,11 @@ if CLIENT then
 			--model:SetupBones()
 			
 			if not (islply and armorData.norender) then
+				local camouflaged = beginShadowArmorCamouflage(ent, model)
 				model:DrawModel()
+				if camouflaged then
+					endShadowArmorCamouflage(model)
+				end
 			end
 		end
 	end
