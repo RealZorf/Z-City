@@ -757,7 +757,7 @@ if CLIENT then
 
         mul = math.max( (math.max(math.min(mul,self.MinSensivity or 0.35),0)) - (self.MinSensivity/10) ,0 )
         mul = 1-(mul)
-		if wep.GetBlocking and wep:GetBlocking() then
+		if self.GetBlocking and self:GetBlocking() then
 			mul = math.Clamp(mul * 0.35, 0.2, 1)
 		end
 

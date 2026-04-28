@@ -93,6 +93,42 @@ function hg.SafeCollisionRulesChanged(ent)
 	end
 end
 
+function hg.ApplyCollisionRulesChangedNow(ent)
+	if not IsValid(ent) then return end
+
+	hg._queuedCollisionRuleRefresh[ent] = nil
+	ent:CollisionRulesChanged()
+end
+
+function hg.ApplySetCollisionGroupNow(ent, collisionGroup, refreshRules)
+	if not IsValid(ent) then return end
+
+	hg._queuedCollisionGroupChanges[ent] = nil
+
+	if ent:GetCollisionGroup() ~= collisionGroup then
+		ent:SetCollisionGroup(collisionGroup)
+	end
+
+	if refreshRules ~= false then
+		hg.ApplyCollisionRulesChangedNow(ent)
+	end
+end
+
+function hg.ApplySetCustomCollisionCheckNow(ent, enabled, refreshRules)
+	if not IsValid(ent) then return end
+
+	hg._queuedCustomCollisionChecks[ent] = nil
+	enabled = enabled and true or false
+
+	if ent:GetCustomCollisionCheck() ~= enabled then
+		ent:SetCustomCollisionCheck(enabled)
+	end
+
+	if refreshRules ~= false then
+		hg.ApplyCollisionRulesChangedNow(ent)
+	end
+end
+
 if SERVER then
 	hook.Add("Tick", "hg_queue_collision_rules_changed", function()
 		for ent, enabled in pairs(hg._queuedCustomCollisionChecks) do
