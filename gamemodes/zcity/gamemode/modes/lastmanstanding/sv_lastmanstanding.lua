@@ -53,6 +53,7 @@ function MODE:RoundStart()
 		ply.noSound = true
 		ply:StripWeapons()
 		ply:RemoveAllAmmo()
+		ply:Give("weapon_hands_sh")
 
 		for _, weaponKey in ipairs(self.InventoryWeapons or {}) do
 			SetInventoryFlag(ply, weaponKey)
