@@ -1378,8 +1378,53 @@ hook.Add("Move","PushAwayRagdolls",function(ply, mv)
 end)]]
 
 local mRandom = math.random
+local IsLiveManagedRagdoll
+local function PushManagedRagdollAway(rag, awayDir, speed)
+	if not IsValid(rag) then return end
+	if awayDir:LengthSqr() <= 0.0001 then return end
+
+	awayDir:Normalize()
+
+	local physCount = rag.ZCPhysicsObjectCount or rag:GetPhysicsObjectCount()
+	for i = 0, physCount - 1 do
+		local phys = rag:GetPhysicsObjectNum(i)
+		if IsValid(phys) then
+			phys:AddVelocity(awayDir * speed)
+		end
+	end
+end
+
 hook.Add("Ragdoll Collide", "FallSounds", function(rag, data)
 	if not IsValid(rag) then return end
+
+	local hitEnt = data.HitEntity
+	local owner = rag:GetNWEntity("ply")
+	if not IsValid(owner) then
+		owner = hg.RagdollOwner(rag)
+	end
+
+	local target = IsValid(hitEnt) and (hg.RagdollOwner(hitEnt) or hitEnt) or nil
+	if IsLiveManagedRagdoll(rag) and IsValid(owner) and owner:IsPlayer() and owner:Alive() and IsValid(target) and target:IsPlayer() and target ~= owner and target:Alive() then
+		local impactSpeed = data.OurOldVelocity:Length()
+		local bodycheckThreshold = target:IsOnGround() and 210 or 180
+		local now = CurTime()
+
+		rag.hg_fakeBodycheckCooldown = rag.hg_fakeBodycheckCooldown or 0
+		target.hg_fakeBodycheckVictimCooldown = target.hg_fakeBodycheckVictimCooldown or 0
+
+		if impactSpeed >= bodycheckThreshold and rag.hg_fakeBodycheckCooldown <= now and target.hg_fakeBodycheckVictimCooldown <= now then
+			rag.hg_fakeBodycheckCooldown = now + 0.45
+			target.hg_fakeBodycheckVictimCooldown = now + 0.75
+
+			if hg.drop then
+				hg.drop(target)
+			end
+
+			hg.LightStunPlayer(target, 2)
+			target:SetVelocity(data.OurOldVelocity:GetNormalized() * math.min(impactSpeed * 0.25, 120) + vector_up * 30)
+		end
+	end
+
 	if not data.HitEntity:IsWorld() then return end
 	if data.OurOldVelocity:LengthSqr() < 165000 or (rag.NextSND or 0) > data.DeltaTime then return end
 	rag:EmitSound("player/falling_foley/fall_foley"..mRandom(13)..".wav", 60, mRandom(95, 115), 1, CHAN_AUTO)
@@ -1401,7 +1446,7 @@ local hg_corpse_cleanup_max = ConVarExists("hg_corpse_cleanup_max") and GetConVa
 local hg_corpse_cleanup_age = ConVarExists("hg_corpse_cleanup_age") and GetConVar("hg_corpse_cleanup_age") or CreateConVar("hg_corpse_cleanup_age", "45", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Minimum corpse age before the automatic ragdoll cleanup can remove it.", 0, 1800)
 local hg_corpse_cleanup_player_radius = ConVarExists("hg_corpse_cleanup_player_radius") and GetConVar("hg_corpse_cleanup_player_radius") or CreateConVar("hg_corpse_cleanup_player_radius", "350", FCVAR_ARCHIVE + FCVAR_NOTIFY, "Corpses near living players are preserved by the automatic ragdoll cleanup.", 0, 5000)
 
-local function IsLiveManagedRagdoll(rag)
+IsLiveManagedRagdoll = function(rag)
 	if not IsValid(rag) then return false end
 
 	local owner = hg.RagdollOwner(rag)
@@ -1412,46 +1457,60 @@ local function IsLiveManagedRagdoll(rag)
 	return IsValid(owner) and owner:IsPlayer() and owner:Alive()
 end
 
-local function GetLiveManagedRagdollOwner(rag)
-	if not IsValid(rag) or not rag:IsRagdoll() then return end
+timer.Create("hg_fake_ragdoll_bodyblock", 0.04, 0, function()
+	local now = CurTime()
 
-	local owner = hg.RagdollOwner(rag)
-	if not IsValid(owner) then
-		owner = rag:GetNWEntity("ply")
+	for owner, rag in pairs(hg.ragdollFake) do
+		if not IsValid(owner) or not IsValid(rag) then
+			hg.ragdollFake[owner] = nil
+			continue
+		end
+
+		if not owner:Alive() or not IsLiveManagedRagdoll(rag) then continue end
+
+		local velocity = rag:GetVelocity()
+		local horizontalVelocity = Vector(velocity.x, velocity.y, 0)
+		local speed = horizontalVelocity:Length()
+		if speed < 75 then continue end
+
+		rag.hg_fakeLegBlockCooldown = rag.hg_fakeLegBlockCooldown or 0
+		if rag.hg_fakeLegBlockCooldown > now then continue end
+
+		local ragPos = rag:GetPos()
+		local moveDir = speed > 0 and horizontalVelocity / speed or nil
+		local radius = math.Clamp(18 + speed * 0.015, 22, 30)
+
+		for _, target in ipairs(ents.FindInSphere(ragPos, radius)) do
+			if not IsValid(target) or not target:IsPlayer() or not target:Alive() or target == owner then continue end
+			if IsValid(target.FakeRagdoll) then continue end
+
+			local targetPos = target:GetPos()
+			if math.abs((ragPos.z + 12) - targetPos.z) > 52 then continue end
+
+			local toTarget = targetPos - ragPos
+			local horizontalToTarget = Vector(toTarget.x, toTarget.y, 0)
+			local horizontalDistanceSqr = horizontalToTarget:LengthSqr()
+			if horizontalDistanceSqr > radius * radius then continue end
+
+			if moveDir and horizontalDistanceSqr > 1 then
+				local towardTarget = horizontalToTarget:GetNormalized()
+				if moveDir:Dot(towardTarget) < -0.1 then continue end
+			end
+
+			local awayDir
+			if horizontalDistanceSqr > 1 then
+				awayDir = -horizontalToTarget:GetNormalized()
+			elseif moveDir then
+				awayDir = -moveDir
+			else
+				awayDir = Vector(0, 0, 0)
+			end
+
+			rag.hg_fakeLegBlockCooldown = now + 0.1
+			PushManagedRagdollAway(rag, awayDir, math.Clamp(speed * 0.9, 90, 160))
+			break
+		end
 	end
-
-	if not IsValid(owner) or not owner:IsPlayer() or not owner:Alive() then
-		return
-	end
-
-	if owner.FakeRagdoll ~= rag then
-		return
-	end
-
-	return owner
-end
-
-hook.Add("ShouldCollide", "hg_fake_ragdoll_player_block", function(ent1, ent2)
-	local ply, rag
-
-	if ent1:IsPlayer() and ent2:IsRagdoll() then
-		ply, rag = ent1, ent2
-	elseif ent2:IsPlayer() and ent1:IsRagdoll() then
-		ply, rag = ent2, ent1
-	else
-		return
-	end
-
-	if not IsValid(ply) or not ply:Alive() then
-		return
-	end
-
-	local owner = GetLiveManagedRagdollOwner(rag)
-	if not owner or owner == ply then
-		return
-	end
-
-	return true
 end)
 
 local function RagdollIsSettled(rag)
