@@ -106,6 +106,17 @@ SWEP.SoundFar = {"iedins/ied_detonate_dist_01.wav","ied/ied_detonate_dist_02.wav
 SWEP.Sound = {"ied/ied_detonate_01.wav", "ied/ied_detonate_02.wav", "ied/ied_detonate_03.wav"}
 SWEP.SoundWater = "iedins/water/ied_water_detonate_01.wav"
 
+local IED_SOUND_RADIUS_SQR = 4500 * 4500
+local IED_NEARBY_ENTITY_CAP = 18
+local IED_NEARBY_ENTITY_CAP_CROWDED = 12
+local IED_NEARBY_ENTITY_CAP_EXTREME = 8
+local IED_SHRAPNEL_SAMPLE_CAP = 96
+local IED_SHRAPNEL_SAMPLE_CAP_CROWDED = 24
+local IED_SHRAPNEL_SAMPLE_CAP_EXTREME = 12
+local IED_SHRAPNEL_SLICE_TIME = 0.0008
+local IED_CROWD_PLAYER_THRESHOLD = 10
+local IED_CROWD_PLAYER_THRESHOLD_EXTREME = 16
+
 local FireEnts = {
 	["models/props_c17/oildrum001_explosive.mdl"] = true,
 	["models/props_junk/gascan001a.mdl"] = true,
@@ -182,6 +193,27 @@ end
 
 function SWEP:CreateFake() end
 
+local function sendIEDFarSound(self, ent, pos)
+	local recipients = {}
+
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(pos) <= IED_SOUND_RADIUS_SQR then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	if #recipients == 0 then return end
+
+	net.Start("projectileFarSound")
+		net.WriteString(table.Random(self.Sound))
+		net.WriteString(table.Random(self.SoundFar))
+		net.WriteVector(pos)
+		net.WriteEntity(ent)
+		net.WriteBool(ent:WaterLevel() > 0)
+		net.WriteString(self.SoundWater)
+	net.Send(recipients)
+end
+
 local function ExplodeTheItem(self,ent)
 	if not IsValid(ent) then self:Remove() return end
 
@@ -192,18 +224,30 @@ local function ExplodeTheItem(self,ent)
 	local BlastDamage = self.BlastDamage
 	local BlastDis = self.BlastDis
 	local owner = self:GetOwner()
+	local nearbyPlayers = 0
 	ent:EmitSound("nokia.mp3",55,100,1,CHAN_AUTO)
+
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(EntPos) <= (600 * 600) then
+			nearbyPlayers = nearbyPlayers + 1
+		end
+	end
+
+	local nearbyEntityCap = IED_NEARBY_ENTITY_CAP
+	local shrapnelSampleCap = IED_SHRAPNEL_SAMPLE_CAP
+
+	if nearbyPlayers >= IED_CROWD_PLAYER_THRESHOLD_EXTREME then
+		nearbyEntityCap = IED_NEARBY_ENTITY_CAP_EXTREME
+		shrapnelSampleCap = IED_SHRAPNEL_SAMPLE_CAP_EXTREME
+	elseif nearbyPlayers >= IED_CROWD_PLAYER_THRESHOLD then
+		nearbyEntityCap = IED_NEARBY_ENTITY_CAP_CROWDED
+		shrapnelSampleCap = IED_SHRAPNEL_SAMPLE_CAP_CROWDED
+	end
+
 	timer.Simple(0.4,function()
 		if not IsValid(ent) then return end
 		timer.Simple(0.1,function()
-			net.Start("projectileFarSound")
-				net.WriteString(table.Random(self.Sound))
-				net.WriteString(table.Random(self.SoundFar))
-				net.WriteVector(EntPos)
-				net.WriteEntity(ent)
-				net.WriteBool(ent:WaterLevel() > 0)
-				net.WriteString(self.SoundWater)
-			net.Broadcast()
+			sendIEDFarSound(self, ent, EntPos)
 
 			if self:WaterLevel() == 0 then
 				ParticleEffect("pcf_jack_groundsplode_medium",ent:GetPos(),-vector_up:Angle())
@@ -230,8 +274,11 @@ local function ExplodeTheItem(self,ent)
 			util.BlastDamage(self, IsValid(self:GetOwner()) and self:GetOwner() or self, EntPos, BlastDis / 0.01905, BlastDamage * 0.1) -- эта функция полное говно кстати. бьет сковзь любые пропы...
 			
 			local dis = BlastDis / 0.01905
-			local disorientation_dis = 10 / 0.01905  
+			local disorientation_dis = 10 / 0.01905
+			local processedNearby = 0
 			for _, enta in ipairs(ents.FindInSphere(EntPos, disorientation_dis)) do
+				processedNearby = processedNearby + 1
+				if processedNearby > nearbyEntityCap then break end
 				local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
 				local tr = hg.ExplosionTrace(EntPos, tracePos, {ent})
 
@@ -286,10 +333,17 @@ local function ExplodeTheItem(self,ent)
 			local mat = ent:GetMaterialType()
 			if mat == MAT_METAL then
 				local co = coroutine.create(function()
-					local LastShrapnel = SysTime()
+					local phys = ent:GetPhysicsObject()
+					if not IsValid(phys) then
+						ent.ShrapnelDone = true
+						return
+					end
 
-					for i = 1, math.Round(ent:GetPhysicsObject():GetMass() * 50) do
-							LastShrapnel = SysTime()
+					local rawSampleCount = math.Round(phys:GetMass() * 50)
+					local sampleCount = math.min(rawSampleCount, shrapnelSampleCap)
+
+					for i = 1, sampleCount do
+							local shrapnelStart = SysTime()
 
 							local dir = VectorRand(-1,1):GetNormalized()--vector_up
 							dir[3] = dir[3] > 0 and math.abs(dir[3] - 0.5) or -math.abs(dir[3] + 0.5)
@@ -313,9 +367,7 @@ local function ExplodeTheItem(self,ent)
 								ent:FireLuaBullets(bullet, true)
 							end
 
-							LastShrapnel = SysTime() - LastShrapnel
-
-							if LastShrapnel > 0.001 then
+							if (SysTime() - shrapnelStart) > IED_SHRAPNEL_SLICE_TIME then
 								coroutine.yield()
 							end
 					end
@@ -323,7 +375,15 @@ local function ExplodeTheItem(self,ent)
 					ent.ShrapnelDone = true
 				end)
 
-				coroutine.resume(co)
+				local ok, err = coroutine.resume(co)
+				if not ok then
+					ErrorNoHalt(string.format("[weapon_traitor_ied] shrapnel coroutine failed: %s\n", tostring(err)))
+					ent:Remove()
+					if IsValid(self) then
+						self:Remove()
+					end
+					return
+				end
 
 				local index = ent:EntIndex()
 
@@ -332,7 +392,16 @@ local function ExplodeTheItem(self,ent)
 				end
 
 				timer.Create("IEDCheck_" .. index, 0, 0, function()
-					coroutine.resume(co)
+					local ok, err = coroutine.resume(co)
+					if not ok then
+						ErrorNoHalt(string.format("[weapon_traitor_ied] shrapnel timer failed: %s\n", tostring(err)))
+						if IsValid(ent) then
+							ent:Remove()
+						end
+						timer.Remove("IEDCheck_" .. index)
+						return
+					end
+
 					if ent.ShrapnelDone then
 						ent:Remove()
 						timer.Remove("IEDCheck_" .. index)

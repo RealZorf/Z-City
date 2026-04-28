@@ -1397,34 +1397,6 @@ end
 hook.Add("Ragdoll Collide", "FallSounds", function(rag, data)
 	if not IsValid(rag) then return end
 
-	local hitEnt = data.HitEntity
-	local owner = rag:GetNWEntity("ply")
-	if not IsValid(owner) then
-		owner = hg.RagdollOwner(rag)
-	end
-
-	local target = IsValid(hitEnt) and (hg.RagdollOwner(hitEnt) or hitEnt) or nil
-	if IsLiveManagedRagdoll(rag) and IsValid(owner) and owner:IsPlayer() and owner:Alive() and IsValid(target) and target:IsPlayer() and target ~= owner and target:Alive() then
-		local impactSpeed = data.OurOldVelocity:Length()
-		local bodycheckThreshold = target:IsOnGround() and 210 or 180
-		local now = CurTime()
-
-		rag.hg_fakeBodycheckCooldown = rag.hg_fakeBodycheckCooldown or 0
-		target.hg_fakeBodycheckVictimCooldown = target.hg_fakeBodycheckVictimCooldown or 0
-
-		if impactSpeed >= bodycheckThreshold and rag.hg_fakeBodycheckCooldown <= now and target.hg_fakeBodycheckVictimCooldown <= now then
-			rag.hg_fakeBodycheckCooldown = now + 0.45
-			target.hg_fakeBodycheckVictimCooldown = now + 0.75
-
-			if hg.drop then
-				hg.drop(target)
-			end
-
-			hg.LightStunPlayer(target, 2)
-			target:SetVelocity(data.OurOldVelocity:GetNormalized() * math.min(impactSpeed * 0.25, 120) + vector_up * 30)
-		end
-	end
-
 	if not data.HitEntity:IsWorld() then return end
 	if data.OurOldVelocity:LengthSqr() < 165000 or (rag.NextSND or 0) > data.DeltaTime then return end
 	rag:EmitSound("player/falling_foley/fall_foley"..mRandom(13)..".wav", 60, mRandom(95, 115), 1, CHAN_AUTO)
