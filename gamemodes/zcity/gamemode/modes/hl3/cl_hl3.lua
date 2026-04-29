@@ -48,7 +48,7 @@ function MODE:HUDPaint()
 	local teamData = teams[teamID]
 	if not teamData then return end
 
-	draw.SimpleText("ZBattle | Half-Life 3", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0, 162, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText("ZBattle | Half Life 2: Vortessence War", "ZB_HomicideMediumLarge", sw * 0.5, sh * 0.1, Color(0, 162, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
 	local roleColor = Color(teamData.color1.r, teamData.color1.g, teamData.color1.b, 255 * fade)
 	local objectiveColor = Color(teamData.color2.r, teamData.color2.g, teamData.color2.b, 255 * fade)

@@ -297,6 +297,11 @@ function Glide.IncludeDir( dirPath, doInclude, doTransfer )
     local path
 
     for _, fileName in ipairs( files ) do
+        if fileName == "engine_stream_webaudio.lua" then
+            Glide.PrintDev( "Skipping optional Glide backend: %s%s", dirPath, fileName )
+            continue
+        end
+
         path = dirPath .. fileName
 
         if doInclude then

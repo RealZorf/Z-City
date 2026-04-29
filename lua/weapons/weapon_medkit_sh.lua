@@ -64,8 +64,10 @@ end
 local lang1, lang2 = Angle(0, -10, 0), Angle(0, 10, 0)
 function SWEP:Animation()
 	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
 	if (owner.zmanipstart ~= nil and not owner.organism.larmamputated) then return end
 
+	if not owner.GetAimVector then return end
 	local aimvec = owner:GetAimVector()
 	if not aimvec then return end
 

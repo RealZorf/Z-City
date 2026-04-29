@@ -140,11 +140,14 @@ local math = math
 function SWEP:Think()
 	self:SetHold(self.HoldType)
 
-	if self:GetClass() == "weapon_bandage_sh" then
+	if self:GetClass() == "weapon_bandage_sh" and self.modeValues and self.modeValuesdef and self.modeValues[1] and self.modeValuesdef[1] and self.modeValuesdef[1][1] then
 		self.ModelScale = math.Clamp(self.modeValues[1] / (self.modeValuesdef[1][1] * 0.8), 0.5, 1)
+	else
+		self.ModelScale = self.ModelScale or 1
 	end
 
-	if not self:GetOwner():KeyDown(IN_ATTACK) and hg_healanims:GetBool() then
+	local owner = self:GetOwner()
+	if IsValid(owner) and not owner:KeyDown(IN_ATTACK) and hg_healanims:GetBool() then
 		self:SetHolding(math.max(self:GetHolding() - 12, 0))
 	end
 

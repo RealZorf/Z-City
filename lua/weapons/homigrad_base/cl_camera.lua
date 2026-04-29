@@ -184,8 +184,9 @@ function SWEP:Camera(eyePos, eyeAng, view, vellen, ply)
 	--print(self:GetNetVar("shootgunReload", 0))
 	local posZoom, angPos = self:GetZoomPos(recoilZoomPos, view, eyePos)
 	
-	local inpain = ply.organism and ply.organism.pain and ply.organism.pain > 50
-	local painmul = 0.5 - math.Clamp((((ply.organism.pain or 0) - 50) / 50), 0, 0.5)
+	local org = ply.organism or {}
+	local inpain = org.pain and org.pain > 50
+	local painmul = 0.5 - math.Clamp((((org.pain or 0) - 50) / 50), 0, 0.5)
 	
 	painmul = painmul * 2
 	--local noZoomHelmet = (ply.armors and (not ply.armors["head"] or not hg.armor.head[ply.armors["head"]] or not hg.armor.head[ply.armors["head"]].cantsight or self:IsPistolHoldType()))
