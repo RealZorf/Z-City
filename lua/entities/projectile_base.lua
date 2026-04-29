@@ -25,9 +25,41 @@ ENT.ExplosionEffect = "pcf_jack_airsplode_medium"
 ENT.WaterExplosionEffect = "eff_jack_genericboom"
 ENT.ShrapnelEffect = "eff_jack_hmcd_shrapnel"
 
+local PROJECTILE_SOUND_RADIUS_SQR = 4500 * 4500
+local PROJECTILE_NEARBY_ENTITY_CAP = 20
+local PROJECTILE_NEARBY_ENTITY_CAP_CROWDED = 12
+local PROJECTILE_NEARBY_ENTITY_CAP_EXTREME = 8
+local PROJECTILE_SHRAPNEL_SAMPLE_CAP = 96
+local PROJECTILE_SHRAPNEL_SAMPLE_CAP_CROWDED = 24
+local PROJECTILE_SHRAPNEL_SAMPLE_CAP_EXTREME = 12
+local PROJECTILE_SHRAPNEL_SLICE_TIME = 0.0008
+local PROJECTILE_CROWD_PLAYER_THRESHOLD = 10
+local PROJECTILE_CROWD_PLAYER_THRESHOLD_EXTREME = 16
+
 game.AddParticles("particles/pcfs_jack_muzzleflashes.pcf")
 game.AddParticles("particles/pcfs_jack_explosions_small3.pcf")
 game.AddParticles("particles/pcfs_jack_explosions_incendiary2.pcf")
+
+local function sendProjectileFarSound(self, pos)
+	local recipients = {}
+
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(pos) <= PROJECTILE_SOUND_RADIUS_SQR then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	if #recipients == 0 then return end
+
+	net.Start("projectileFarSound")
+		net.WriteString(self.Sound)
+		net.WriteString(self.SoundFar)
+		net.WriteVector(pos)
+		net.WriteEntity(self)
+		net.WriteBool(self:WaterLevel() > 0)
+		net.WriteString(self.SoundWater)
+	net.Send(recipients)
+end
 
 if SERVER then
 	function ENT:Initialize()
@@ -154,20 +186,33 @@ if SERVER then
 		local offset = VectorRand() * 10
 		SelfPos = SelfPos + offset
 
-		net.Start("projectileFarSound")
-			net.WriteString(self.Sound)
-			net.WriteString(self.SoundFar)
-			net.WriteVector(SelfPos)
-			net.WriteEntity(self)
-			net.WriteBool(self:WaterLevel() > 0)
-			net.WriteString(self.SoundWater)
-		net.Broadcast()
+		local nearbyPlayers = 0
+		for _, ply in ipairs(player.GetHumans()) do
+			if IsValid(ply) and ply:GetPos():DistToSqr(SelfPos) <= (600 * 600) then
+				nearbyPlayers = nearbyPlayers + 1
+			end
+		end
+
+		local nearbyEntityCap = PROJECTILE_NEARBY_ENTITY_CAP
+		local shrapnelSampleCap = PROJECTILE_SHRAPNEL_SAMPLE_CAP
+		if nearbyPlayers >= PROJECTILE_CROWD_PLAYER_THRESHOLD_EXTREME then
+			nearbyEntityCap = PROJECTILE_NEARBY_ENTITY_CAP_EXTREME
+			shrapnelSampleCap = PROJECTILE_SHRAPNEL_SAMPLE_CAP_EXTREME
+		elseif nearbyPlayers >= PROJECTILE_CROWD_PLAYER_THRESHOLD then
+			nearbyEntityCap = PROJECTILE_NEARBY_ENTITY_CAP_CROWDED
+			shrapnelSampleCap = PROJECTILE_SHRAPNEL_SAMPLE_CAP_CROWDED
+		end
+
+		sendProjectileFarSound(self, SelfPos)
 
 
 		local dis = self.BlastDis / 0.01905
 		local disorientation_dis = (self.BlastDis * 1.5) / 0.01905  
 
+		local processedNearby = 0
 		for i, enta in ipairs(ents.FindInSphere(SelfPos, disorientation_dis)) do
+			processedNearby = processedNearby + 1
+			if processedNearby > nearbyEntityCap then break end
 			local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
 			local tr = hg.ExplosionTrace(SelfPos, tracePos, {self})
 			local phys = enta:GetPhysicsObject()
@@ -239,7 +284,8 @@ if SERVER then
 				local forward = self:GetAngles():Forward()
 				local selfowner = self.owner
 				local selfFragmentation = self.Fragmentation
-				for i = 1, self.Fragmentation do
+				local sampleCount = math.min(self.Fragmentation, shrapnelSampleCap)
+				for i = 1, sampleCount do
 						LastShrapnel = SysTime()
 
 						local dir = VectorRand(-1,1):GetNormalized()--vector_up
@@ -268,7 +314,7 @@ if SERVER then
 						end
 
 						LastShrapnel = SysTime() - LastShrapnel
-						if LastShrapnel > 0.001 then
+						if LastShrapnel > PROJECTILE_SHRAPNEL_SLICE_TIME then
 							coroutine.yield()
 						end
 				end
@@ -278,13 +324,32 @@ if SERVER then
 
         util.ScreenShake(SelfPos,100,200,1,3000)
 
-		coroutine.resume(co)
+		if co then
+			local ok, err = coroutine.resume(co)
+			if not ok then
+				ErrorNoHalt(string.format("[projectile_base] shrapnel coroutine failed: %s\n", tostring(err)))
+				self:StopSound("weapons/ins2rpg7/rpg_rocket_loop.wav")
+				SafeRemoveEntity(self)
+				return
+			end
+		end
 		local index = self:EntIndex()
 		timer.Create("GrenadeCheck_" .. index, 0, 0, function()
 			if !IsValid(self) then
 				timer.Remove("GrenadeCheck_" .. index)
 			end
-			coroutine.resume(co)
+			if co then
+				local ok, err = coroutine.resume(co)
+				if not ok then
+					ErrorNoHalt(string.format("[projectile_base] shrapnel timer failed: %s\n", tostring(err)))
+					if IsValid(self) then
+						self:StopSound("weapons/ins2rpg7/rpg_rocket_loop.wav")
+						SafeRemoveEntity(self)
+					end
+					timer.Remove("GrenadeCheck_" .. index)
+					return
+				end
+			end
 			if self.ShrapnelDone then
 				if not IsValid(self) then return end
 				self:StopSound("weapons/ins2rpg7/rpg_rocket_loop.wav")

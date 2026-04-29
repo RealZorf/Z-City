@@ -128,7 +128,7 @@ function hg.Ragdoll_Create(ply)
 	local bodygroups = ply:GetBodyGroups()
 	ragdoll:Spawn()
 	ragdoll:Activate()
-	hg.SafeSetCollisionGroup(ragdoll, COLLISION_GROUP_WEAPON)
+	hg.ApplySetCollisionGroupNow(ragdoll, COLLISION_GROUP_WEAPON)
 	ragdoll:AddEFlags(EFL_NO_DAMAGE_FORCES + EFL_DONTBLOCKLOS)
 	--ragdoll:AddFlags(FL_NOTARGET)
 	--ply:AddFlags(FL_NOTARGET)
@@ -424,7 +424,7 @@ end
 
 hook.Add("PlayerSpawn", "Fake", function(ply)
 	ply:RemoveFlags(FL_NOTARGET)
-	hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_PLAYER)
+	hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_PLAYER)
 	if OverrideSpawn then return end
 	if ply.gottarespawn then
 		ply:SetNWEntity("RagdollDeath", NULL)
@@ -750,7 +750,7 @@ function hg.Fake(ply, huyragdoll, no_freemove, force)
 		//ply:Spectate(OBS_MODE_FREEZECAM)
 		//ply:UnSpectate()
 		--ply:SetSolidFlags(bit.bor(ply:GetSolidFlags(), FSOLID_NOT_SOLID, FSOLID_TRIGGER, FSOLID_USE_TRIGGER_BOUNDS))
-		hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_IN_VEHICLE)
+		hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_IN_VEHICLE)
 		ply:SetPos(pos)
 		ply:SetNoDraw(false)
 		ply:SetRenderMode(RENDERMODE_NONE)
@@ -758,7 +758,7 @@ function hg.Fake(ply, huyragdoll, no_freemove, force)
 	--end)
 
 	timer.Simple(0, function() -- bandaid shitfix for now
-		hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_IN_VEHICLE)
+		hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_IN_VEHICLE)
 	end)
 
 	if ply:FlashlightIsOn() then ply:Flashlight(false) end
@@ -1006,7 +1006,7 @@ function hg.FakeUp(ply, forced, instant)
 
 				ply:DrawShadow(true)
 				ply:SetRenderMode(RENDERMODE_NORMAL)
-				hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_PLAYER)
+				hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_PLAYER)
 
 				--ply:SetSolidFlags(bit.band(ply:GetSolidFlags(), bit.bnot(FSOLID_NOT_SOLID), bit.bnot(FSOLID_TRIGGER), bit.bnot(FSOLID_USE_TRIGGER_BOUNDS)))
 				hg.ragdollFake[ply] = nil
@@ -1023,7 +1023,7 @@ function hg.FakeUp(ply, forced, instant)
 		else
 			ply:DrawShadow(true)
 			ply:SetRenderMode(RENDERMODE_NORMAL)
-			hg.SafeSetCollisionGroup(ply, ply.switchingseat and COLLISION_GROUP_IN_VEHICLE or COLLISION_GROUP_PLAYER)
+			hg.ApplySetCollisionGroupNow(ply, ply.switchingseat and COLLISION_GROUP_IN_VEHICLE or COLLISION_GROUP_PLAYER)
 			ply:SetMoveType(ply.switchingseat and MOVETYPE_NONE or MOVETYPE_WALK)
 			
 			--ply:SetSolidFlags(bit.band(ply:GetSolidFlags(), bit.bnot(FSOLID_NOT_SOLID), bit.bnot(FSOLID_TRIGGER), bit.bnot(FSOLID_USE_TRIGGER_BOUNDS)))
@@ -1130,7 +1130,7 @@ hook.Add("PlayerEnteredVehicle","allowweapons",function(ply,veh,role)
 		ply:SetEyeAngles(angle_zero)
 		hg.Fake(ply, nil, nil, true)
 		
-		hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_PLAYER)
+		hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_PLAYER)
 		--ply:SetSolidFlags(bit.band(ply:GetSolidFlags(), bit.bnot(FSOLID_NOT_SOLID), bit.bnot(FSOLID_TRIGGER), bit.bnot(FSOLID_USE_TRIGGER_BOUNDS)))
 	end)
 
@@ -1184,7 +1184,7 @@ hook.Add("PlayerLeaveVehicle","allowweapons",function(ply,veh)
 		hg.FakeUp(ply, true, ply.switchingseat)
 	else
 		if ragdoll then
-			hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_IN_VEHICLE)
+			hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_IN_VEHICLE)
 			--ply:SetSolidFlags(bit.bor(ply:GetSolidFlags(), FSOLID_NOT_SOLID, FSOLID_TRIGGER, FSOLID_USE_TRIGGER_BOUNDS))
 			ragdoll.removingwelds = true
 
@@ -1205,7 +1205,7 @@ hook.Add("PlayerLeaveVehicle","allowweapons",function(ply,veh)
 				veh:EmitSound("zbattle/glass_shatter.ogg")
 			end
 		else
-			hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_PLAYER)
+			hg.ApplySetCollisionGroupNow(ply, COLLISION_GROUP_PLAYER)
 			--ply:SetSolidFlags(bit.band(ply:GetSolidFlags(), bit.bnot(FSOLID_NOT_SOLID), bit.bnot(FSOLID_TRIGGER), bit.bnot(FSOLID_USE_TRIGGER_BOUNDS)))
 		end
 	end
@@ -1430,59 +1430,7 @@ IsLiveManagedRagdoll = function(rag)
 end
 
 timer.Create("hg_fake_ragdoll_bodyblock", 0.04, 0, function()
-	local now = CurTime()
-
-	for owner, rag in pairs(hg.ragdollFake) do
-		if not IsValid(owner) or not IsValid(rag) then
-			hg.ragdollFake[owner] = nil
-			continue
-		end
-
-		if not owner:Alive() or not IsLiveManagedRagdoll(rag) then continue end
-
-		local velocity = rag:GetVelocity()
-		local horizontalVelocity = Vector(velocity.x, velocity.y, 0)
-		local speed = horizontalVelocity:Length()
-		if speed < 75 then continue end
-
-		rag.hg_fakeLegBlockCooldown = rag.hg_fakeLegBlockCooldown or 0
-		if rag.hg_fakeLegBlockCooldown > now then continue end
-
-		local ragPos = rag:GetPos()
-		local moveDir = speed > 0 and horizontalVelocity / speed or nil
-		local radius = math.Clamp(18 + speed * 0.015, 22, 30)
-
-		for _, target in ipairs(ents.FindInSphere(ragPos, radius)) do
-			if not IsValid(target) or not target:IsPlayer() or not target:Alive() or target == owner then continue end
-			if IsValid(target.FakeRagdoll) then continue end
-
-			local targetPos = target:GetPos()
-			if math.abs((ragPos.z + 12) - targetPos.z) > 52 then continue end
-
-			local toTarget = targetPos - ragPos
-			local horizontalToTarget = Vector(toTarget.x, toTarget.y, 0)
-			local horizontalDistanceSqr = horizontalToTarget:LengthSqr()
-			if horizontalDistanceSqr > radius * radius then continue end
-
-			if moveDir and horizontalDistanceSqr > 1 then
-				local towardTarget = horizontalToTarget:GetNormalized()
-				if moveDir:Dot(towardTarget) < -0.1 then continue end
-			end
-
-			local awayDir
-			if horizontalDistanceSqr > 1 then
-				awayDir = -horizontalToTarget:GetNormalized()
-			elseif moveDir then
-				awayDir = -moveDir
-			else
-				awayDir = Vector(0, 0, 0)
-			end
-
-			rag.hg_fakeLegBlockCooldown = now + 0.1
-			PushManagedRagdollAway(rag, awayDir, math.Clamp(speed * 0.9, 90, 160))
-			break
-		end
-	end
+	return
 end)
 
 local function RagdollIsSettled(rag)

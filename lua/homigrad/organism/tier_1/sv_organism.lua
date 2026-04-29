@@ -538,7 +538,7 @@ hook.Add("Org Think", "Main", function(owner, org, timeValue)
 	if IsValid(rag) and rag:IsRagdoll() and (not owner.lastFake or owner.lastFake == 0) then
 		local wantedCollisionGroup = (rag:GetVelocity():LengthSqr() > (200 * 200)) and COLLISION_GROUP_NONE or COLLISION_GROUP_WEAPON
 		if rag:GetCollisionGroup() ~= wantedCollisionGroup then
-			hg.SafeSetCollisionGroup(rag, wantedCollisionGroup)
+			hg.ApplySetCollisionGroupNow(rag, wantedCollisionGroup)
 		end
 	end
 	if isPly then
