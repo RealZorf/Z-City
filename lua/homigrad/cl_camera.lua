@@ -134,6 +134,24 @@ local function getCachedAttachmentData(ent, attachmentName)
 	return ent:GetAttachment(attachment)
 end
 
+local function isVortigauntModel(ent)
+	return IsValid(ent) and string.lower(ent:GetModel() or "") == "models/player/vortigaunt.mdl"
+end
+
+local function getPreferredEyeAttachment(ent)
+	local eye = getCachedAttachmentData(ent, "eyes")
+	if not eye or not istable(eye) then return nil end
+
+	if not isVortigauntModel(ent) then
+		return eye
+	end
+
+	return {
+		Pos = eye.Pos + eye.Ang:Forward() * 3 + eye.Ang:Up() * 3 + eye.Ang:Right() * 0,
+		Ang = eye.Ang
+	}
+end
+
 local lerped_ang = Angle(0,0,0)
 function HGAddView(ply, origin, angles, velLen)
 	if ply:Alive() then
@@ -336,7 +354,7 @@ end)
 function SpecCam(ply, vec, ang, fov, znear, zfar)
 	if !ply:Alive() then return end
 	--local hand = ply:GetAttachment(ply:LookupAttachment("anim_attachment_rh"))
-	local eye = getCachedAttachmentData(ply, "eyes")
+	local eye = getPreferredEyeAttachment(ply)
 	if not eye then return end
 	--local org = eye.Pos
 	local ang1 = eye.Ang + Angle(5, 2, 0)
@@ -423,7 +441,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 		end
 	end
 
-	if not IsValid(ply) or not ply.LookupBone or not cachedCameraBone(ply, "ValveBiped.Bip01_Head1") then return end
+	if not IsValid(ply) or not ply.LookupBone then return end
 	
 	if not ply.GetAimVector then return end
 
@@ -434,7 +452,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	
 	if not firstPerson then return end
 	
-	att = getCachedAttachmentData(ply, "eyes")
+	att = getPreferredEyeAttachment(ply)
 	if not att or not istable(att) then return end
 	
 	--ply:SetupBones()
@@ -442,7 +460,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	--ply:DrawModel()
 	--selfdraw = nil
 	//hg.DoTPIK(lply, lply)
-	local tr, hullcheck, headm = hg.eyeTrace(ply, 10, ply, att.Ang)
+	local tr, hullcheck, headm = hg.eyeTrace(ply, 10, ply, att.Ang, att.Pos)
 	
 	--[[if hg_realismcam:GetBool() and ishgweapon(ply:GetActiveWeapon()) then
 		tr = hg.torsoTrace(ply)
