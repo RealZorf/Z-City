@@ -352,12 +352,17 @@ if CLIENT then
 	function SWEP:DrawHUD()
 		if GetViewEntity() ~= lply then return end
 		if lply:InVehicle() then return end
-		if hg.GetCurrentCharacter(lply):IsRagdoll() then return end
+		local char = hg.GetCurrentCharacter(lply)
+		if not IsValid(char) then return end
+		if char:IsRagdoll() then return end
 
 		local tr = self:GetEyeTrace()
+		if not tr or not tr.HitPos then return end
 		local toScreen = tr.HitPos:ToScreen()
 
-		lerpthing = Lerp(0.1, lerpthing, (hg.eyeTrace(lply).Hit and not lply:IsSprinting() and not self.NoTrap) and 1 or 0)
+		local eyeTrace = hg.eyeTrace(lply)
+		local canTrap = eyeTrace and eyeTrace.Hit and not lply:IsSprinting() and not self.NoTrap
+		lerpthing = Lerp(0.1, lerpthing, canTrap and 1 or 0)
 		colWhite.a = 255 * lerpthing
 		surface.SetDrawColor(colWhite)
 		surface.DrawRect(toScreen.x-2.5, toScreen.y-2.5, 5, 5)

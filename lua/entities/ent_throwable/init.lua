@@ -2,18 +2,46 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
+local vector_one = Vector(1, 1, 1)
+
+local function buildThrowableBounds(ent)
+	local mins, maxs = ent:GetModelBounds()
+	local scale = ent.modelscale or 1
+
+	mins = mins * scale
+	maxs = maxs * scale
+
+	local center = (mins + maxs) * 0.5
+	local extents = (maxs - mins) * 0.5
+
+	-- Keep a minimum hull thickness so thin blades and shards do not get a degenerate
+	-- physics shape that spins forever or clips into the floor.
+	extents.x = math.max(extents.x, 2)
+	extents.y = math.max(extents.y, 2)
+	extents.z = math.max(extents.z, 2)
+
+	return center - extents, center + extents
+end
+
 function ENT:Initialize()
 	self:SetModel(self.WorldModel)
-	self:PhysicsInit(SOLID_VPHYSICS)
+	self:SetModelScale(self.modelscale or 1, 0)
+
+	local mins, maxs = buildThrowableBounds(self)
+
+	self:PhysicsInitBox(mins, maxs)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
+	self:SetCollisionBounds(mins, maxs)
 	self:SetCollisionGroup(COLLISION_GROUP_NONE)
 	self:SetUseType(USE_TOGGLE)
 	self:DrawShadow(true)
-	self:SetModelScale(self.modelscale or 1)
+
 	local phys = self:GetPhysicsObject()
 	if IsValid(phys) then
-		phys:SetMass(2)
+		local size = maxs - mins
+		phys:SetMass(math.Clamp(size:Length() * 0.08, 3, 18))
+		phys:SetDamping(0.05, 4)
 		phys:Wake()
 		phys:EnableMotion(true)
 	end
@@ -22,7 +50,7 @@ function ENT:Initialize()
 	timer.Simple(0, function()
 		if not IsValid(self) then return end
 
-		self:SetModelScale(self.modelscale or 1)
+		self:SetModelScale(self.modelscale or 1, 0)
 	end)
 
 	timer.Simple(0.5,function()
@@ -33,13 +61,22 @@ function ENT:Initialize()
 end
 
 function ENT:Think()
-	if not IsValid(self:GetPhysicsObject()) then return end
-	local speed = self:GetPhysicsObject():GetVelocity():LengthSqr()
+	local phys = self:GetPhysicsObject()
+	if not IsValid(phys) then return end
+	local speed = phys:GetVelocity():LengthSqr()
 	if self.constrained then return end
 	if self.AeroDrag then
 		AeroDrag(self, self:GetAngles():Forward(), 10)
 	end
-	local desiredCollisionGroup = speed < 220000 and COLLISION_GROUP_WEAPON or COLLISION_GROUP_NONE
+
+	if speed < 220000 then
+		self.lowSpeedSince = self.lowSpeedSince or CurTime()
+	else
+		self.lowSpeedSince = nil
+	end
+
+	local settled = self.lowSpeedSince and (self.lowSpeedSince + 0.15) < CurTime()
+	local desiredCollisionGroup = settled and COLLISION_GROUP_WEAPON or COLLISION_GROUP_NONE
 	if self:GetCollisionGroup() ~= desiredCollisionGroup then
 		self:SetCollisionGroup(desiredCollisionGroup)
 	end

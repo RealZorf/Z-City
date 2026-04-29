@@ -785,15 +785,17 @@ local mapswithfog = { -- Надо от сервер сайда сделать...
 --GlobalRenderOverideTickOFF = true
 local zfar = mapswithfog[game.GetMap()] or 0
 local map = game.GetMap()
-local render_RenderView
 local scrw,scrh = ScrW(),ScrH()
 local entmeta = FindMetaTable("Entity")
 local eyepos = entmeta.EyePos
 local eyeangles = entmeta.EyeAngles
 local fLPly = LocalPlayer
 local IsValid = IsValid
+local renderSceneActive = false
 local function renderscene(pos, angle, fov)
+	if renderSceneActive or RENDERSCENE then return end
 	lply = IsValid(lply) and lply or fLPly()
+	if not IsValid(lply) then return end
 	
 	pos = eyepos(lply)
 	angle = eyeangles(lply)
@@ -801,11 +803,14 @@ local function renderscene(pos, angle, fov)
 	viewOverride = view
 	
 	local invert = invertCam:GetBool()
+	local oldrt
 	
-	RENDERSCENE = nil
 	if not view then return end
+	if not isvector(view.origin) or not isangle(view.angles) then return end
+	renderSceneActive = true
+	RENDERSCENE = true
 	if invert then
-		local oldrt = render.GetRenderTarget()
+		oldrt = render.GetRenderTarget()
 		render.SetRenderTarget( fliprt )
 	end
 
@@ -823,13 +828,7 @@ local function renderscene(pos, angle, fov)
 	//if cur == lply then hg.renderOverride(cur, lply) end
 
 	lply.norender = true
-	
-	if not render_RenderView then render_RenderView = render.RenderView return end
-	if not isvector(view.origin) or not isangle(view.angles) then return end
-	--if GlobalRenderOverideTickOFF then GlobalRenderOverideTickOFF = nil return end
-	--lply:DrawModel()
-
-	render_RenderView(renderView)
+	local ok, result = pcall(render_RenderView, renderView)
 	lply.norender = nil
 	
 	if invert then
@@ -837,6 +836,14 @@ local function renderscene(pos, angle, fov)
 		fliprtmat:SetTexture( "$basetexture", fliprt )
 		render.SetMaterial( fliprtmat )
 		render.DrawScreenQuad()
+	end
+
+	RENDERSCENE = nil
+	renderSceneActive = false
+
+	if not ok then
+		ErrorNoHalt("[cl_camera] RenderScene RenderView failed: " .. tostring(result) .. "\n")
+		return
 	end
 
 	return true
