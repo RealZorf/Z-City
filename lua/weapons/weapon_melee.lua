@@ -598,7 +598,8 @@ function SWEP:SetHandPos(noset)
 	-- ent:SetupBones()
 
 	self.rhandik = self.setrh and IsValid(owner)//self.setrh
-	self.lhandik = self.setlh and IsValid(owner) and (ply:GetTable().ChatGestureWeight < 0.1) and hg.CanUseLeftHand(ply) and !(owner.suiciding and self.SuicideNoLH)
+	local chatGestureWeight = (ply:GetTable() and ply:GetTable().ChatGestureWeight) or 0
+	self.lhandik = self.setlh and IsValid(owner) and (chatGestureWeight < 0.1) and hg.CanUseLeftHand(ply) and !(owner.suiciding and self.SuicideNoLH)
 
     local rhBone = ent:LookupBone("ValveBiped.Bip01_R_Hand")
     local lhBone = ent:LookupBone("ValveBiped.Bip01_L_Hand")

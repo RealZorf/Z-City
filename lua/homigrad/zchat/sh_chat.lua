@@ -55,14 +55,22 @@ if CLIENT then
 		local speaker = net.ReadEntity()
 		local text = net.ReadString()
 		local bWhisper = net.ReadBool()
+		local validSpeaker = IsValid(speaker) and speaker:IsPlayer()
+		local speakerAlive = validSpeaker and speaker:Alive() or false
 
-		speaker.ChatWhisper = bWhisper
+		if validSpeaker then
+			speaker.ChatWhisper = bWhisper
+		end
 
 		CHAT_SPEAKER = speaker
 
-		local supressed = hook.Run("OnPlayerChat", speaker, text, false, speaker:Alive(), bWhisper)
+		local supressed = hook.Run("OnPlayerChat", speaker, text, false, speakerAlive, bWhisper)
 		if !supressed then
-			chat.AddText(speaker, ": ", text)
+			if validSpeaker then
+				chat.AddText(speaker, ": ", text)
+			else
+				chat.AddText(Color(200, 200, 200), "Unknown", Color(255, 255, 255), ": ", text)
+			end
 		end
 
 		CHAT_SPEAKER = nil
