@@ -178,6 +178,7 @@ if CLIENT then
 		if (IsValid(owner)) then
 			local ang = owner:EyeAngles()
 			local posa, aimvec = hg.eye(owner)--hg.eyeTrace(owner)
+			posa = isvector(posa) and posa or owner:GetShootPos()
 
 			local pos = posa + ang:Forward() * (-14) + ang:Up() * -9 * self.blockinganim
 

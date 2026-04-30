@@ -297,6 +297,7 @@ if CLIENT then
             ["ww2"] = true,
             ["hmcd"] = true,
             ["hl2dm"] = true,
+            ["hl3"] = true,
             ["riot"] = true,
             ["gwars"] = true,
             ["criresp"] = true,
