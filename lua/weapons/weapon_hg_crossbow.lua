@@ -157,6 +157,7 @@ function SWEP:Shoot(override)
 	
 	if SERVER then
 		local dist, point = util.DistanceToLine(pos, pos - ang:Forward() * 50, owner:EyePos())
+		point = isvector(point) and point or pos or owner:GetShootPos()
 
 		--if(GetGlobalBool("PhysBullets_ReplaceDefault", false))then
 		local bullet = {}

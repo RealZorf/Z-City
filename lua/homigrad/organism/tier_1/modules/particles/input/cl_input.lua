@@ -5,13 +5,18 @@ for i = 1, 6 do
 		["$vertexalpha"] = 1,
 		["$vertexcolor"] = 1
 	} )
-	mats[i]:SetTexture("$basetexture",Material("decals/blood" .. i):GetTexture("$basetexture"))
+	local bloodTexture = Material("decals/blood" .. i):GetTexture("$basetexture")
+	if bloodTexture then
+		mats[i]:SetTexture("$basetexture", bloodTexture)
+	end
 end
 
 --local mat_huy = Material("sprites/mat_jack_irregularcircle")
 local texture = Material("decals/z_blood1"):GetTexture("$basetexture")
 local mat_huy = Material("effects/blood_core")
-mat_huy:SetTexture("$basetexture",texture)
+if texture then
+	mat_huy:SetTexture("$basetexture", texture)
+end
 
 local cloudmat = Material("effects/smoke_b")
 

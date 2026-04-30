@@ -472,6 +472,7 @@ end
 if CLIENT then
 	net.Receive("ied_have_the_bomb",function(len)
 		local self = net.ReadEntity()
+		if not IsValid(self) then return end
 
 		self.WorldModel = "models/saraphines/insurgency explosives/ied/insurgency_ied_phone.mdl"
 		if IsValid(self.model) then
@@ -479,7 +480,9 @@ if CLIENT then
 			self.model = nil
 		end
 		self.model = ClientsideModel(self.WorldModel or "models/saraphines/insurgency explosives/ied/insurgency_ied_phone.mdl")
-		self.model:SetSkin(1)
+		if IsValid(self.model) then
+			self.model:SetSkin(1)
+		end
 		self.offsetVec = Vector(5, 0.5, -15)
 		self.offsetAng = Angle(0, 70, 180)
 		self.ModelScale = 1

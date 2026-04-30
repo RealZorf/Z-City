@@ -293,7 +293,8 @@ function hg.GenerateLoot(ply,ent,func)
 				if ammo then entName = "ent_ammo_" .. ammo end
 				
 				if ammo then
-					AmmoCount = math.random(hg.ammoents[ammo].Count or 30)
+					local ammoEnt = hg.ammoents and hg.ammoents[ammo]
+					AmmoCount = math.random(ammoEnt and ammoEnt.Count or 30)
 				end
 			else
 				local tbl = hg.ammotypeshuy[string.Replace(entName, "ent_ammo_", "")]

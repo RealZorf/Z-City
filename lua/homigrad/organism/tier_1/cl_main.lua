@@ -78,6 +78,18 @@ local tabblood = {
 local k1, k2, k3
 
 local upDir = Vector(0, 0, 1)
+
+local function safeAddBloodPart(...)
+	if hg.addBloodPart then
+		return hg.addBloodPart(...)
+	end
+end
+
+local function safeAddBloodPart2(...)
+	if hg.addBloodPart2 then
+		return hg.addBloodPart2(...)
+	end
+end
 local fwdDir = Vector(0, 2.5, 0)
 local rightDir = Vector(2.5, 0, 0)
 
@@ -656,12 +668,12 @@ end)
 function hg.applyFountain(pos, ang, mul, mul2, forward, ent)
 	if bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER then
 		if math.random(2) == 1 then return end
-		hg.addBloodPart2(pos, ang:Forward() * forward * 0.5 + VectorRand(-25,25) * mul2, nil, nil, nil, nil, true, nil, ent)
-		hg.addBloodPart2(pos + VectorRand(-1,1), ang:Forward() * forward * 0.25 + VectorRand(-10,10) * mul2, nil, nil, nil, nil, true, nil, ent)
+				safeAddBloodPart2(pos, ang:Forward() * forward * 0.5 + VectorRand(-25,25) * mul2, nil, nil, nil, nil, true, nil, ent)
+				safeAddBloodPart2(pos + VectorRand(-1,1), ang:Forward() * forward * 0.25 + VectorRand(-10,10) * mul2, nil, nil, nil, nil, true, nil, ent)
 		//hg.addBloodPart2(pos + VectorRand(-1,1), ang:Forward() * forward * 0.25 + VectorRand(-10,10) * mul2, nil, nil, nil, nil, true, nil, ent)
 	else
-		hg.addBloodPart(pos, ang:Forward() * forward * 2 * math.abs(math.sin(CurTime() * 3) + math.cos(CurTime() * 5) + math.sin(CurTime() * 2) + 4) * 0.1 + ang:Right() * 15 * (math.sin(CurTime()) * 1) + ang:Right() * math.sin(CurTime() * 2) * 15 + VectorRand(-3, 3),nil,nil,nil,true)
-		hg.addBloodPart(pos + VectorRand(-1,1), ang:Forward() * 55 + VectorRand(-25,25) * mul2,nil,nil,nil,nil, nil, ent)
+				safeAddBloodPart(pos, ang:Forward() * forward * 2 * math.abs(math.sin(CurTime() * 3) + math.cos(CurTime() * 5) + math.sin(CurTime() * 2) + 4) * 0.1 + ang:Right() * 15 * (math.sin(CurTime()) * 1) + ang:Right() * math.sin(CurTime() * 2) * 15 + VectorRand(-3, 3),nil,nil,nil,true)
+				safeAddBloodPart(pos + VectorRand(-1,1), ang:Forward() * 55 + VectorRand(-25,25) * mul2,nil,nil,nil,nil, nil, ent)
 		//hg.addBloodPart(pos + VectorRand(-1,1), ang:Forward() * 55 + VectorRand(-25,25) * mul2,nil,nil,nil,nil, nil, ent)
 	end
 end
@@ -894,10 +906,10 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 						local water = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER
 						if water then
 							if wound[5] + 1 < time then
-								hg.addBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
+								safeAddBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
 							end
 						else
-							hg.addBloodPart(pos, VectorRand(-15, 15), nil, size, size, false, nil, ent)
+							safeAddBloodPart(pos, VectorRand(-15, 15), nil, size, size, false, nil, ent)
 						end
 
 						wound[5] = time + (water and 2 or (math.Rand(0, 1) * (!hg_old_blood:GetBool() and 0.5 or 1) / wound[1] * 15))
@@ -906,9 +918,9 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 
 						local water = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER
 						if water then
-							hg.addBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
+							safeAddBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
 						else
-							hg.addBloodPart(pos, VectorRand(-15, 15), nil, size, size, false, nil, ent)
+							safeAddBloodPart(pos, VectorRand(-15, 15), nil, size, size, false, nil, ent)
 						end
 
 						wound[5] = time + (water and 2 or (math.Rand(0, 1) * (!hg_old_blood:GetBool() and 0.5 or 1) / wound[1] * 15))
@@ -947,10 +959,10 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 
 						local water = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER
 						if water then
-							hg.addBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
-						else
-							hg.addBloodPart(pos, VectorRand(-1, 1) * (org.pulse or 70) / 70 + dir * 5 * (math.abs(math.sin(CurTime() * 2) + math.cos(CurTime() * (5 + i * 2)) + math.sin(CurTime() * (1 + i))) * 0.6 + math.sin(CurTime() * 2) + 4) * 0.1 + dir:Angle():Right() * 25 * math.sin(CurTime() * 2) * math.cos(CurTime() * 4) + ang:Up() * 25 * math.sin(CurTime() * 3) * math.cos(CurTime() * 1) + VectorRand(-1, 1) * (org.pulse or 70) / 70, nil, size, size, true, nil, ent)
-						end
+						safeAddBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
+					else
+						safeAddBloodPart(pos, VectorRand(-1, 1) * (org.pulse or 70) / 70 + dir * 5 * (math.abs(math.sin(CurTime() * 2) + math.cos(CurTime() * (5 + i * 2)) + math.sin(CurTime() * (1 + i))) * 0.6 + math.sin(CurTime() * 2) + 4) * 0.1 + dir:Angle():Right() * 25 * math.sin(CurTime() * 2) * math.cos(CurTime() * 4) + ang:Up() * 25 * math.sin(CurTime() * 3) * math.cos(CurTime() * 1) + VectorRand(-1, 1) * (org.pulse or 70) / 70, nil, size, size, true, nil, ent)
+					end
 
 						wound[5] = time + (water and 2 or (0.5 * 1 / hg_blood_fps:GetInt()))
 					else
@@ -958,10 +970,10 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 						
 						local water = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER
 						if water then
-							hg.addBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
-						else
-							hg.addBloodPart(pos, VectorRand(-15, 15), nil, size, size, true, nil, ent)
-						end
+						safeAddBloodPart2(pos, VectorRand(-5, 5), nil, nil, nil, nil, true, nil, ent)
+					else
+						safeAddBloodPart(pos, VectorRand(-15, 15), nil, size, size, true, nil, ent)
+					end
 
 						wound[5] = time + (water and 2 or 0)
 					end
