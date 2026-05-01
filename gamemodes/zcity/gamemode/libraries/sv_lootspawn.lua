@@ -178,6 +178,120 @@ for name, tbl in pairs(loot_boxes) do
 	hg.loot_boxes[string.lower(name)] = tbl
 end
 
+local genericLootPatterns = {
+	{"dumpster", {10, "trash", true}},
+	{"trashcan", {7, "trash"}},
+	{"trash_can", {7, "trash"}},
+	{"trashbin", {7, "trash"}},
+	{"vendingmachine", {10, "food", true}},
+	{"fridge", {8, "food", true}},
+	{"refrigerator", {8, "food", true}},
+	{"stove", {6, "food", true}},
+	{"microwave", {4, "food", true}},
+	{"counter", {7, "food", true}},
+	{"locker", {9, "weapons", true}},
+	{"storagecloset", {10, "weapons", true}},
+	{"footlocker", {8, "all", true}},
+	{"cabinet", {6, "instruments"}},
+	{"drawer", {5, "instruments"}},
+	{"dresser", {8, "weapons"}},
+	{"cupboard", {5, "instruments"}},
+	{"desk", {4, "instruments"}},
+	{"briefcase", {2, "instruments"}},
+	{"suitcase", {3, "instruments"}},
+	{"crate", {8, "all"}},
+	{"box", {6, "all"}},
+	{"barrel", {8, "all"}},
+	{"oildrum", {8, "all"}},
+}
+
+local function getGenericLootBoxData(model)
+	if not isstring(model) or model == "" then return nil end
+
+	local lowered = string.lower(model)
+
+	for _, rule in ipairs(genericLootPatterns) do
+		if string.find(lowered, rule[1], 1, true) then
+			return rule[2]
+		end
+	end
+
+	return nil
+end
+
+local function getLootBoxData(ent)
+	if not IsValid(ent) then return nil end
+
+	local model = ent:GetModel()
+	if not isstring(model) or model == "" then return nil end
+
+	local lowered = string.lower(model)
+	return hg.loot_boxes[lowered] or getGenericLootBoxData(lowered)
+end
+
+hg.GetLootBoxData = getLootBoxData
+
+local lootProxyReplaceClasses = {
+	["prop_dynamic"] = true,
+	["prop_dynamic_override"] = true,
+}
+
+local function copyLootProxyAppearance(source, target)
+	target:SetSkin(source:GetSkin() or 0)
+	target:SetMaterial(source:GetMaterial() or "")
+	target:SetColor(source:GetColor())
+	target:SetRenderMode(source:GetRenderMode())
+	target:SetModelScale(source:GetModelScale(), 0)
+
+	for i = 0, (source:GetNumBodyGroups() or 0) - 1 do
+		target:SetBodygroup(i, source:GetBodygroup(i))
+	end
+end
+
+local function convertLootContainerToPhysics(ent)
+	if not IsValid(ent) or ent.hg_loot_proxy_converted then return nil end
+	if not lootProxyReplaceClasses[ent:GetClass()] then return nil end
+	if not getLootBoxData(ent) then return nil end
+
+	local replacement = ents.Create("prop_physics")
+	if not IsValid(replacement) then return nil end
+
+	replacement:SetModel(ent:GetModel())
+	replacement:SetPos(ent:GetPos())
+	replacement:SetAngles(ent:GetAngles())
+	replacement:Spawn()
+	replacement:Activate()
+	copyLootProxyAppearance(ent, replacement)
+
+	local phys = replacement:GetPhysicsObject()
+	if IsValid(phys) then
+		phys:EnableMotion(false)
+		phys:Sleep()
+	end
+
+	replacement.hg_loot_original = ent
+	replacement.hg_loot_proxy = true
+	ent.hg_loot_proxy_converted = true
+	ent:SetNoDraw(true)
+	ent:SetNotSolid(true)
+
+	return replacement
+end
+
+local function convertMapLootContainers()
+	for _, ent in ipairs(ents.GetAll()) do
+		convertLootContainerToPhysics(ent)
+	end
+end
+
+hook.Add("InitPostEntity", "hg_LootContainerPhysicsProxy", function()
+	timer.Simple(0, convertMapLootContainers)
+end)
+
+hook.Add("PostCleanupMap", "hg_LootContainerPhysicsProxy", function()
+	timer.Simple(0.5, convertMapLootContainers)
+end)
+
 local developer = GetConVar("developer")
 function hg.GenerateLoot(ply,ent,func)
 	local curRound, rtype = CurrentRound()
@@ -407,16 +521,17 @@ local functions_break = {
 }
 
 hook.Add("ZB_InventoryChecked", "LootSpawn", function(ply, ent)
-	ent:SetNetVar("Inventory", ent.inventory)
 	if not IsValid(ent) or ent:IsPlayer() or ent.was_opened or not string.find(ent:GetClass(),"prop_") then return end
-	if not hg.loot_boxes[string.lower(ent:GetModel())] then return end
+
+	local lootBoxData = getLootBoxData(ent)
+	if not lootBoxData then return end
 	
 	ent.armors = {}
 	ent.inventory = {}
 
 	ent.was_opened = true
 
-	local chance = hg.loot_amount[hg.loot_boxes[string.lower(ent:GetModel())][1]] or {0,1}
+	local chance = hg.loot_amount[lootBoxData[1]] or {0,1}
 	local amount = math.random(chance[1],chance[2])
 	
 	for i = 0,amount-1 do
@@ -447,10 +562,11 @@ hg.loot_amount = {
 }
 
 hook.Add("PropBreak", "LootSpawn", function(ply,ent)
+	if not IsValid(ent) or ent:GetClass() ~= "prop_physics" then return end
+	if not getLootBoxData(ent) then return end
+
 	ent.inventory = ent.inventory or {}
 	ent:SetNetVar("Inventory", ent.inventory)
-	if not IsValid(ent) or ent:GetClass() ~= "prop_physics" then return end
-	if not hg.loot_boxes[string.lower(ent:GetModel())] then return end
 	
 	hook.Run("ZB_InventoryChecked", ply, ent)
 

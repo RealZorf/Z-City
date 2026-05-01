@@ -159,6 +159,7 @@ end
 hook.Add("radialOptions", "EngineerCraft", function()
     local ply = LocalPlayer()
     local organism = ply.organism or {}
+    local ammoTypes = hg and hg.ammotypeshuy or {}
 
     if ply:Alive() and not organism.otrub and ply.Profession == "engineer" then
 		-- pipe bomb
@@ -173,8 +174,10 @@ hook.Add("radialOptions", "EngineerCraft", function()
 				continue
 			end
 
-			local tbl = hg.ammotypeshuy[name]
-			if tbl and tbl.BulletSettings and tbl.BulletSettings.Mass and tbl.BulletSettings.Mass * amt > 50 then
+			if not isstring(name) or name == "" then continue end
+
+			local tbl = ammoTypes[name]
+			if istable(tbl) and istable(tbl.BulletSettings) and isnumber(tbl.BulletSettings.Mass) and tbl.BulletSettings.Mass * amt > 50 then
 				have_ammo = true
 			end
 		end
