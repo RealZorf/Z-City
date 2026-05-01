@@ -298,6 +298,7 @@ if CLIENT then
             ["hmcd"] = true,
             ["hl2dm"] = true,
             ["hl3"] = true,
+            ["shipassassins"] = true,
             ["riot"] = true,
             ["gwars"] = true,
             ["criresp"] = true,
