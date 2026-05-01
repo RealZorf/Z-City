@@ -20,6 +20,7 @@ end
 local ILLEGAL_HARM_SLAY_THRESHOLD = 15
 local contractWarningLines = {
 	"[Assassin's Greed] Only attack your assigned target or the person hunting you.",
+	"[Assassin's Greed] If two other players are fighting, leave them alone. Their fight is not your contract.",
 	"[Assassin's Greed] Hurting anyone else for more than 15 harm will get you slain instantly.",
 	"[Assassin's Greed] Each contract lasts 4 minutes. A successful contract gives you 30 seconds of grace before the next one starts.",
 	"[Assassin's Greed] Personally killing your target pays $250. Press F3 to open the buy menu."
@@ -90,13 +91,25 @@ end
 function MODE:GetMoney(ply)
 	if not IsValid(ply) then return 0 end
 
+	if SERVER then
+		if isnumber(ply.ShipAssassinsMoney) then
+			return ply.ShipAssassinsMoney
+		end
+
+		local fallback = ply:GetNWInt("ShipAssassins_Money", self.StartMoney or 0)
+		ply.ShipAssassinsMoney = fallback
+		return fallback
+	end
+
 	return ply:GetNWInt("ShipAssassins_Money", self.StartMoney or 0)
 end
 
 function MODE:SetMoney(ply, amount)
 	if not IsValid(ply) then return end
 
-	ply:SetNWInt("ShipAssassins_Money", math.max(math.floor(amount or 0), 0))
+	local normalized = math.max(math.floor(amount or 0), 0)
+	ply.ShipAssassinsMoney = normalized
+	ply:SetNWInt("ShipAssassins_Money", normalized)
 end
 
 function MODE:AddMoney(ply, amount)
@@ -361,10 +374,20 @@ function MODE:HasBrokenAssignments()
 	local order = self:GetOrder()
 	if #order <= 1 then return false end
 
-	for _, ply in ipairs(order) do
+	local seenPlayers = {}
+	local seenTargets = {}
+	local seenHunters = {}
+
+	for index, ply in ipairs(order) do
 		if not IsValid(ply) then
 			return true
 		end
+
+		if seenPlayers[ply] then
+			return true
+		end
+
+		seenPlayers[ply] = true
 
 		if not IsValid(ply.ShipTarget) or not IsValid(ply.ShipHunter) then
 			return true
@@ -373,6 +396,20 @@ function MODE:HasBrokenAssignments()
 		if ply.ShipTarget == ply or ply.ShipHunter == ply then
 			return true
 		end
+
+		local expectedTarget = order[index % #order + 1]
+		local expectedHunter = order[(index - 2) % #order + 1]
+
+		if ply.ShipTarget ~= expectedTarget or ply.ShipHunter ~= expectedHunter then
+			return true
+		end
+
+		if seenTargets[ply.ShipTarget] or seenHunters[ply.ShipHunter] then
+			return true
+		end
+
+		seenTargets[ply.ShipTarget] = true
+		seenHunters[ply.ShipHunter] = true
 	end
 
 	return false

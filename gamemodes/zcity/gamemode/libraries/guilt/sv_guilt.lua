@@ -17,7 +17,7 @@ local PLAYER_KARMA_CAPS = {
     headadmin = 99999,
     developer = 99999,
     special = 500,
-    operator = 300,
+    operator = 500,
     booster = 250
 }
 

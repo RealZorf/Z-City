@@ -29,6 +29,7 @@ local accentBlue = Color(84, 144, 224, 210)
 local ringDark = Color(18, 39, 70, 235)
 local ringInner = Color(32, 62, 108, 220)
 local warningColor = Color(255, 185, 120)
+local warningOutlineColor = Color(132, 26, 26, 235)
 
 local function UIScale()
 	return math.min(ScrW() / BASE_W, ScrH() / BASE_H)
@@ -600,8 +601,9 @@ function MODE:HUDPaint()
 		if fade > 0 and lply:Alive() then
 			draw.SimpleText("ZBattle | Assassin's Greed", "ZB_ShipAssassinsLarge", sw * 0.5, sh * 0.12, ColorAlpha(titleColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			draw.SimpleText("You are an Assassin", "ZB_ShipAssassinsLarge", sw * 0.5, sh * 0.5, ColorAlpha(titleColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			draw.SimpleText("Only attack your target or hunter. Hurting anyone else gets you slain.", "ZB_ShipAssassinsMedium", sw * 0.5, sh * 0.865, ColorAlpha(warningColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			draw.SimpleText("Each contract lasts 4 minutes. Contract kills pay $250. F3 opens the buy menu.", "ZB_ShipAssassinsMedium", sw * 0.5, sh * 0.905, ColorAlpha(neutralColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("Only attack your target or hunter. Other fights are not your concern.", "ZB_ShipAssassinsMedium", sw * 0.5, sh * 0.855, ColorAlpha(warningColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("Interfering in someone else's fight gets you slain.", "ZB_ShipAssassinsMedium", sw * 0.5, sh * 0.892, ColorAlpha(warningColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("Each contract lasts 4 minutes. Contract kills pay $250. F3 opens the buy menu.", "ZB_ShipAssassinsMedium", sw * 0.5, sh * 0.93, ColorAlpha(neutralColor, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 	end
 
@@ -630,7 +632,8 @@ function MODE:HUDPaint()
 			elseif contractRemaining > 0 then
 				draw.SimpleTextOutlined("Contract: " .. formatContractTime(contractRemaining), "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.contractOffsetY, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), ringDark)
 			end
-			draw.SimpleTextOutlined("Wrong target/hunter = slay", "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.warningOffsetY, warningColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), ringDark)
+			draw.SimpleTextOutlined("Ignore other fights.", "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.warningOffsetY, warningColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), warningOutlineColor)
+			draw.SimpleTextOutlined("Wrong target/hunter = slay", "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.warningOffsetY + ui(16), warningColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), warningOutlineColor)
 		end
 
 		if IsValid(target) then
