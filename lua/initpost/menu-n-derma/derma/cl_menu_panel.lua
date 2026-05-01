@@ -123,7 +123,7 @@ function PANEL:InitializeMarkup()
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ARXIV</colour><colour=255,255,255,0>  </colour>\nZ-City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ARXIV</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
