@@ -884,10 +884,39 @@ function GM:ScoreboardHide()
 		scoreBoardMenu = nil
 	end
 end
-local AdminShowVoiceChat = CreateClientConVar("zb_admin_show_voicechat","0",false,false,"Show voicechat panels for admins",0,1)
+local AdminShowVoiceChat = CreateClientConVar("zb_admin_show_voicechat","0",true,false,"Show voicechat panels in-round if your ULX/ULib group is allowed by the server",0,1)
+
+local function groupCanSeeVoicePanels(groupName)
+	groupName = string.lower(string.Trim(groupName or ""))
+	if groupName == "" then return false end
+
+	local cvar = GetConVar("zb_voicechat_panel_groups")
+	local allowList = string.Trim((cvar and cvar:GetString()) or "")
+	if allowList == "" then return false end
+
+	for _, rawGroup in ipairs(string.Explode(",", allowList, false)) do
+		local wantedGroup = string.lower(string.Trim(rawGroup or ""))
+		if wantedGroup ~= "" and wantedGroup == groupName then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function canSeeVoicePanelsInRound(lply)
+	if not IsValid(lply) then return false end
+	if not AdminShowVoiceChat:GetBool() then return false end
+
+	local userGroup = (lply.GetUserGroup and lply:GetUserGroup()) or ""
+	return groupCanSeeVoicePanels(userGroup)
+end
+
+hg.CanSeeVoicePanelsInRound = canSeeVoicePanelsInRound
+
 hook.Add("PlayerStartVoice", "showVoicePanels", function(ply)
 	if !IsValid(ply) then return end
-	if LocalPlayer():IsAdmin() and AdminShowVoiceChat:GetBool() then return end
+	if canSeeVoicePanelsInRound(LocalPlayer()) then return end
 
 	local other_alive = (ply:Alive() and LocalPlayer() != ply) or (ply.organism and (ply.organism.otrub or (ply.organism.brain and ply.organism.brain > 0.05)))
 

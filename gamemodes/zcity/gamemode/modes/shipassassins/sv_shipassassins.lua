@@ -7,6 +7,7 @@ util.AddNetworkString("ShipAssassins_Buy")
 util.AddNetworkString("ShipAssassins_CashHint")
 
 local nextDisplaySyncThink = 0
+local nextAssignmentEnsureThink = 0
 
 local function isActiveAssassin(ply)
 	return IsValid(ply)
@@ -36,6 +37,18 @@ local function shufflePlayers(players)
 	end
 
 	return players
+end
+
+local function samePlayerOrder(a, b)
+	if #a ~= #b then return false end
+
+	for i = 1, #a do
+		if a[i] ~= b[i] then
+			return false
+		end
+	end
+
+	return true
 end
 
 function MODE:GetAliveAssassins()
@@ -342,6 +355,75 @@ function MODE:BuildAssignmentsFromOrder()
 		ply.ShipTarget = target
 		ply.ShipHunter = hunter
 	end
+end
+
+function MODE:HasBrokenAssignments()
+	local order = self:GetOrder()
+	if #order <= 1 then return false end
+
+	for _, ply in ipairs(order) do
+		if not IsValid(ply) then
+			return true
+		end
+
+		if not IsValid(ply.ShipTarget) or not IsValid(ply.ShipHunter) then
+			return true
+		end
+
+		if ply.ShipTarget == ply or ply.ShipHunter == ply then
+			return true
+		end
+	end
+
+	return false
+end
+
+function MODE:EnsureAssignments()
+	local alive = self:GetAliveAssassins()
+	local order = self:GetOrder()
+	local aliveSet = {}
+	local newOrder = {}
+	local seen = {}
+
+	for _, ply in ipairs(alive) do
+		aliveSet[ply] = true
+	end
+
+	for _, ply in ipairs(order) do
+		if aliveSet[ply] and not seen[ply] then
+			seen[ply] = true
+			newOrder[#newOrder + 1] = ply
+		end
+	end
+
+	for _, ply in ipairs(alive) do
+		if not seen[ply] then
+			seen[ply] = true
+			newOrder[#newOrder + 1] = ply
+		end
+	end
+
+	local orderChanged = not samePlayerOrder(order, newOrder)
+	local assignmentsBroken = self:HasBrokenAssignments()
+
+	if not orderChanged and not assignmentsBroken then
+		return false
+	end
+
+	self.saved.Order = newOrder
+	self:BuildAssignmentsFromOrder()
+
+	for _, ply in ipairs(newOrder) do
+		local state = self:GetContractState(ply)
+		local hasTiming = state and ((state.deadline and state.deadline > 0) or (state.graceUntil and state.graceUntil > 0))
+
+		if not hasTiming then
+			self:ActivateContractForPlayer(ply, false)
+		end
+	end
+
+	self:SyncAllPlayers()
+	return true
 end
 
 function MODE:BuildTargetDossier(target)
@@ -729,6 +811,15 @@ hook.Add("Think", "ShipAssassins_ContractTimers", function()
 	if changed then
 		round:SyncAllPlayers()
 	end
+end)
+
+hook.Add("Think", "ShipAssassins_AssignmentIntegrity", function()
+	local round = CurrentRound and CurrentRound()
+	if round ~= MODE or zb.ROUND_STATE ~= 1 then return end
+	if nextAssignmentEnsureThink > CurTime() then return end
+
+	nextAssignmentEnsureThink = CurTime() + 0.25
+	round:EnsureAssignments()
 end)
 
 hook.Add("Think", "ShipAssassins_DisplaySync", function()

@@ -9,6 +9,13 @@ include("shared.lua")
 AddCSLuaFile("loader.lua")
 include("loader.lua")
 
+local zb_voicechat_panel_groups = ConVarExists("zb_voicechat_panel_groups") and GetConVar("zb_voicechat_panel_groups") or CreateConVar(
+	"zb_voicechat_panel_groups",
+	"superadmin,admin,headadmin,developer",
+	bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE, FCVAR_NOTIFY),
+	"Comma-separated ULX/ULib groups allowed to enable alive voice panels."
+)
+
 local PLAYER = FindMetaTable("Player")
 function PLAYER:CanSpawn()
 	return ( CurrentRound and CurrentRound() and CurrentRound().CanSpawn and CurrentRound():CanSpawn(self)) or (zb.ROUND_STATE == 0)

@@ -20,6 +20,7 @@ if CLIENT then
 
 	hook.Add("PlayerStartVoice","RemoveVoicePanles",function(ply)
 		if !IsValid(ply) then return end
+		if hg.CanSeeVoicePanelsInRound and hg.CanSeeVoicePanelsInRound(LocalPlayer()) then return end
 
 		local other_alive = (ply:Alive() and LocalPlayer() != ply) or (ply.organism and (ply.organism.otrub or (ply.organism.brain and ply.organism.brain > 0.05)))
 
