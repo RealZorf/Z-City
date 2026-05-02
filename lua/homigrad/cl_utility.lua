@@ -711,7 +711,6 @@ players : 1 humans, 0 bots (20 max)
 			ply:SetVoiceVolumeScale(!hg.muteall and (!hg.mutespect or ply:Alive()) and (hg.playerInfo[ply:SteamID()] and hg.playerInfo[ply:SteamID()][2] or 1) or 0)
 
 			if not ply:Alive() then return end
-			
 			local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 			
 			if ply:VoiceVolume() != 0 then
@@ -734,9 +733,6 @@ players : 1 humans, 0 bots (20 max)
 			}
 
 			local weight = (ply:IsSpeaking() and math.Clamp( ply:VoiceVolume() * 5, 0, 2 )) or 0
-			if hg.IsMouthDuctTaped and hg.IsMouthDuctTaped(ply) then
-				weight = 0
-			end
 
 			for k = 1, #flexes do
 				v = flexes[ k ]

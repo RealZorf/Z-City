@@ -65,7 +65,21 @@ HG_SANDBOX.BlockedWeaponClasses = {
     ["weapon_bombvest"] = true,
     ["weapon_taser"] = true,
     ["weapon_vfirethrower"] = true,
-    ["weapon_traitor_poison3"] = true
+    ["weapon_traitor_poison3"] = true,
+    ["weapon_tranquilizer"] = true,
+    ["weapon_aa12"] = true,
+    ["weapon_aa12labs"] = true,
+    ["weapon_ttibenelli"] = true,
+    ["weapon_spas12"] = true,
+    ["weapon_xm1014"] = true,
+    ["weapon_saiga12"] = true,
+    ["vort_swep"] = true,
+    ["weapon_drr_fuelcan"] = true,
+    ["weapon_drr_radar"] = true,
+    ["weapon_drr_remote"] = true,
+    ["weapon_drr_repairtool"] = true,
+    ["weapon_drr_jammer"] = true,
+    ["weapon_drr_menu"] = true
 }
 
 HG_SANDBOX.BlockedWeaponClassPatterns = {

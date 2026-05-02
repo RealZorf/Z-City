@@ -10,6 +10,7 @@ local chat_dist_whisper = 100
 --//
 
 local function ChatLogic(output, input, isChat, teamonly, text)
+
 	if not IsValid(output) then return true, true end
 	if not IsValid(input) then return false end
 	local result, is3D = hook.Run("CanListenOthers",output,input,isChat,teamonly,text)
@@ -168,10 +169,6 @@ hook.Add("PlayerCanHearPlayersVoice", "RealisticVoice", function(listener,speake
 		speaker.IsOldSpeak = speak
 		--print("huy")
 		if speak then hook.Run( "StartVoice", speaker, listener ) else hook.Run( "EndVoice", speaker, listener )  end
-	end
-
-	if hg.IsMouthDuctTaped and hg.IsMouthDuctTaped(speaker) then
-		return false, false
 	end
 
 	local Hook = hook.Run("HG_PlayerCanHearPlayersVoice", listener, speaker )
