@@ -270,7 +270,7 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
 	local restpos
 
 	local restEntity = self:GetNWEntity("RestEntity")
-	if self:GetNWVector("RestPos") and (IsValid(restEntity) or (restEntity and restEntity:IsWorld and restEntity:IsWorld())) then
+	if self:GetNWVector("RestPos") and (IsValid(restEntity) or (restEntity and restEntity.IsWorld and restEntity:IsWorld())) then
 		local posa, anga2, anga = self:GetBipodPosAng()
 
         restpos = LocalToWorld(self:GetNWVector("RestPos"), angle_zero, posa, anga)
