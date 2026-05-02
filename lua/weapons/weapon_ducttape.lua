@@ -83,7 +83,6 @@ SWEP.WorkWithFake = false
 SWEP.angHold = Angle(0, 0, 0)
 SWEP.UnTapeables = {MAT_SAND, MAT_SLOSH, MAT_SNOW}
 SWEP.TapeAmount = 100
-SWEP.MouthTapeCost = 20
 SWEP.AnimList = {
 	["start"] = {"start", 2.5, false},
 	["stop"] = {"start", 1, false},
@@ -195,9 +194,6 @@ local function BindObjects(ent1, pos1, ent2, pos2, power, bone1, bone2)
 	ent2.DuctTape = ent2.DuctTape or {}
 	local Strength = ent1.DuctTape and ent1.DuctTape[bone1] and #ent1.DuctTape[bone1] or 1
 	local weld = not ent1:IsRagdoll() and not ent2:IsRagdoll() and constraint.Rope(ent1, ent2, 0, 0, ent1:WorldToLocal(pos1), ent2:WorldToLocal(pos2), (pos1 - pos2):Length(), -.1, (500 + Strength * 100) * 5, 0, "", false) or constraint.Weld(ent1, ent2, bone1, bone2, (500 + Strength * 100) * 15, false, false)
-	if not IsValid(weld) then
-		return 0
-	end
 	if not ent1.DuctTape[bone1] then
 		ent1.DuctTape[bone1] = {weld, 1}
 		weld:CallOnRemove("removefromtbl", function() ent1.DuctTape[bone1] = nil end)
@@ -288,14 +284,6 @@ function SWEP:FindObjects()
 	end
 end
 
-function SWEP:FindMouthTapeTarget()
-	if not hg or not hg.DuctTapeMouth or not hg.DuctTapeMouth.GetTarget then
-		return
-	end
-
-	return hg.DuctTapeMouth.GetTarget(self:GetOwner(), 70)
-end
-
 function SWEP:PrimaryAttack()
 	local Owner = self:GetOwner()
 	if Owner:KeyDown(IN_SPEED) then return end
@@ -306,56 +294,8 @@ function SWEP:PrimaryAttack()
 
 	if SERVER then
 		if not self.TapeAmount then self.TapeAmount = 100 end
-		self:SetHolding(math.Clamp(self:GetHolding() + 1, 25, 100))
-
-		local targetPly, _, mouthTrace = self:FindMouthTapeTarget()
-		if targetPly == false then
-			if self:GetHolding() < 100 then return end
-
-			Owner:ChatPrint("You cannot tape shut a superadmin's mouth.")
-			self:SetHolding(25)
-			return
-		end
-
-		if IsValid(targetPly) then
-			if self:GetHolding() < 100 then return end
-
-			local wasTaped = hg.IsMouthDuctTaped and hg.IsMouthDuctTaped(targetPly)
-			if not wasTaped and self.TapeAmount < self.MouthTapeCost then
-				Owner:ChatPrint("You do not have enough duct tape left.")
-				self:SetHolding(25)
-				return
-			end
-
-			local isTaped = hg.SetMouthDuctTaped and hg.SetMouthDuctTaped(targetPly, not wasTaped)
-			if isTaped == nil then
-				self:SetHolding(25)
-				return
-			end
-
-			if isTaped then
-				self.TapeAmount = math.max(self.TapeAmount - self.MouthTapeCost, 0)
-				self:SetTapeAmount(self.TapeAmount)
-			end
-
-			sound.Play("snd_jack_hmcd_ducttape.wav", mouthTrace.HitPos, 65, math.random(80, 120))
-			Owner:SetAnimation(PLAYER_ATTACK1)
-			Owner:ViewPunch(Angle(3, 0, 0))
-
-			Owner:ChatPrint(isTaped and "You taped the player's mouth shut." or "You removed the duct tape from the player's mouth.")
-			targetPly:ChatPrint(isTaped and "Your mouth has been taped shut." or "The duct tape covering your mouth has been removed.")
-
-			timer.Simple(.1, function()
-				if IsValid(self) and self.TapeAmount <= 0 then
-					self:Remove()
-				end
-			end)
-
-			self:SetHolding(25)
-			return
-		end
-
 		local Go, TrOne, TrTwo = self:FindObjects()
+		self:SetHolding(math.Clamp(self:GetHolding() + 1, 25, 100))
 		if Go then
 			if self:GetHolding() < 100 then return end
 			local DoorSealed = false
