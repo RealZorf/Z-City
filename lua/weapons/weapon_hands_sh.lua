@@ -147,6 +147,23 @@ if CLIENT then
 	end--]]
 
 	function SWEP:GetWM()
+		if not IsValid(self.worldModel) then
+			self.worldModel = ClientsideModel(self.WorldModel)
+			if not IsValid(self.worldModel) then return end
+
+			self.worldModel:SetNoDraw(true)
+			initializeSequenceState(self.worldModel)
+
+			local model = self.worldModel
+			self:CallOnRemove("remove_hands_worldmodel", function()
+				if IsValid(model) then
+					model:Remove()
+				end
+			end)
+		end
+
+		self.worldModel:SetNoDraw(true)
+
 		return self.worldModel
 	end
 
@@ -154,19 +171,15 @@ if CLIENT then
 
 	function SWEP:DrawWorldModel()
 		local owner = self:GetOwner()
+		local WorldModel = self:GetWM()
+		if not IsValid(WorldModel) then return end
 
-		if not IsValid(self.worldModel) then
-			self.worldModel = ClientsideModel(self.WorldModel)
-            initializeSequenceState(self.worldModel)
-		end
-
-		if clawClasses[owner.PlayerClassName] and self.worldModel:GetModel() ~= "models/weapons/salat/anims/furry_fists.mdl" then
-			self.worldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
+		if IsValid(owner) and clawClasses[owner.PlayerClassName] and WorldModel:GetModel() ~= "models/weapons/salat/anims/furry_fists.mdl" then
+			WorldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
 		end
 
 		if not self:GetFists() then return end
 
-		local WorldModel = self.worldModel
 		if not normalizeSequenceState(WorldModel) then return end
 
 		if WorldModel.ZCAnimAssigned then
@@ -423,7 +436,11 @@ function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 	if CLIENT and self.IsLocal and not self:IsLocal() and IsValid(ply) and ply.PlayerClassName == "headcrabzombie" and not IsValid(ply:GetNetVar("carryent")) then return end
 
-	if not IsValid(ply) or not IsValid(self.worldModel) then return end
+	if not IsValid(ply) then return end
+
+	local wm = self:GetWM()
+	if not IsValid(wm) then return end
+
 	if IsValid(ply) and (not ply.shouldTransmit or ply.NotSeen) then return end
 	-- ply:SetupBones()
 
@@ -438,9 +455,6 @@ function SWEP:SetHandPos(noset)
 	local ply_spine_matrix = ply:GetBoneMatrix(ply_spine_index)
 	if !ply_spine_matrix then return end
 	local wmpos = ply_spine_matrix:GetTranslation()
-
-	local wm = self:GetWM()
-	if !IsValid(wm) then return end
 
 	local inv = ply:GetNetVar("Inventory",{})
 	local havekastet = inv["Weapons"] and inv["Weapons"]["hg_brassknuckles"]

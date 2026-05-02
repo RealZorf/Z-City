@@ -9,6 +9,17 @@ local PLAYER_HULL_MAXS = Vector(16, 16, 72)
 local SPAWN_PROBE_UP = Vector(0, 0, 48)
 local SPAWN_PROBE_DOWN = Vector(0, 0, 256)
 local SPAWN_CLEARANCE = Vector(0, 0, 2)
+local VORT_START_HEALTH = 150
+local VORT_HEALTH_CAP = 150
+local VORT_START_ARMOR = 100
+local VORT_ARMOR_CAP = 140
+local VORT_REGEN_DELAY = 5
+local VORT_REGEN_INTERVAL = 1
+local VORT_REGEN_HEALTH = 2
+local VORT_REGEN_ARMOR = 5
+local VORT_SUPPORT_RADIUS_SQR = 320 * 320
+local VORT_SUPPORT_HEALTH_BONUS = 1
+local VORT_SUPPORT_ARMOR_BONUS = 2
 
 local function shuffle(tbl)
 	for i = #tbl, 2, -1 do
@@ -174,6 +185,25 @@ local function chooseBestTriangle(points)
 	return bestTriangle or {sample[1], sample[2], sample[3]}
 end
 
+local function isLiveVort(ply)
+	return IsValid(ply)
+		and ply:IsPlayer()
+		and ply:Alive()
+		and ply:Team() == VORT_TEAM
+		and not (ply.organism and ply.organism.incapacitated)
+end
+
+local function resolvePlayerEntity(ent)
+	if not IsValid(ent) then return nil end
+
+	local ragdollOwner = hg and hg.RagdollOwner and hg.RagdollOwner(ent) or nil
+	if IsValid(ragdollOwner) then
+		return ragdollOwner
+	end
+
+	return ent:IsPlayer() and ent or nil
+end
+
 function MODE:PrepareTeamSpawns()
 	local candidates = collectSpawnCandidates()
 	local safeCandidates = {}
@@ -245,6 +275,47 @@ function MODE:OverrideBalance()
 	return true
 end
 
+function MODE:GetTargetTeamSizes(playerCount)
+	local targets = {
+		[0] = 0,
+		[1] = 0,
+		[VORT_TEAM] = 0
+	}
+
+	local distributionOrder = {VORT_TEAM, 0, 1}
+	for index = 1, playerCount do
+		local teamID = distributionOrder[((index - 1) % #distributionOrder) + 1]
+		targets[teamID] = targets[teamID] + 1
+	end
+
+	return targets
+end
+
+function MODE:ApplyVortBattleState(ply)
+	if not IsValid(ply) or ply:Team() ~= VORT_TEAM then return end
+
+	ply:SetNWBool("ZC_HL3_Vort", true)
+	ply:SetNWInt("ZC_HL3_VortHealthCap", VORT_HEALTH_CAP)
+	ply:SetNWInt("ZC_HL3_VortArmorCap", VORT_ARMOR_CAP)
+
+	if ply.SetMaxHealth then
+		ply:SetMaxHealth(VORT_HEALTH_CAP)
+	end
+
+	ply:SetHealth(VORT_START_HEALTH)
+	ply:SetArmor(VORT_START_ARMOR)
+	ply.ZCHL3NextRegenAt = CurTime() + VORT_REGEN_DELAY
+end
+
+function MODE:ClearVortBattleState(ply)
+	if not IsValid(ply) then return end
+
+	ply:SetNWBool("ZC_HL3_Vort", false)
+	ply:SetNWInt("ZC_HL3_VortHealthCap", 0)
+	ply:SetNWInt("ZC_HL3_VortArmorCap", 0)
+	ply.ZCHL3NextRegenAt = nil
+end
+
 function MODE:AssignTeams()
 	local players = {}
 	for _, ply in player.Iterator() do
@@ -259,14 +330,18 @@ function MODE:AssignTeams()
 		[1] = 0,
 		[VORT_TEAM] = 0
 	}
+	local teamTargets = self:GetTargetTeamSizes(#players)
 
 	self.VortIndices = {}
 
 	for _, ply in ipairs(players) do
-		local targetTeam = 0
+		local targetTeam = VORT_TEAM
+		local highestNeed = -math.huge
 
-		for _, teamID in ipairs({0, 1, VORT_TEAM}) do
-			if teamCounts[teamID] < teamCounts[targetTeam] then
+		for _, teamID in ipairs({VORT_TEAM, 0, 1}) do
+			local need = teamTargets[teamID] - teamCounts[teamID]
+			if need > highestNeed then
+				highestNeed = need
 				targetTeam = teamID
 			end
 		end
@@ -323,12 +398,17 @@ function MODE:GiveEquipment()
 				ply:StripWeapons()
 				ply:SetModel(VORT_MODEL)
 				ply:SetNetVar("Accessories", "")
-				ply:Give("vort_swep")
+				self:ClearVortBattleState(ply)
+				local beam = ply:Give("vort_swep")
 				local hands = ply:Give("weapon_hands_sh")
-				if IsValid(hands) then
+				self:ApplyVortBattleState(ply)
+				if IsValid(beam) then
+					ply:SelectWeapon("vort_swep")
+				elseif IsValid(hands) then
 					ply:SelectWeapon("weapon_hands_sh")
 				end
 			else
+				self:ClearVortBattleState(ply)
 				local hands = ply:Give("weapon_hands_sh")
 				if IsValid(hands) then
 					ply:SelectWeapon("weapon_hands_sh")
@@ -390,12 +470,72 @@ function MODE:GiveEquipment()
 
 			timer.Simple(0.1, function()
 				if not IsValid(ply) then return end
+
+				if ply:Team() == VORT_TEAM then
+					self:ApplyVortBattleState(ply)
+					if ply:HasWeapon("vort_swep") then
+						ply:SelectWeapon("vort_swep")
+					end
+				end
+
 				ply.noSound = false
 			end)
 
 			ply:SetSuppressPickupNotices(false)
 		end
 	end)
+end
+
+function MODE:RoundThink()
+	self.ZCHL3NextRegenThink = self.ZCHL3NextRegenThink or 0
+	if self.ZCHL3NextRegenThink > CurTime() then return end
+
+	self.ZCHL3NextRegenThink = CurTime() + VORT_REGEN_INTERVAL
+
+	local aliveVorts = {}
+	for _, ply in player.Iterator() do
+		if isLiveVort(ply) then
+			aliveVorts[#aliveVorts + 1] = ply
+		end
+	end
+
+	for _, ply in ipairs(aliveVorts) do
+		if (ply.ZCHL3NextRegenAt or 0) > CurTime() then continue end
+
+		local healthCap = ply:GetNWInt("ZC_HL3_VortHealthCap", VORT_HEALTH_CAP)
+		local armorCap = ply:GetNWInt("ZC_HL3_VortArmorCap", VORT_ARMOR_CAP)
+		if ply:Health() >= healthCap and ply:Armor() >= armorCap then continue end
+
+		local supportBonus = 0
+		for _, other in ipairs(aliveVorts) do
+			if other == ply then continue end
+			if other:GetPos():DistToSqr(ply:GetPos()) <= VORT_SUPPORT_RADIUS_SQR then
+				supportBonus = 1
+				break
+			end
+		end
+
+		if ply:Health() < healthCap then
+			ply:SetHealth(math.min(healthCap, ply:Health() + VORT_REGEN_HEALTH + supportBonus * VORT_SUPPORT_HEALTH_BONUS))
+		end
+
+		if ply:Armor() < armorCap then
+			ply:SetArmor(math.min(armorCap, ply:Armor() + VORT_REGEN_ARMOR + supportBonus * VORT_SUPPORT_ARMOR_BONUS))
+		end
+	end
+end
+
+function MODE:EntityTakeDamage(target, dmgInfo)
+	local ply = resolvePlayerEntity(target)
+	if not isLiveVort(ply) then return end
+	if not dmgInfo or (dmgInfo.GetDamage and dmgInfo:GetDamage() <= 0) then return end
+
+	ply.ZCHL3NextRegenAt = CurTime() + VORT_REGEN_DELAY
+end
+
+function MODE:PlayerDeath(ply)
+	if not IsValid(ply) then return end
+	ply.ZCHL3NextRegenAt = nil
 end
 
 util.AddNetworkString("hl3_roundend")
@@ -406,6 +546,9 @@ function MODE:EndRound()
 	end
 
 	self:ClearPlayerRoles()
+	for _, ply in player.Iterator() do
+		self:ClearVortBattleState(ply)
+	end
 
 	timer.Simple(2, function()
 		net.Start("hl3_roundend")

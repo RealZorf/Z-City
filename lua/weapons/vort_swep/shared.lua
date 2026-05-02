@@ -67,22 +67,50 @@ SWEP.ArmorLimit = 100
 SWEP.BeamDamage = 360
 SWEP.BeamChargeTime = 1.25
 SWEP.BeamCooldown = 0.45
-SWEP.HL3BeamDamage = 425
-SWEP.HL3BeamCooldown = 0.33
-SWEP.HL3SplashRadius = 135
-SWEP.HL3SplashDamage = 72
+SWEP.HL3BeamDamage = 440
+SWEP.HL3BeamChargeTime = 0.9
+SWEP.HL3BeamCooldown = 0.24
+SWEP.HL3BeamRange = 2400
+SWEP.HL3SplashRadius = 160
+SWEP.HL3SplashDamage = 88
+SWEP.HL3ArcRadius = 210
+SWEP.HL3ArcDamage = 38
+SWEP.HL3PrimaryLeechHealth = 6
+SWEP.HL3PrimaryLeechArmor = 10
 SWEP.AltBeamDamage = 575
 SWEP.AltBeamChargeTime = 0.2
 SWEP.AltBeamCooldown = 9
 SWEP.AltBeamRange = 2200
 SWEP.AltDamageForce = 96000
+SWEP.HL3AltBeamDamage = 660
+SWEP.HL3AltBeamChargeTime = 0.16
+SWEP.HL3AltBeamCooldown = 6.75
+SWEP.HL3AltBeamRange = 2600
+SWEP.HL3AltSplashRadius = 190
+SWEP.HL3AltSplashDamage = 125
+SWEP.HL3AltLeechHealth = 12
+SWEP.HL3AltLeechArmor = 18
 SWEP.ArmorHealDelay = 0.9
 SWEP.ArmorHealMin = 14
 SWEP.ArmorHealMax = 24
+SWEP.HL3ArmorHealDelay = 0.55
+SWEP.HL3ArmorHealMin = 18
+SWEP.HL3ArmorHealMax = 32
+SWEP.HL3SelfHealMin = 8
+SWEP.HL3SelfHealMax = 16
 SWEP.AllyHealCooldown = 2.25
 SWEP.AllyHealAmountMin = 16
 SWEP.AllyHealAmountMax = 28
 SWEP.AllyHealRange = 110
+SWEP.HL3AllyHealCooldown = 1.5
+SWEP.HL3AllyHealAmountMin = 24
+SWEP.HL3AllyHealAmountMax = 36
+SWEP.HL3AllyHealArmorRatio = 0.75
+SWEP.HL3AllyHealRange = 150
+SWEP.HL3SupportHealHealth = 10
+SWEP.HL3SupportHealArmor = 14
+SWEP.HL3AltSupportHealHealth = 18
+SWEP.HL3AltSupportHealArmor = 24
 
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
@@ -101,6 +129,7 @@ local CHARGE_PARTICLE_A = "vortigaunt_charge_token_b"
 local CHARGE_PARTICLE_B = "vortigaunt_charge_token_c"
 local IMPACT_EFFECT = "StunstickImpact"
 local ALT_IMPACT_EFFECT = "cball_explode"
+local HL3_VORT_TEAM = 2
 
 function SWEP:Initialize()
 	self:SetWeaponHoldType("fist")
@@ -145,6 +174,76 @@ end
 
 function SWEP:IsVortOwner(pPlayer)
 	return IsValid(pPlayer) and string.lower(pPlayer:GetModel() or "") == "models/player/vortigaunt.mdl"
+end
+
+function SWEP:GetRoundInfo()
+	if not CurrentRound then return nil, nil end
+
+	local roundMode, roundKey = CurrentRound()
+	return roundMode, roundKey
+end
+
+function SWEP:IsHL3Mode()
+	local _, roundKey = self:GetRoundInfo()
+	return roundKey == "hl3"
+end
+
+function SWEP:IsHL3Vort(pPlayer)
+	return IsValid(pPlayer)
+		and self:IsHL3Mode()
+		and (pPlayer:GetNWBool("ZC_HL3_Vort", false) or pPlayer:Team() == HL3_VORT_TEAM or self:IsVortOwner(pPlayer))
+end
+
+function SWEP:ResolvePlayerEntity(target)
+	if not IsValid(target) then return nil end
+
+	local ragdollOwner = hg and hg.RagdollOwner and hg.RagdollOwner(target) or nil
+	if IsValid(ragdollOwner) then
+		return ragdollOwner
+	end
+
+	if target:GetClass() == "prop_ragdoll" and IsValid(target.ixPlayer) then
+		return target.ixPlayer
+	end
+
+	return target:IsPlayer() and target or nil
+end
+
+function SWEP:GetHealthLimitFor(target)
+	if not IsValid(target) then return 100 end
+
+	if self:IsHL3Vort(target) then
+		return target:GetNWInt("ZC_HL3_VortHealthCap", math.max(target:GetMaxHealth() or 100, 150))
+	end
+
+	return target.GetMaxHealth and target:GetMaxHealth() or 100
+end
+
+function SWEP:GetArmorLimitFor(target)
+	if not IsValid(target) then return self.ArmorLimit end
+
+	if self:IsHL3Vort(target) then
+		return target:GetNWInt("ZC_HL3_VortArmorCap", self.ArmorLimit)
+	end
+
+	return target.GetMaxArmor and target:GetMaxArmor() or self.ArmorLimit
+end
+
+function SWEP:IsFriendlyHL3Target(owner, target)
+	if not self:IsHL3Mode() then return false end
+
+	local playerTarget = self:ResolvePlayerEntity(target)
+	return IsValid(owner) and IsValid(playerTarget) and playerTarget ~= owner and playerTarget:Team() == owner:Team()
+end
+
+function SWEP:ShouldBlockHL3FriendlyDamage(owner, target)
+	if not self:IsHL3Mode() then return false end
+
+	local playerTarget = self:ResolvePlayerEntity(target)
+	if not IsValid(owner) or not IsValid(playerTarget) or playerTarget == owner then return false end
+	if playerTarget:Team() ~= owner:Team() then return false end
+
+	return self:IsHL3Vort(owner) and self:IsHL3Vort(playerTarget)
 end
 
 function SWEP:GetBeamSourceData(pPlayer)
@@ -357,7 +456,7 @@ function SWEP:BeginCharge(isAlt)
 	self.Charging = true
 	self.ChargeAnimPlayed = false
 	self.ChargeKind = isAlt and "secondary" or "primary"
-	self.ChargeTime = CurTime() + ((isAlt and self.AltBeamChargeTime) or (GetConVar("vorthands_beamchargetime"):GetFloat() or self.BeamChargeTime))
+	self.ChargeTime = CurTime() + (isAlt and self:GetAltChargeTime() or self:GetPrimaryChargeTime())
 	self:SetWeaponHoldType("magic")
 	self:SetHoldType("magic")
 	self:SendWeaponAnim(ACT_VM_RELOAD)
@@ -372,16 +471,12 @@ function SWEP:BeginCharge(isAlt)
 		owner:SetAnimation(PLAYER_ATTACK1)
 	end
 
-	local nextTime = self.ChargeTime + (isAlt and self.AltBeamCooldown or self:GetPrimaryCooldown())
+	local nextTime = self.ChargeTime + (isAlt and self:GetAltCooldown() or self:GetPrimaryCooldown())
 	if isAlt then
 		self:SetNextSecondaryFire(nextTime)
 	else
 		self:SetNextPrimaryFire(nextTime)
 	end
-end
-
-function SWEP:IsHL3Mode()
-	return CurrentRound and CurrentRound() and CurrentRound().name == "hl3"
 end
 
 function SWEP:GetPrimaryDamage()
@@ -392,12 +487,60 @@ function SWEP:GetPrimaryDamage()
 	return GetConVar("vorthands_beamdamage"):GetFloat() or self.BeamDamage
 end
 
+function SWEP:GetPrimaryChargeTime()
+	if self:IsHL3Mode() then
+		return self.HL3BeamChargeTime
+	end
+
+	return GetConVar("vorthands_beamchargetime"):GetFloat() or self.BeamChargeTime
+end
+
 function SWEP:GetPrimaryCooldown()
 	if self:IsHL3Mode() then
 		return self.HL3BeamCooldown
 	end
 
 	return self.BeamCooldown
+end
+
+function SWEP:GetPrimaryRange()
+	if self:IsHL3Mode() then
+		return self.HL3BeamRange
+	end
+
+	return GetConVar("vorthands_beamrange"):GetFloat() or self.Range
+end
+
+function SWEP:GetAltDamage()
+	if self:IsHL3Mode() then
+		return self.HL3AltBeamDamage
+	end
+
+	return self.AltBeamDamage
+end
+
+function SWEP:GetAltChargeTime()
+	if self:IsHL3Mode() then
+		return self.HL3AltBeamChargeTime
+	end
+
+	return self.AltBeamChargeTime
+end
+
+function SWEP:GetAltCooldown()
+	if self:IsHL3Mode() then
+		return self.HL3AltBeamCooldown
+	end
+
+	return self.AltBeamCooldown
+end
+
+function SWEP:GetAltRange()
+	if self:IsHL3Mode() then
+		return self.HL3AltBeamRange
+	end
+
+	return self.AltBeamRange
 end
 
 function SWEP:ApplyPrimarySplash(owner, traceRes, directTarget)
@@ -412,6 +555,8 @@ function SWEP:ApplyPrimarySplash(owner, traceRes, directTarget)
 		if target == owner or target == directTarget then continue end
 		if not IsValid(target) then continue end
 		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
+		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
+		if self:IsFriendlyHL3Target(owner, target) then continue end
 
 		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
 		local distance = origin:Distance(targetPos)
@@ -446,12 +591,149 @@ function SWEP:ApplyPrimarySplash(owner, traceRes, directTarget)
 	end
 end
 
+function SWEP:ApplyAltSplash(owner, traceRes, directTarget)
+	if not SERVER or not self:IsHL3Mode() then return end
+
+	local radius = self.HL3AltSplashRadius
+	local maxDamage = self.HL3AltSplashDamage
+	if radius <= 0 or maxDamage <= 0 then return end
+
+	local origin = traceRes.HitPos
+	for _, target in ipairs(ents.FindInSphere(origin, radius)) do
+		if target == owner or target == directTarget then continue end
+		if not IsValid(target) then continue end
+		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
+		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
+		if self:IsFriendlyHL3Target(owner, target) then continue end
+
+		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
+		local distance = origin:Distance(targetPos)
+		if distance > radius then continue end
+
+		local los = util.TraceLine({
+			start = origin + traceRes.HitNormal * 6,
+			endpos = targetPos,
+			filter = {owner, directTarget},
+			mask = MASK_SHOT
+		})
+
+		if los.Hit and los.Entity ~= target then continue end
+
+		local scale = 1 - math.Clamp(distance / radius, 0, 1)
+		local splashDamage = math.max(12, math.Round(maxDamage * scale))
+		local pushDir = targetPos - origin
+		if pushDir:LengthSqr() <= 0 then
+			pushDir = owner:GetAimVector()
+		else
+			pushDir:Normalize()
+		end
+
+		local splash = DamageInfo()
+		splash:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE))
+		splash:SetDamage(splashDamage)
+		splash:SetAttacker(owner)
+		splash:SetInflictor(self)
+		splash:SetDamagePosition(targetPos)
+		splash:SetDamageForce(pushDir * self.AltDamageForce * 0.4)
+		target:TakeDamageInfo(splash)
+	end
+end
+
+function SWEP:ApplyPrimaryArc(owner, traceRes, directTarget)
+	if not SERVER or not self:IsHL3Mode() then return end
+
+	local radius = self.HL3ArcRadius
+	local damage = self.HL3ArcDamage
+	if radius <= 0 or damage <= 0 then return end
+
+	local bestTarget, bestTargetPos, bestDistSqr
+	for _, target in ipairs(ents.FindInSphere(traceRes.HitPos, radius)) do
+		if target == owner or target == directTarget then continue end
+		if not IsValid(target) then continue end
+		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
+		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
+		if self:IsFriendlyHL3Target(owner, target) then continue end
+
+		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
+		local distToTarget = traceRes.HitPos:DistToSqr(targetPos)
+		if bestDistSqr and distToTarget >= bestDistSqr then continue end
+
+		local los = util.TraceLine({
+			start = traceRes.HitPos + traceRes.HitNormal * 4,
+			endpos = targetPos,
+			filter = {owner, directTarget},
+			mask = MASK_SHOT
+		})
+
+		if los.Hit and los.Entity ~= target then continue end
+
+		bestTarget = target
+		bestTargetPos = targetPos
+		bestDistSqr = distToTarget
+	end
+
+	if not IsValid(bestTarget) then return end
+
+	local arcDamage = DamageInfo()
+	arcDamage:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE))
+	arcDamage:SetDamage(damage)
+	arcDamage:SetAttacker(owner)
+	arcDamage:SetInflictor(self)
+	arcDamage:SetDamagePosition(bestTargetPos)
+	arcDamage:SetDamageForce((bestTargetPos - traceRes.HitPos):GetNormalized() * self.DamageForce * 0.25)
+	bestTarget:TakeDamageInfo(arcDamage)
+
+	local arcEffect = EffectData()
+	arcEffect:SetStart(traceRes.HitPos)
+	arcEffect:SetOrigin(bestTargetPos)
+	arcEffect:SetMagnitude(1)
+	util.Effect("ToolTracer", arcEffect, true, true)
+end
+
+function SWEP:ApplyBeamSiphon(owner, target, isAlt)
+	if not SERVER or not IsValid(owner) or not self:IsHL3Mode() then return end
+	if not IsValid(target) or self:IsFriendlyHL3Target(owner, target) then return end
+
+	local healthCap = self:GetHealthLimitFor(owner)
+	local armorCap = self:GetArmorLimitFor(owner)
+	local healthGain = isAlt and self.HL3AltLeechHealth or self.HL3PrimaryLeechHealth
+	local armorGain = isAlt and self.HL3AltLeechArmor or self.HL3PrimaryLeechArmor
+
+	if healthGain > 0 then
+		owner:SetHealth(math.min(healthCap, owner:Health() + healthGain))
+	end
+
+	if armorGain > 0 then
+		owner:SetArmor(math.min(armorCap, owner:Armor() + armorGain))
+	end
+end
+
+function SWEP:ApplyBeamSupport(owner, target, isAlt)
+	if not SERVER or not self:IsHL3Mode() then return false end
+
+	local ally = self:ResolvePlayerEntity(target)
+	if not IsValid(ally) or ally == owner or ally:Team() ~= owner:Team() then return false end
+
+	local healthCap = self:GetHealthLimitFor(ally)
+	local armorCap = self:GetArmorLimitFor(ally)
+	if ally:Health() >= healthCap and ally:Armor() >= armorCap then return true end
+
+	local healthGain = isAlt and self.HL3AltSupportHealHealth or self.HL3SupportHealHealth
+	local armorGain = isAlt and self.HL3AltSupportHealArmor or self.HL3SupportHealArmor
+
+	ally:SetHealth(math.min(healthCap, ally:Health() + healthGain))
+	ally:SetArmor(math.min(armorCap, ally:Armor() + armorGain))
+	owner:EmitSound(self.AllyHealSound)
+	ally:EmitSound(self.HealSound)
+	return true
+end
+
 function SWEP:FireBeam()
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
 
 	local isAlt = self.ChargeKind == "secondary"
-	local traceRes = self:GetAimTrace(isAlt and self.AltBeamRange or self.Range)
+	local traceRes = self:GetAimTrace(isAlt and self:GetAltRange() or self:GetPrimaryRange())
 	if not traceRes then return end
 
 	if isAlt then
@@ -462,26 +744,38 @@ function SWEP:FireBeam()
 	end
 
 	if SERVER then
-		local damage = isAlt and self.AltBeamDamage or self:GetPrimaryDamage()
-		local dmg = DamageInfo()
-		dmg:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE))
-		dmg:SetDamage(damage)
-		dmg:SetAttacker(owner)
-		dmg:SetInflictor(self)
-		dmg:SetDamagePosition(traceRes.HitPos)
-		dmg:SetDamageForce(owner:GetAimVector() * (isAlt and self.AltDamageForce or self.DamageForce))
+		local friendlyTarget = self:IsFriendlyHL3Target(owner, traceRes.Entity)
+		local blockFriendlyDamage = self:ShouldBlockHL3FriendlyDamage(owner, traceRes.Entity)
+		if friendlyTarget then
+			self:ApplyBeamSupport(owner, traceRes.Entity, isAlt)
+		elseif not blockFriendlyDamage then
+			local damage = isAlt and self:GetAltDamage() or self:GetPrimaryDamage()
+			local dmg = DamageInfo()
+			dmg:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE))
+			dmg:SetDamage(damage)
+			dmg:SetAttacker(owner)
+			dmg:SetInflictor(self)
+			dmg:SetDamagePosition(traceRes.HitPos)
+			dmg:SetDamageForce(owner:GetAimVector() * (isAlt and self.AltDamageForce or self.DamageForce))
 
-		if IsValid(traceRes.Entity) then
-			traceRes.Entity:TakeDamageInfo(dmg)
+			if IsValid(traceRes.Entity) then
+				traceRes.Entity:TakeDamageInfo(dmg)
 
-			if traceRes.Entity:IsPlayer() then
-				net.Start("ZC_VortBeamHitFlash")
-				net.Send(traceRes.Entity)
+				local tracePly = self:ResolvePlayerEntity(traceRes.Entity)
+				if IsValid(tracePly) then
+					net.Start("ZC_VortBeamHitFlash")
+					net.Send(tracePly)
+				end
 			end
-		end
 
-		if not isAlt then
-			self:ApplyPrimarySplash(owner, traceRes, traceRes.Entity)
+			if isAlt then
+				self:ApplyAltSplash(owner, traceRes, traceRes.Entity)
+			else
+				self:ApplyPrimarySplash(owner, traceRes, traceRes.Entity)
+				self:ApplyPrimaryArc(owner, traceRes, traceRes.Entity)
+			end
+
+			self:ApplyBeamSiphon(owner, traceRes.Entity, isAlt)
 		end
 
 		owner:EmitSound(self.AttackSound, isAlt and 95 or 85, isAlt and 85 or 100)
@@ -494,7 +788,7 @@ function SWEP:FireBeam()
 	end
 	self:ResetState()
 
-	local nextTime = CurTime() + (isAlt and self.AltBeamCooldown or self:GetPrimaryCooldown())
+	local nextTime = CurTime() + (isAlt and self:GetAltCooldown() or self:GetPrimaryCooldown())
 	if isAlt then
 		self:SetNextSecondaryFire(nextTime)
 	else
@@ -508,17 +802,28 @@ function SWEP:GiveArmor()
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
 
-	local minArmorGain = math.max(0, math.floor(GetConVar("vorthands_minarmorheal"):GetFloat() or self.ArmorHealMin))
-	local maxArmorGain = math.max(minArmorGain, math.floor(GetConVar("vorthands_maxarmorheal"):GetFloat() or self.ArmorHealMax))
+	local armorLimit = self:GetArmorLimitFor(owner)
+	local minArmorGain = math.max(0, math.floor(self:IsHL3Vort(owner) and self.HL3ArmorHealMin or (GetConVar("vorthands_minarmorheal"):GetFloat() or self.ArmorHealMin)))
+	local maxArmorGain = math.max(minArmorGain, math.floor(self:IsHL3Vort(owner) and self.HL3ArmorHealMax or (GetConVar("vorthands_maxarmorheal"):GetFloat() or self.ArmorHealMax)))
 	local armorGain = math.random(minArmorGain, maxArmorGain)
 
-	owner:SetArmor(math.min(owner:Armor() + armorGain, self.ArmorLimit))
+	owner:SetArmor(math.min(owner:Armor() + armorGain, armorLimit))
+
+	if self:IsHL3Vort(owner) then
+		local healthLimit = self:GetHealthLimitFor(owner)
+		local healthGain = math.random(self.HL3SelfHealMin, self.HL3SelfHealMax)
+		owner:SetHealth(math.min(owner:Health() + healthGain, healthLimit))
+	end
 end
 
 function SWEP:BeginArmorHeal()
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
-	if self:IsBusy() or owner:Armor() >= self.ArmorLimit then return end
+
+	local armorLimit = self:GetArmorLimitFor(owner)
+	local healthLimit = self:GetHealthLimitFor(owner)
+	local hl3Vort = self:IsHL3Vort(owner)
+	if self:IsBusy() or (owner:Armor() >= armorLimit and (not hl3Vort or owner:Health() >= healthLimit)) then return end
 	if owner:WaterLevel() >= 3 then
 		if SERVER then
 			owner:EmitSound(self.Deny)
@@ -527,7 +832,7 @@ function SWEP:BeginArmorHeal()
 	end
 
 	self.Healing = true
-	self.HealTime = CurTime() + (GetConVar("vorthands_healdelay"):GetFloat() or self.ArmorHealDelay)
+	self.HealTime = CurTime() + (hl3Vort and self.HL3ArmorHealDelay or (GetConVar("vorthands_healdelay"):GetFloat() or self.ArmorHealDelay))
 	self:SetWeaponHoldType("slam")
 	self:SetHoldType("slam")
 	self:SendWeaponAnim(ACT_VM_RELOAD)
@@ -547,16 +852,14 @@ function SWEP:ResolveHealTarget()
 	if not IsValid(owner) then return end
 
 	local trace = owner:GetEyeTrace()
-	local target = trace.Entity
+	local target = self:ResolvePlayerEntity(trace.Entity)
 	if not IsValid(target) then return end
 
-	if target:GetClass() == "prop_ragdoll" and IsValid(target.ixPlayer) then
-		target = target.ixPlayer
-	end
-
-	if not IsValid(target) or not target:IsPlayer() then return end
 	if target == owner then return end
-	if trace.HitPos:Distance(owner:GetShootPos()) > self.AllyHealRange then return end
+
+	local healRange = self:IsHL3Vort(owner) and self.HL3AllyHealRange or self.AllyHealRange
+	if trace.HitPos:Distance(owner:GetShootPos()) > healRange then return end
+	if self:IsHL3Mode() and target:Team() ~= owner:Team() then return end
 
 	return target, trace
 end
@@ -570,21 +873,22 @@ function SWEP:DoAllyHeal()
 	if self.NextAllyHealTime > CurTime() then return end
 
 	local target, trace = self:ResolveHealTarget()
-	if not IsValid(target) then return end
+	if not IsValid(target) then return false end
 
-	local maxHealth = target:GetMaxHealth()
-	local maxArmor = target.GetMaxArmor and target:GetMaxArmor() or self.ArmorLimit
+	local maxHealth = self:GetHealthLimitFor(target)
+	local maxArmor = self:GetArmorLimitFor(target)
 
 	if target:Health() >= maxHealth and target:Armor() >= maxArmor then
 		owner:EmitSound(self.Deny)
 		local nextTime = CurTime() + 0.25
 		self:SetNextPrimaryFire(nextTime)
 		self:SetNextSecondaryFire(nextTime)
-		return
+		return true
 	end
 
-	local healAmount = math.random(self.AllyHealAmountMin, self.AllyHealAmountMax)
-	local armorAmount = math.max(4, math.floor(healAmount * 0.5))
+	local hl3Vort = self:IsHL3Vort(owner)
+	local healAmount = math.random(hl3Vort and self.HL3AllyHealAmountMin or self.AllyHealAmountMin, hl3Vort and self.HL3AllyHealAmountMax or self.AllyHealAmountMax)
+	local armorAmount = hl3Vort and math.max(10, math.floor(healAmount * self.HL3AllyHealArmorRatio)) or math.max(4, math.floor(healAmount * 0.5))
 
 	target:SetHealth(math.min(target:Health() + healAmount, maxHealth))
 	target:SetArmor(math.min(target:Armor() + armorAmount, maxArmor))
@@ -594,10 +898,11 @@ function SWEP:DoAllyHeal()
 	owner:EmitSound(self.AllyHealSound)
 	target:EmitSound(self.HealSound)
 
-	self.NextAllyHealTime = CurTime() + self.AllyHealCooldown
+	self.NextAllyHealTime = CurTime() + (hl3Vort and self.HL3AllyHealCooldown or self.AllyHealCooldown)
 	local nextTime = CurTime() + 0.8
 	self:SetNextPrimaryFire(nextTime)
 	self:SetNextSecondaryFire(nextTime)
+	return true
 end
 
 function SWEP:Holster()
@@ -648,9 +953,16 @@ function SWEP:Think()
 	end
 
 	if self.Healing and CurTime() >= self.HealTime then
-		if owner:Armor() >= self.ArmorLimit then
+		local armorLimit = self:GetArmorLimitFor(owner)
+		local healthLimit = self:GetHealthLimitFor(owner)
+		local hl3Vort = self:IsHL3Vort(owner)
+		if owner:Armor() >= armorLimit and (not hl3Vort or owner:Health() >= healthLimit) then
 			owner:EmitSound(self.Deny)
-			self:CancelCharge(false)
+			self:ResetState()
+
+			local denyTime = CurTime() + 0.25
+			self:SetNextPrimaryFire(denyTime)
+			self:SetNextSecondaryFire(denyTime)
 			return
 		end
 
@@ -674,5 +986,8 @@ function SWEP:SecondaryAttack()
 end
 
 function SWEP:Reload()
-	self:DoAllyHeal()
+	if self:DoAllyHeal() then return end
+	if self:IsHL3Vort(self:GetOwner()) then
+		self:BeginArmorHeal()
+	end
 end
