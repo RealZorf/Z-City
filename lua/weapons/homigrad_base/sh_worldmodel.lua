@@ -269,7 +269,8 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
     
 	local restpos
 
-    if self:GetNWVector("RestPos") and IsValid(self:GetNWEntity("RestEntity")) or self:GetNWEntity("RestEntity"):IsWorld() then
+	local restEntity = self:GetNWEntity("RestEntity")
+	if self:GetNWVector("RestPos") and (IsValid(restEntity) or (restEntity and restEntity:IsWorld and restEntity:IsWorld())) then
 		local posa, anga2, anga = self:GetBipodPosAng()
 
         restpos = LocalToWorld(self:GetNWVector("RestPos"), angle_zero, posa, anga)
@@ -285,7 +286,8 @@ function SWEP:PosAngChanges(ply, desiredPos, desiredAng, bNoAdditional, closeani
 
         local lpos, lang = self:RestedAnim(localPos + back, localAng, dtime)
 
-        desiredPos = LocalToWorld(LerpVector(self.restlerp, vector_origin, -self.RestPosition - self.WorldPos) + lpos, lang, LerpVector(self.restlerp, desiredPos, restpos), desiredAng)
+		local restLerp = self.restlerp or 0
+        desiredPos = LocalToWorld(LerpVector(restLerp, vector_origin, -self.RestPosition - self.WorldPos) + lpos, lang, LerpVector(restLerp, desiredPos, restpos), desiredAng)
     end
 
 	local x,y,z = hg.GunPositions[ply] and hg.GunPositions[ply][1], hg.GunPositions[ply] and hg.GunPositions[ply][2], hg.GunPositions[ply] and hg.GunPositions[ply][3]

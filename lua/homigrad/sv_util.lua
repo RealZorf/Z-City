@@ -1504,7 +1504,8 @@ end
 
 hook.Add( "AcceptInput", "StealthOpenDoors", function( ent, inp, act, ply, val )
 	if inp == "Use" and ent:SDOIsDoor() then
-		local func = ((ply:KeyDown( IN_SPEED ) and "FastOpenDoor") or ( ply:KeyDown( IN_WALK ) and "StealthOpenDoor") or "NormalOpenDoor")
+		local validPly = IsValid(ply) and ply:IsPlayer()
+		local func = ((validPly and ply:KeyDown( IN_SPEED ) and "FastOpenDoor") or ( validPly and ply:KeyDown( IN_WALK ) and "StealthOpenDoor") or "NormalOpenDoor")
 		ent[func](ent,ply)
 		if ent:GetInternalVariable( "slavename" ) then
 			for k,v in pairs( ents.FindByName( ent:GetInternalVariable( "slavename" ) ) ) do

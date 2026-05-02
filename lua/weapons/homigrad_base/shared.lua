@@ -2531,6 +2531,11 @@ function SWEP:RestWeapon()
     bon = bon == -1 and 0 or bon
 
     local mat = trace.Entity:IsWorld() and Matrix() or trace.Entity:GetBoneMatrix(bon)
+    if not mat then
+        mat = Matrix()
+        mat:SetTranslation(trace.Entity:GetPos())
+        mat:SetAngles(trace.Entity:GetAngles())
+    end
 
     local lpos, _ = WorldToLocal(trace.HitPos, angle_zero, mat:GetTranslation(), mat:GetAngles())
 
@@ -2549,11 +2554,20 @@ end
 
 function SWEP:GetBipodPosAng()
 	local restent = self:GetNWEntity("RestEntity")
+	if not IsValid(restent) then
+		local entPos = self:GetNWVector("EntPos")
+		return entPos, self:GetNWAngle("RestAng"), angle_zero
+	end
 
 	local restbone = self:GetNWInt("RestPBone")
 	restbone = restbone == -1 and 0 or restbone
 
 	local mat = restent:IsWorld() and Matrix() or restent:GetBoneMatrix(restbone)
+	if not mat then
+		mat = Matrix()
+		mat:SetTranslation(restent:GetPos())
+		mat:SetAngles(restent:GetAngles())
+	end
 
 	local posa, anga2 = mat:GetTranslation(), mat:GetAngles()
 

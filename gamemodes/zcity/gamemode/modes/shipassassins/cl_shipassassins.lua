@@ -1,4 +1,4 @@
-MODE.name = "shipassassins"
+MODE.name = "assassinsgreed"
 
 local MODE = MODE
 
@@ -634,6 +634,12 @@ function MODE:HUDPaint()
 			end
 			draw.SimpleTextOutlined("Ignore other fights.", "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.warningOffsetY, warningColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), warningOutlineColor)
 			draw.SimpleTextOutlined("Wrong target/hunter = slay", "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.warningOffsetY + ui(16), warningColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), warningOutlineColor)
+		else
+			if contractGraceRemaining > 0 then
+				draw.SimpleTextOutlined("Grace: " .. formatContractTime(contractGraceRemaining), "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.cashOffsetY, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), ringDark)
+			elseif contractRemaining > 0 then
+				draw.SimpleTextOutlined("Time Left: " .. formatContractTime(contractRemaining), "ZB_ShipAssassinsSmall", circleX, circleY + metrics.radius + metrics.cashOffsetY, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, math.max(1, ui(2)), ringDark)
+			end
 		end
 
 		if IsValid(target) then
