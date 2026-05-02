@@ -1114,13 +1114,10 @@ function MODE:Intermission()
 	MODE.TraitorWord = MODE.TraitorWords[math.random(1, #MODE.TraitorWords)]
 	MODE.TraitorWordSecond = MODE.TraitorWords[math.random(1, #MODE.TraitorWords)]
 	
-	local traitors_needed = 1
-
-	if player_count >= 15 then
-    	traitors_needed = 2
-	end
+	local traitors_needed = 1 + math.floor(player_count / 15)
 
 	MODE.TraitorExpectedAmt = traitors_needed
+	
 	local main_traitor = nil
 	local traitors = {}
 
