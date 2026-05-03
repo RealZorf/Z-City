@@ -1,4 +1,4 @@
-# 🌆 VOTTUR's ZCITY
+# 🌆 VOTTUR'S ZCITY
 
 <p align="center">
   🏙️ <strong>The next level of Garry’s Mod</strong>
@@ -8,7 +8,7 @@
 
 ## 🎮 About the Project
 
-**VOTTUR's ZCITY** is a custom-built Garry’s Mod server focused on:
+**VOTTUR'S ZCITY** is a custom-built Garry’s Mod server focused on:
 
 * 🎭 Realistic gameplay
 * 🤝 Strong player interaction
