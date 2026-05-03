@@ -375,6 +375,7 @@ properties.Add( "setplayerclass", {
 	end,
 	Receive = function( self, length, ply )
 		local ent = net.ReadEntity()
+		if not self:Filter(ent, ply) then return end -- this line was not here before
 		local class = net.ReadString( )
 
 		ent = hg.RagdollOwner(ent) or hg.GetCurrentCharacter(ent) or ent
