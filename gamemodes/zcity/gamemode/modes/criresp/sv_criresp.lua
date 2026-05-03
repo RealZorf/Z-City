@@ -21,10 +21,7 @@ end
 function MODE:AssignTeams()
 	local players = player.GetAll()
 	local numPlayers = #players
-	local numSWAT = 1
-
-	local ratio = 0.3
-	local numSWAT = math.floor(numPlayers * ratio + 0.5)
+	local numSWAT = math.floor(numPlayers * 0.35 + 0.5)
 
 	numSWAT = math.max(numSWAT, 1)
 	numSWAT = math.min(numSWAT, numPlayers - 2)
