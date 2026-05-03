@@ -209,6 +209,18 @@ function RenderAccessories(ply, accessories, setup)
 end
 
 local huy_addvec = Vector(0.4,0,0.4)
+
+local function ShouldHideAccessoryInFirstPerson(accessData, islply)
+	if not islply or not istable(accessData) then return false end
+
+	local placement = accessData.placement
+	if placement == "head" or placement == "face" then
+		return true
+	end
+
+	return accessData.bone == "ValveBiped.Bip01_Head1"
+end
+
 function DrawAccesories(ply, ent, accessories,accessData, islply, force, setup)
 	if not accessories then return end
 	if not accessData then return end
@@ -300,7 +312,7 @@ function DrawAccesories(ply, ent, accessories,accessData, islply, force, setup)
 	end
 
 	if model:GetParent() != ent then model:SetParent(ent, bone) end
-	if !(islply and accessData.norender) and (!setup or accessData.bonemerge) then
+	if not ShouldHideAccessoryInFirstPerson(accessData, islply) and !(islply and accessData.norender) and (!setup or accessData.bonemerge) then
 		if accessData["bSetColor"] then
 			local colorDraw = accessData["vecColorOveride"] or ( ply.GetPlayerColor and ply:GetPlayerColor() or ply:GetNWVector("PlayerColor",Vector(1,1,1)) )
 			render.SetColorModulation( colorDraw[1],colorDraw[2],colorDraw[3] )
