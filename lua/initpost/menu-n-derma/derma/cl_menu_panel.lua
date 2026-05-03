@@ -123,7 +123,7 @@ function PANEL:InitializeMarkup()
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=125,205,255,255>ARXIV</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=125,205,255,255>VOTTUR's</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
@@ -181,8 +181,8 @@ function PANEL:Init()
     self.panelparrent:SetSize(ScrW() - bottomDock:GetWide()*1, ScrH())
     self.panelparrent.Paint = function(this, w, h) end
     
-    local gitHubURL = "https://github.com/ARCXIV/ARXIV-ZCITY"
-    local gitHubText = "GitHub: github.com/ARCXIV/ARXIV-ZCITY"
+    local gitHubURL = "https://github.com/RealZorf/Z-City"
+    local gitHubText = "https://github.com/RealZorf/Z-City"
 
     local git = vgui.Create("DLabel", bottomDock)
     git:Dock(BOTTOM)
@@ -203,7 +203,7 @@ function PANEL:Init()
     zteam:DockMargin(ScreenScale(10), 0, 0, 0)
     zteam:SetFont("ZCity_Tiny")
     zteam:SetTextColor(clr_gray)
-    zteam:SetText("Authors: ARCXIV")
+    zteam:SetText("Authors: VOTTUR")
     zteam:SetContentAlignment(4)
     zteam:SizeToContents()
 end
