@@ -130,7 +130,8 @@ else
 
     function SetNetVar(key, value, receiver, unreliable)
     	if (CheckBadType(key, value)) then return end
-    	--if (GetNetVar(key) == value) then return end
+
+		if receiver == nil and zb.net.globals[key] == value then return end
 		
     	zb.net.globals[key] = value
 
@@ -189,6 +190,7 @@ else
     	if (CheckBadType(key, value)) then return end
 
     	zb.net.locals[self] = zb.net.locals[self] or {}
+		if zb.net.locals[self][key] == value then return end
     	zb.net.locals[self][key] = value
 
     	net.Start("zbLocalVarSet")
@@ -210,11 +212,8 @@ else
 
 		zb.net.list[self] = zb.net.list[self] or {}
 
-		--if not hg.IsChanged(value, key, zb.net.list[self]) then return end
-
-    	if (zb.net.list[self][key] != value) then
-    		zb.net.list[self][key] = value 
-    	end
+		if receiver == nil and zb.net.list[self][key] == value then return end
+    	zb.net.list[self][key] = value
 		
 		self:SendNetVar(key, receiver)
 	end

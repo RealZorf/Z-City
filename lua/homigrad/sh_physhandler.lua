@@ -169,6 +169,18 @@ function IsReasonable( pos )
 end
 
 hook.Add("OnCrazyPhysics","crazy_physics",function(ent, physobj)--function(a,msg,c,d, r,g,b)
+	if ent.zcity_collision_proxy or IsValid(ent.hg_collision_source) then
+		if IsValid(physobj) then
+			physobj:EnableMotion(false)
+			physobj:Sleep()
+		end
+
+		ent:SetVelocity(vector_origin)
+		ent:SetLocalVelocity(vector_origin)
+		ent:SetLocalAngularVelocity(angle_zero)
+		return
+	end
+
 	local a = ent:GetPos()
 	local angles = ent:GetAngles()
 	local x, y, z = a.x, a.y, a.z

@@ -1111,7 +1111,11 @@ function SWEP:CustomThink()
 
     //if SERVER then
         local oldblocking = self:GetBlocking()
-        local blocking = ((CurTime() - self:GetStartedBlocking()) > 1 or oldblocking) and owner.organism and owner.organism.stamina[1] > 90 and !self:GetInAttack() and (self:GetAttackTime() - CurTime() - 0) < 0 and ((self:GetLastBlocked() + 3) < CurTime()) and self:CanBlock() and hg.KeyDown(owner, IN_ATTACK2)
+        local startedBlocking = self.GetStartedBlocking and self:GetStartedBlocking() or 0
+        local attackTime = self.GetAttackTime and self:GetAttackTime() or 0
+        local lastBlocked = self.GetLastBlocked and self:GetLastBlocked() or 0
+        local stamina = owner.organism and owner.organism.stamina and owner.organism.stamina[1] or 0
+        local blocking = ((CurTime() - startedBlocking) > 1 or oldblocking) and stamina > 90 and !self:GetInAttack() and (attackTime - CurTime()) < 0 and ((lastBlocked + 3) < CurTime()) and self:CanBlock() and hg.KeyDown(owner, IN_ATTACK2)
         --if self:CutDuct() then return end
         self:SetBlocking(blocking)
         

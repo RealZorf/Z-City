@@ -59,6 +59,8 @@ local function IsLooseOptimizableProp(ent)
 	if ent:GetCustomCollisionCheck() then return false end
 	if ent:IsPlayerHolding() then return false end
 	if constraint.HasConstraints(ent) then return false end
+	if ent:CreatedByMap() then return false end
+	if ent.zcity_collision_proxy or IsValid(ent.hg_collision_source) then return false end
 	if hg.GetLootBoxData and hg.GetLootBoxData(ent) then return false end
 
 	return true
