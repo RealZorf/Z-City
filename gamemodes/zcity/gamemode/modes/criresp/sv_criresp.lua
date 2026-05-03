@@ -23,17 +23,11 @@ function MODE:AssignTeams()
 	local numPlayers = #players
 	local numSWAT = 1
 
-	if numPlayers <= 4 then
-		numSWAT = 1
-	elseif numPlayers == 5 then
-		numSWAT = 2
-	elseif numPlayers == 6 then
-		numSWAT = 2
-	elseif numPlayers == 7 then
-		numSWAT = 3
-	elseif numPlayers >= 8 then -- возвращение великой elseif таблицы
-		numSWAT = 4
-	end
+	local ratio = 0.3
+	local numSWAT = math.floor(numPlayers * ratio + 0.5)
+
+	numSWAT = math.max(numSWAT, 1)
+	numSWAT = math.min(numSWAT, numPlayers - 2)
 
 	shuffle(players)
 
