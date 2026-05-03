@@ -40,8 +40,10 @@ end
 
 local IMMUNE_GROUPS = {
     "superadmin",
+    "developer",
     "headadmin",
-    "developer"
+    "admin",
+    "operator"
 }
 
 local function IsBanImmune(ply)
