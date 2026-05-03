@@ -121,15 +121,17 @@ SWEP.AnimsEvents = {
 	["reload_empty"] = {
 		[0.2] = function(self)
 			local ent = hg.CreateMag( self, Vector(0,-45,-12), self:GetRandomBodygroups() or "0", true)
-			for i = 0, ent:GetBoneCount() - 1 do
-				ent:ManipulateBoneScale(i, vector_origin)
+			if IsValid(ent) then
+				for i = 0, ent:GetBoneCount() - 1 do
+					ent:ManipulateBoneScale(i, vector_origin)
+				end
+
+				ent:ManipulateBoneScale(54, Vector(1,1,1))
+				ent:ManipulateBoneScale(55, Vector(1,1,1))
 			end
 
-			ent:ManipulateBoneScale(54, Vector(1,1,1))
-			ent:ManipulateBoneScale(55, Vector(1,1,1))
-
 			HideMag2(self:GetWM(),false)
-			local phys = ent:GetPhysicsObject()
+			local phys = IsValid(ent) and ent:GetPhysicsObject() or nil
 
 			if IsValid(phys) then
 				phys:AddAngleVelocity(Vector(-250,0,0))

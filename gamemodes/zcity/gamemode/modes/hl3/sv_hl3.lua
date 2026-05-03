@@ -9,6 +9,18 @@ local PLAYER_HULL_MAXS = Vector(16, 16, 72)
 local SPAWN_PROBE_UP = Vector(0, 0, 48)
 local SPAWN_PROBE_DOWN = Vector(0, 0, 256)
 local SPAWN_CLEARANCE = Vector(0, 0, 2)
+local SPAWN_SURFACE_UP = Vector(0, 0, 64)
+local SPAWN_SURFACE_DOWN = Vector(0, 0, 768)
+local SPAWN_SUPPORT_RADIUS_FACTOR = 4
+local MIN_SPAWN_SUPPORT_RADIUS_SQR = 1024 * 1024
+local GROUND_TRACE_MASK = MASK_PLAYERSOLID_BRUSHONLY or MASK_PLAYERSOLID
+local SPAWN_LINK_HEIGHT = Vector(0, 0, 32)
+local SPAWN_LINK_HULL_MINS = Vector(-12, -12, 0)
+local SPAWN_LINK_HULL_MAXS = Vector(12, 12, 52)
+local SPAWN_LINK_END_TOLERANCE_SQR = 36 * 36
+local MIN_TEAM_SPAWN_DIST_SQR = 1200 * 1200
+local MAX_TEAM_SPAWN_DIST_SQR = 3500 * 3500
+local TEAM_SPAWN_TARGET_PERCENTILE = 0.75
 local VORT_START_HEALTH = 150
 local VORT_HEALTH_CAP = 150
 local VORT_START_ARMOR = 100
@@ -32,8 +44,16 @@ local function vectorKey(vec)
 	return string.format("%.2f:%.2f:%.2f", vec.x, vec.y, vec.z)
 end
 
+local function extractSpawnPoint(point)
+	if isvector(point) then return point end
+	if istable(point) and isvector(point.pos) then
+		return point.pos
+	end
+end
+
 local function addUniquePoints(out, seen, points)
 	for _, point in ipairs(points or {}) do
+		point = extractSpawnPoint(point)
 		if not isvector(point) then continue end
 
 		local key = vectorKey(point)
@@ -44,8 +64,46 @@ local function addUniquePoints(out, seen, points)
 	end
 end
 
+local function isValidGroundTrace(tr)
+	if not tr or tr.StartSolid or tr.AllSolid or not tr.Hit then
+		return false
+	end
+
+	if tr.HitSky or tr.HitNoDraw or tr.HitTexture == "**empty**" then
+		return false
+	end
+
+	if IsValid(tr.Entity) and not tr.Entity:IsWorld() then
+		return false
+	end
+
+	return util.IsInWorld(tr.HitPos + SPAWN_CLEARANCE)
+end
+
+local function traceGroundSurface(pos, filterEnt, upVec, downVec)
+	if not isvector(pos) or not util.IsInWorld(pos) then return nil end
+
+	local tr = util.TraceLine({
+		start = pos + (upVec or SPAWN_SURFACE_UP),
+		endpos = pos - (downVec or SPAWN_SURFACE_DOWN),
+		mask = GROUND_TRACE_MASK,
+		filter = filterEnt
+	})
+
+	if not isValidGroundTrace(tr) then
+		return nil
+	end
+
+	return tr
+end
+
 local function isSafeSpawnPos(pos, filterEnt)
 	if not isvector(pos) then return false end
+	if not util.IsInWorld(pos + SPAWN_CLEARANCE) then return false end
+	if not util.IsInWorld(pos + Vector(0, 0, PLAYER_HULL_MAXS.z - 1)) then return false end
+
+	local groundTrace = traceGroundSurface(pos, filterEnt, Vector(0, 0, 8), Vector(0, 0, 24))
+	if not groundTrace then return false end
 
 	local tr = util.TraceHull({
 		start = pos + SPAWN_CLEARANCE,
@@ -56,35 +114,25 @@ local function isSafeSpawnPos(pos, filterEnt)
 		filter = filterEnt
 	})
 
-	return not tr.StartSolid and not tr.AllSolid
+	return not tr.StartSolid and not tr.AllSolid and not tr.Hit
 end
 
 local function snapSpawnToGround(pos, filterEnt)
+	pos = extractSpawnPoint(pos)
 	if not isvector(pos) then return nil end
 
-	local tr = util.TraceHull({
-		start = pos + SPAWN_PROBE_UP,
-		endpos = pos - SPAWN_PROBE_DOWN,
-		mins = PLAYER_HULL_MINS,
-		maxs = PLAYER_HULL_MAXS,
-		mask = MASK_PLAYERSOLID,
-		filter = filterEnt
-	})
+	local tr = traceGroundSurface(pos, filterEnt, SPAWN_PROBE_UP, SPAWN_PROBE_DOWN)
+	if not tr then return nil end
 
-	if tr.StartSolid or tr.AllSolid then
-		return nil
-	end
-
-	if tr.Hit then
-		return tr.HitPos
-	end
-
-	return pos
+	return tr.HitPos
 end
 
-local function findNearbySafeSpawn(pos)
-	local grounded = snapSpawnToGround(pos)
-	if grounded and isSafeSpawnPos(grounded) then
+local function findNearbySafeSpawn(pos, filterEnt)
+	pos = extractSpawnPoint(pos)
+	if not isvector(pos) then return nil end
+
+	local grounded = snapSpawnToGround(pos, filterEnt)
+	if grounded and isSafeSpawnPos(grounded, filterEnt) then
 		return grounded
 	end
 
@@ -92,13 +140,33 @@ local function findNearbySafeSpawn(pos)
 		local testPos = hg.tpPlayer(pos, nil, i, 0)
 		if not isvector(testPos) then continue end
 
-		local groundedTest = snapSpawnToGround(testPos)
-		if groundedTest and isSafeSpawnPos(groundedTest) then
+		local groundedTest = snapSpawnToGround(testPos, filterEnt)
+		if groundedTest and isSafeSpawnPos(groundedTest, filterEnt) then
 			return groundedTest
 		end
 	end
 
 	return nil
+end
+
+local function findSafeMapPoint(points, filterEnt)
+	local choices = {}
+
+	for _, point in ipairs(points or {}) do
+		local pos = extractSpawnPoint(point)
+		if isvector(pos) then
+			choices[#choices + 1] = pos
+		end
+	end
+
+	shuffle(choices)
+
+	for _, pos in ipairs(choices) do
+		local safePos = findNearbySafeSpawn(pos, filterEnt)
+		if safePos and isSafeSpawnPos(safePos, filterEnt) then
+			return safePos
+		end
+	end
 end
 
 local function collectSpawnCandidates()
@@ -111,8 +179,8 @@ local function collectSpawnCandidates()
 	addUniquePoints(candidates, seen, zb.TranslatePointsToVectors(zb.GetMapPoints("HMCD_TDM_CT") or {}))
 
 	if #candidates == 0 then
-		local fallback = zb:GetRandomSpawn()
-		if fallback then
+		local fallback = extractSpawnPoint(zb:GetRandomSpawn())
+		if isvector(fallback) then
 			candidates[1] = fallback
 		end
 	end
@@ -122,6 +190,133 @@ end
 
 local function distSqr(a, b)
 	return a:DistToSqr(b)
+end
+
+local function areSpawnPointsConnected(a, b)
+	if not isvector(a) or not isvector(b) then return false end
+	if not util.IsInWorld(a + SPAWN_LINK_HEIGHT) or not util.IsInWorld(b + SPAWN_LINK_HEIGHT) then
+		return false
+	end
+
+	local tr = util.TraceHull({
+		start = a + SPAWN_LINK_HEIGHT,
+		endpos = b + SPAWN_LINK_HEIGHT,
+		mins = SPAWN_LINK_HULL_MINS,
+		maxs = SPAWN_LINK_HULL_MAXS,
+		mask = GROUND_TRACE_MASK
+	})
+
+	if not tr.Hit then
+		return true
+	end
+
+	if tr.HitSky or tr.HitNoDraw or tr.HitTexture == "**empty**" then
+		return false
+	end
+
+	return isvector(tr.HitPos) and distSqr(tr.HitPos, b + SPAWN_LINK_HEIGHT) <= SPAWN_LINK_END_TOLERANCE_SQR
+end
+
+local function buildSpawnSupport(points)
+	local nearestDists = {}
+	local connectivityCache = {}
+
+	for index, point in ipairs(points) do
+		local nearestDist = math.huge
+
+		for otherIndex, otherPoint in ipairs(points) do
+			if index == otherIndex then continue end
+
+			local candidateDist = distSqr(point, otherPoint)
+			if candidateDist < nearestDist then
+				nearestDist = candidateDist
+			end
+		end
+
+		nearestDists[index] = nearestDist
+	end
+
+	local sortedNearest = table.Copy(nearestDists)
+	table.sort(sortedNearest)
+
+	local medianNearest = sortedNearest[math.max(1, math.ceil(#sortedNearest * 0.5))] or 0
+	if medianNearest == math.huge then
+		medianNearest = 0
+	end
+
+	local supportRadiusSqr = math.max(medianNearest * SPAWN_SUPPORT_RADIUS_FACTOR, MIN_SPAWN_SUPPORT_RADIUS_SQR)
+	local supportScores = {}
+
+	for index, point in ipairs(points) do
+		local supportCount = 0
+
+		for otherIndex, otherPoint in ipairs(points) do
+			if index == otherIndex then continue end
+
+			local keyA = math.min(index, otherIndex)
+			local keyB = math.max(index, otherIndex)
+			connectivityCache[keyA] = connectivityCache[keyA] or {}
+
+			local connected = connectivityCache[keyA][keyB]
+			if connected == nil then
+				connected = areSpawnPointsConnected(point, otherPoint)
+				connectivityCache[keyA][keyB] = connected
+			end
+
+			if connected and distSqr(point, otherPoint) <= supportRadiusSqr then
+				supportCount = supportCount + 1
+			end
+		end
+
+		supportScores[index] = supportCount
+	end
+
+	return supportScores, connectivityCache
+end
+
+local function isCachedConnected(connectivityCache, points, firstIndex, secondIndex)
+	local keyA = math.min(firstIndex, secondIndex)
+	local keyB = math.max(firstIndex, secondIndex)
+	connectivityCache[keyA] = connectivityCache[keyA] or {}
+
+	local connected = connectivityCache[keyA][keyB]
+	if connected == nil then
+		connected = areSpawnPointsConnected(points[firstIndex], points[secondIndex])
+		connectivityCache[keyA][keyB] = connected
+	end
+
+	return connected
+end
+
+local function buildSpawnDistanceGoal(points, connectivityCache)
+	local distances = {}
+
+	for index, point in ipairs(points) do
+		for otherIndex = index + 1, #points do
+			if not isCachedConnected(connectivityCache, points, index, otherIndex) then continue end
+
+			distances[#distances + 1] = distSqr(point, points[otherIndex])
+		end
+	end
+
+	if #distances == 0 then
+		for index, point in ipairs(points) do
+			for otherIndex = index + 1, #points do
+				distances[#distances + 1] = distSqr(point, points[otherIndex])
+			end
+		end
+	end
+
+	if #distances == 0 then
+		return MIN_TEAM_SPAWN_DIST_SQR
+	end
+
+	table.sort(distances)
+
+	local percentileIndex = math.Clamp(math.ceil(#distances * TEAM_SPAWN_TARGET_PERCENTILE), 1, #distances)
+	local goal = distances[percentileIndex] or MIN_TEAM_SPAWN_DIST_SQR
+
+	return math.Clamp(goal, MIN_TEAM_SPAWN_DIST_SQR, MAX_TEAM_SPAWN_DIST_SQR)
 end
 
 local function triangleAreaScore(a, b, c)
@@ -150,6 +345,11 @@ local function chooseBestTriangle(points)
 	if #points == 2 then return {points[1], points[2], points[1]} end
 
 	local sample = buildTriangleSample(points)
+	local supportScores, connectivityCache = buildSpawnSupport(sample)
+	local distanceGoal = buildSpawnDistanceGoal(sample, connectivityCache)
+	local bestDistanceMiss = math.huge
+	local bestIsolatedPoints = math.huge
+	local bestSupport = -1
 	local bestScoreMin = -1
 	local bestScoreArea = -1
 	local bestScoreTotal = -1
@@ -164,15 +364,27 @@ local function chooseBestTriangle(points)
 				local c = sample[k]
 				local ac = distSqr(a, c)
 				local bc = distSqr(b, c)
+				local isolatedPoints =
+					((supportScores[i] or 0) == 0 and 1 or 0) +
+					((supportScores[j] or 0) == 0 and 1 or 0) +
+					((supportScores[k] or 0) == 0 and 1 or 0)
+				local supportScore = (supportScores[i] or 0) + (supportScores[j] or 0) + (supportScores[k] or 0)
 				local minDist = math.min(ab, ac, bc)
+				local distanceMiss = math.max(distanceGoal - minDist, 0)
 				local totalDist = ab + ac + bc
 				local areaScore = triangleAreaScore(a, b, c)
 
 				if
-					minDist > bestScoreMin or
-					(minDist == bestScoreMin and areaScore > bestScoreArea) or
-					(minDist == bestScoreMin and areaScore == bestScoreArea and totalDist > bestScoreTotal)
+					distanceMiss < bestDistanceMiss or
+					(distanceMiss == bestDistanceMiss and isolatedPoints < bestIsolatedPoints) or
+					(distanceMiss == bestDistanceMiss and isolatedPoints == bestIsolatedPoints and minDist > bestScoreMin) or
+					(distanceMiss == bestDistanceMiss and isolatedPoints == bestIsolatedPoints and minDist == bestScoreMin and areaScore > bestScoreArea) or
+					(distanceMiss == bestDistanceMiss and isolatedPoints == bestIsolatedPoints and minDist == bestScoreMin and areaScore == bestScoreArea and totalDist > bestScoreTotal) or
+					(distanceMiss == bestDistanceMiss and isolatedPoints == bestIsolatedPoints and minDist == bestScoreMin and areaScore == bestScoreArea and totalDist == bestScoreTotal and supportScore > bestSupport)
 				then
+					bestDistanceMiss = distanceMiss
+					bestIsolatedPoints = isolatedPoints
+					bestSupport = supportScore
 					bestScoreMin = minDist
 					bestScoreArea = areaScore
 					bestScoreTotal = totalDist
@@ -251,7 +463,7 @@ function MODE:PlacePlayerAtTeamSpawn(ply)
 	self.TeamSpawnCounts[teamID] = (self.TeamSpawnCounts[teamID] or 0) + 1
 
 	local slot = self.TeamSpawnCounts[teamID]
-	local placeAnchor = findNearbySafeSpawn(anchor) or anchor
+	local placeAnchor = findNearbySafeSpawn(anchor, ply) or anchor
 	self.TeamSpawns[teamID] = placeAnchor
 
 	local placedPos = hg.tpPlayer(placeAnchor, ply, slot, 0)
@@ -259,13 +471,13 @@ function MODE:PlacePlayerAtTeamSpawn(ply)
 		return
 	end
 
-	local groundedPlacedPos = isvector(placedPos) and findNearbySafeSpawn(placedPos) or nil
+	local groundedPlacedPos = isvector(placedPos) and findNearbySafeSpawn(placedPos, ply) or nil
 	if groundedPlacedPos and isSafeSpawnPos(groundedPlacedPos, ply) then
 		ply:SetPos(groundedPlacedPos)
 		return
 	end
 
-	local fallback = findNearbySafeSpawn(zb:GetRandomSpawn())
+	local fallback = findNearbySafeSpawn(extractSpawnPoint(zb:GetRandomSpawn()), ply)
 	if fallback and isSafeSpawnPos(fallback, ply) then
 		ply:SetPos(fallback)
 	end
@@ -434,9 +646,10 @@ function MODE:GiveEquipment()
 					if snipersC > 0 and (#playersAlive > 6) and not ply.subClass then
 						snipersC = snipersC - 1
 						ply.subClass = "sniper"
-						local points = zb.GetMapPoints("HL2DM_SNIPERSPAWN")
-						if #points > 0 then
-							ply:SetPos(points[math.random(#points)].pos)
+						local points = zb.GetMapPoints("HL2DM_SNIPERSPAWN") or {}
+						local sniperSpawn = findSafeMapPoint(points, ply)
+						if sniperSpawn then
+							ply:SetPos(sniperSpawn)
 						end
 					end
 				else
@@ -453,9 +666,10 @@ function MODE:GiveEquipment()
 					if snipersR > 0 and (#playersAlive > 6) and not ply.subClass then
 						snipersR = snipersR - 1
 						ply.subClass = "sniper"
-						local points = zb.GetMapPoints("HL2DM_CROSSBOWSPAWN")
-						if #points > 0 then
-							ply:SetPos(points[math.random(#points)].pos)
+						local points = zb.GetMapPoints("HL2DM_CROSSBOWSPAWN") or {}
+						local sniperSpawn = findSafeMapPoint(points, ply)
+						if sniperSpawn then
+							ply:SetPos(sniperSpawn)
 						end
 					end
 				end

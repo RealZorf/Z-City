@@ -71,6 +71,50 @@ SWEP.lmagang2 = Angle(0,0,0)
 
 local vector_full = Vector(1,1,1)
 local vecPochtiZero = Vector(0.01,0.01,0.01)
+
+local function getValidTOZWM(self, fallback)
+	local model = fallback
+
+	if not IsValid(model) and self.GetWM then
+		local wm = self:GetWM()
+		if IsValid(wm) then
+			model = wm
+		end
+	end
+
+	return IsValid(model) and model or nil
+end
+
+local function getTOZMagazineBone(self, model)
+	if not IsValid(model) or not model.LookupBone then return nil end
+
+	local boneName = self.FakeMagDropBone
+	if isstring(boneName) and boneName ~= "" then
+		local bone = model:LookupBone(boneName)
+		if isnumber(bone) then return bone end
+	end
+
+	local bone = model:LookupBone("Magazine") or model:LookupBone("magazine")
+	if isnumber(bone) then return bone end
+
+	local boneCount = model.GetBoneCount and model:GetBoneCount() or nil
+	if isnumber(boneCount) and boneCount > 67 then
+		return 67
+	end
+end
+
+local function setTOZMagazineScale(self, vec, fallback)
+	local model = getValidTOZWM(self, fallback)
+	if not model then return false end
+
+	local bone = getTOZMagazineBone(self, model)
+	if not isnumber(bone) then return false end
+
+	model:ManipulateBoneScale(bone, vec)
+
+	return true
+end
+
 if CLIENT then
 	SWEP.FakeReloadEvents = {
 		[0.35] = function( self, timeMul )
@@ -81,14 +125,14 @@ if CLIENT then
 		[0.36] = function( self, timeMul )
 			if self:Clip1() < 1 then
 				hg.CreateMag( self, Vector(0,0,-50), "111111")
-				self:GetWM():ManipulateBoneScale(67, vecPochtiZero)
+				setTOZMagazineScale(self, vecPochtiZero)
 
 			end 
 		end,
 		[0.6] = function( self, timeMul )
 			if self:Clip1() < 1 then
 
-				self:GetWM():ManipulateBoneScale(67, vector_full)
+				setTOZMagazineScale(self, vector_full)
 			end
 		end,
 	}

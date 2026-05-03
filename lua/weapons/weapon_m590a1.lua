@@ -120,11 +120,21 @@ SWEP.AnimList = {
 	["start"] = "base_reload_start",
 	["cycle"] = "base_fire_cock_2",
 }
+
+local function setM590ShellScale(model, vec)
+	if not IsValid(model) then return end
+
+	local shellBone = model:LookupBone("Shell")
+	if not isnumber(shellBone) then return end
+
+	model:ManipulateBoneScale(shellBone, vec)
+end
+
 SWEP.AnimsEvents = {
 	["base_reload_insert"] = {
 		[0.0] = function(self, mdl)
 			self:EmitSound("weapons/arccw_ud/870/shell-insert-0"..math.random(1,3)..".ogg")
-			mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), Vector(1, 1, 1))
+			setM590ShellScale(mdl, Vector(1, 1, 1))
 			--
 			--self:GetWM():ManipulateBoneScale(47, vector_full)
 		end,
@@ -134,7 +144,7 @@ SWEP.AnimsEvents = {
 	},
 	["base_reload_end"] = {
 		[0.0] = function(self, mdl)
-			mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), vector_origin)
+			setM590ShellScale(mdl, vector_origin)
 		end,
 	},
 	["base_fire_cock_2"] = {
@@ -196,7 +206,7 @@ function SWEP:DrawPost() --!! оно на груди не видно а еще �
 end]]
 
 function SWEP:ModelCreated(mdl)
-	mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), vector_origin)
+	setM590ShellScale(mdl, vector_origin)
 end
 
 function SWEP:AnimationPost()
