@@ -43,6 +43,8 @@ local clawClasses = {
 	["headcrabzombie"] = 1.5
 }
 
+local addHandsGestureSafe
+
 local function canUseSuperadminGrab(ply)
 	return IsValid(ply) and ply:IsPlayer() and ply:IsUserGroup("superadmin")
 end
@@ -1621,7 +1623,7 @@ local vent = {
 	"doors/vent_open3.wav"
 }
 
-local function addHandsGestureSafe(owner, sequenceName)
+addHandsGestureSafe = function(owner, sequenceName)
 	if not IsValid(owner) then return end
 
 	local seqID = owner:LookupSequence(sequenceName)
