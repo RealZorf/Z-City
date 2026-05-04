@@ -472,38 +472,11 @@ power:addParam{type = ULib.cmds.PlayerArg, default = "^", ULib.cmds.optional}
 power:defaultAccess(ULib.ACCESS_SUPERADMIN)
 power:help("Toggles super power for a player.")
 
-function ulx.stamina(calling_ply, target_ply)
-    if CLIENT then return end
-
-    target_ply = IsValid(target_ply) and target_ply or calling_ply
-
-    local was_enabled = target_ply.ZCInfiniteStaminaEnabled == true
-
-    if not ZCRunHomigradCommand("stamina", calling_ply, target_ply) then
-        return
-    end
-
-    local is_enabled = target_ply.ZCInfiniteStaminaEnabled == true
-
-    if was_enabled == is_enabled then
-        return
-    end
-
-    ulx.fancyLogAdmin(calling_ply, is_enabled and "#A enabled infinite stamina for #T" or "#A disabled infinite stamina for #T", target_ply)
-end
-
-local stamina = ulx.command(ZCITY_CATEGORY_NAME, "ulx stamina", ulx.stamina)
-stamina:addParam{type = ULib.cmds.PlayerArg, default = "^", ULib.cmds.optional}
-stamina:defaultAccess(ULib.ACCESS_SUPERADMIN)
-stamina:help("Toggles infinite stamina for a player.")
-
 if SERVER then
     ULib.ucl.registerAccess("ulx power", {"superadmin", "headadmin"}, "Grants access to the ulx power command", "Command")
-    ULib.ucl.registerAccess("ulx stamina", {"superadmin", "headadmin"}, "Grants access to the ulx stamina command", "Command")
     timer.Simple(0, function()
         if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
 
         ULib.ucl.groupAllow("headadmin", "ulx power")
-        ULib.ucl.groupAllow("headadmin", "ulx stamina")
     end)
 end

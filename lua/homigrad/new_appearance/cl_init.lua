@@ -179,23 +179,28 @@ local function IsLocalFirstPersonAppearanceTarget(ply, ent)
 	local lply = LocalPlayer()
 	if not IsValid(lply) then return false end
 
-	local spectTarget = lply:Alive() and lply or lply:GetNWEntity("spect", lply)
-	if not IsValid(spectTarget) then spectTarget = lply end
-
-	local viewEnt = GetViewEntity()
-	if not IsValid(viewEnt) then return false end
-
 	local normalizedTarget = NormalizeAppearanceOwner(ent)
 	if not IsValid(normalizedTarget) then
 		normalizedTarget = NormalizeAppearanceOwner(ply)
 	end
 
-	local normalizedSpect = NormalizeAppearanceOwner(spectTarget)
-	local normalizedView = NormalizeAppearanceOwner(viewEnt)
+	if not IsValid(normalizedTarget) then return false end
 
-	return IsValid(normalizedTarget)
-		and normalizedTarget == normalizedSpect
-		and normalizedView == normalizedSpect
+	if lply:Alive() then
+		return GetViewEntity() == lply and normalizedTarget == NormalizeAppearanceOwner(lply)
+	end
+
+	if lply:GetNWInt("viewmode", 0) ~= 1 then return false end
+
+	local spectTarget = NormalizeAppearanceOwner(lply:GetNWEntity("spect", lply))
+	if not IsValid(spectTarget) then return false end
+
+	if normalizedTarget ~= spectTarget then return false end
+
+	local viewEnt = GetViewEntity()
+	if viewEnt == lply then return true end
+
+	return IsValid(viewEnt) and NormalizeAppearanceOwner(viewEnt) == spectTarget
 end
 
 function RenderAccessories(ply, accessories, setup)

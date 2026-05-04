@@ -155,18 +155,6 @@ if SERVER then
         return user_group == "superadmin" or user_group == "headadmin"
     end
 
-    local function ZC_HasPermanentInfiniteStamina(ply)
-        if not IsValid(ply) then return false end
-        if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
-
-        local user_group = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
-        return user_group == "superadmin"
-    end
-
-    local function ZC_HasInfiniteStamina(ply)
-        return IsValid(ply) and (ply.ZCInfiniteStaminaEnabled == true or ZC_HasPermanentInfiniteStamina(ply))
-    end
-
     local function ZC_HasPowerMelee(attacker)
         return IsValid(attacker)
             and attacker:IsPlayer()
@@ -321,16 +309,6 @@ if SERVER then
         ply.organism.recoilmul = ZC_POWER_RECOIL_MUL
     end
 
-    local function ZC_ApplyInfiniteStaminaState(ply)
-        if not IsValid(ply) or not ply.organism or not ply.organism.stamina then return end
-
-        local stamina = ply.organism.stamina
-
-        stamina.sub = 0
-        stamina.subadd = 0
-        stamina[1] = stamina.max or stamina.range or stamina[1] or 0
-    end
-
     local function ZC_RemovePowerState(ply)
         if not IsValid(ply) or not ply.organism then return end
 
@@ -455,64 +433,6 @@ if SERVER then
         end
     end,2,"[player]"}
 
-    COMMANDS.stamina = {function(ply, args)
-        if not ZC_CanUsePowerCommand(ply) then
-            if IsValid(ply) then
-                ply:Notify("this command is only for the usergroups superadmin and headadmin")
-            end
-            return
-        end
-
-        local target_ply = ply
-
-        if args[1] then
-            local resolved_target, resolve_error = ZC_FindSinglePlayerByName(table.concat(args, " "))
-
-            if not IsValid(resolved_target) then
-                ply:Notify(resolve_error)
-                return
-            end
-
-            target_ply = resolved_target
-        end
-
-        if ZC_HasPermanentInfiniteStamina(target_ply) then
-            target_ply.ZCInfiniteStaminaEnabled = nil
-            ZC_ApplyInfiniteStaminaState(target_ply)
-
-            if target_ply == ply then
-                ply:Notify("infinite stamina is permanently enabled for the superadmin usergroup")
-            else
-                ply:Notify("infinite stamina is permanently enabled for " .. target_ply:Name() .. " because they are superadmin")
-                target_ply:Notify("your infinite stamina is permanently enabled because you are superadmin")
-            end
-
-            return
-        end
-
-        local enable_stamina = not ZC_HasInfiniteStamina(target_ply)
-
-        target_ply.ZCInfiniteStaminaEnabled = enable_stamina or nil
-
-        if enable_stamina then
-            ZC_ApplyInfiniteStaminaState(target_ply)
-
-            if target_ply == ply then
-                ply:Notify("infinite stamina enabled")
-            else
-                ply:Notify("infinite stamina enabled for " .. target_ply:Name())
-                target_ply:Notify("infinite stamina enabled by " .. ply:Name())
-            end
-        else
-            if target_ply == ply then
-                ply:Notify("infinite stamina disabled")
-            else
-                ply:Notify("infinite stamina disabled for " .. target_ply:Name())
-                target_ply:Notify("infinite stamina disabled by " .. ply:Name())
-            end
-        end
-    end,2,"[player]"}
-
     hook.Add("PlayerSpawn", "ZC_GodModelPersist", function(ply)
         if not IsValid(ply) or not ply.organism or not ply.organism.godmode then return end
 
@@ -537,15 +457,6 @@ if SERVER then
 
         if not is_power_melee_hit then return end
         ZC_TriggerPowerMeleeKnockback(attacker, target, victim, dmginfo)
-    end)
-
-    hook.Add("PlayerSpawn", "ZC_InfiniteStaminaPersist", function(ply)
-        if not IsValid(ply) or not ZC_HasInfiniteStamina(ply) then return end
-
-        timer.Simple(0, function()
-            if not IsValid(ply) or not ZC_HasInfiniteStamina(ply) then return end
-            ZC_ApplyInfiniteStaminaState(ply)
-        end)
     end)
 
 	COMMANDS.zc_cloak = {function(ply)

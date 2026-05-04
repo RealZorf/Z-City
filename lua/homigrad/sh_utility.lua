@@ -879,20 +879,8 @@ local IsValid = IsValid
 	end
 --//
 --\\ Calculate Weight 
-	function hg.HasUnlimitedMovement(ply)
-		if not IsValid(ply) or not ply:IsPlayer() then return false end
-		if ply.IsSuperAdmin and ply:IsSuperAdmin() then return true end
-		if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return true end
-
-		local userGroup = string.lower((ply.GetUserGroup and ply:GetUserGroup()) or "")
-		return userGroup == "superadmin"
-	end
 
 	function hg.CalculateWeight(ply,maxweight)
-		if hg.HasUnlimitedMovement(ply) then
-			return 1
-		end
-
 		local weight = 0
 
 		local weps = ply:GetWeapons()
