@@ -11,7 +11,6 @@ local allESP = {}
 local lastToggle = {}
 local liveESPUserGroups = {
 	["superadmin"] = true,
-	["headadmin"] = true,
 	["developer"] = true
 }
 local ESP_PDATA_KEY = "zcity_live_esp_enabled"
@@ -53,7 +52,7 @@ end
 
 function ESP:CanUseESP( ply )
 	if !IsValid( ply ) then return false end
-	return ply:IsAdmin() or self:CanUsePersistentLiveESP( ply )
+	return self:CanUsePersistentLiveESP( ply )
 end
 
 function ESP:LoadPreference( ply )
