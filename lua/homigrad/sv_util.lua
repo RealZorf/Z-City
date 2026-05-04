@@ -409,7 +409,6 @@ hook.Add("Player Think", "homigrad-dropholstered", function(ply)
 	if (ply.thinkdropwep or 0) > CurTime() then return end
 	ply.thinkdropwep = CurTime() + 0.1
 	if ply.organism and ply.organism.allowholster then return end
-	if ply.IsUserGroup and ply:IsUserGroup("superadmin") then return end
 
 	local activewep = ply:GetActiveWeapon()
 	local weps = ply:GetWeapons()
