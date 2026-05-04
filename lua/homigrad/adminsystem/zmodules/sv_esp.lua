@@ -1,4 +1,3 @@
-
 if !hg or !hg.AdminSystem then return end
 
 local AS = hg.AdminSystem
@@ -9,14 +8,18 @@ local espPlayers = {}
 local syncQueue = {}
 local allESP = {}
 local lastToggle = {}
+
 local liveESPUserGroups = {
 	["superadmin"] = true,
 	["developer"] = true
 }
+
 local ESP_PDATA_KEY = "zcity_live_esp_enabled"
 
-local function getSteamKey( ply )
-	return ply:SteamID64() or ply:SteamID()
+-- 🧠 FIX: use ONE consistent identifier (SteamID64 only)
+local function getSteamKey(ply)
+	if !IsValid(ply) then return nil end
+	return ply:SteamID64()
 end
 
 function ESP:Init()
@@ -26,8 +29,10 @@ function ESP:Init()
 	self:SetupCommands()
 
 	timer.Create("AS_AllESP_Sync", 1, 0, function()
-		for steamId, enabled in pairs(allESP) do
-			local ply = player.GetBySteamID64(steamId) or player.GetBySteamID(steamId)
+		for steamId, _ in pairs(allESP) do
+			local ply = player.GetBySteamID64(steamId)
+
+			-- 🧠 FIX: don't depend on fallback SteamID format
 			if !IsValid(ply) or !ply:IsSuperAdmin() then
 				allESP[steamId] = nil
 			end
@@ -39,44 +44,46 @@ function ESP:Init()
 			if IsValid(ply) then
 				self:DoSync(ply)
 			end
-
 			syncQueue[steamId] = nil
 		end
 	end)
 end
 
-function ESP:CanUsePersistentLiveESP( ply )
-	if !IsValid( ply ) then return false end
-	return liveESPUserGroups[string.lower( ply:GetUserGroup() or "" )] == true
+-- 🧠 unchanged logic, just safer string handling
+function ESP:CanUsePersistentLiveESP(ply)
+	if !IsValid(ply) then return false end
+	return liveESPUserGroups[string.lower(ply:GetUserGroup() or "")] == true
 end
 
-function ESP:CanUseESP( ply )
-	if !IsValid( ply ) then return false end
-	return self:CanUsePersistentLiveESP( ply )
+function ESP:CanUseESP(ply)
+	if !IsValid(ply) then return false end
+	return self:CanUsePersistentLiveESP(ply)
 end
 
-function ESP:LoadPreference( ply )
-	if !IsValid( ply ) or !self:CanUsePersistentLiveESP( ply ) then return false end
-	return ply:GetPData( ESP_PDATA_KEY, "0" ) == "1"
+function ESP:LoadPreference(ply)
+	if !IsValid(ply) or !self:CanUsePersistentLiveESP(ply) then return false end
+	return ply:GetPData(ESP_PDATA_KEY, "0") == "1"
 end
 
-function ESP:SavePreference( ply, enabled )
-	if !IsValid( ply ) or !self:CanUsePersistentLiveESP( ply ) then return end
-	ply:SetPData( ESP_PDATA_KEY, enabled and "1" or "0" )
+function ESP:SavePreference(ply, enabled)
+	if !IsValid(ply) or !self:CanUsePersistentLiveESP(ply) then return end
+	ply:SetPData(ESP_PDATA_KEY, enabled and "1" or "0")
 end
 
-function ESP:IsInAdminMode( ply )
-	if !IsValid( ply ) then return false end
-	local steamId = getSteamKey( ply )
-	return adminMode[steamId] or false
+function ESP:IsInAdminMode(ply)
+	if !IsValid(ply) then return false end
+
+	local steamId = getSteamKey(ply)
+	return steamId and adminMode[steamId] or false
 end
 
-function ESP:ToggleAdminMode( ply )
+function ESP:ToggleAdminMode(ply)
 	if !IsValid(ply) then return false end
 	if !ply:IsAdmin() then return false end
 	if ply:IsSuperAdmin() then return false end
 
-	local steamId = getSteamKey( ply )
+	local steamId = getSteamKey(ply)
+	if !steamId then return false end
 
 	if adminMode[steamId] then
 		adminMode[steamId] = nil
@@ -91,54 +98,67 @@ function ESP:ToggleAdminMode( ply )
 	return true
 end
 
-function ESP:ToggleESP( ply )
-	if !IsValid( ply ) then return false end
-	if !self:CanUseESP( ply ) then return false end
+function ESP:ToggleESP(ply)
+	if !IsValid(ply) then return false end
+	if !self:CanUseESP(ply) then return false end
 
-	local steamId = getSteamKey( ply )
+	local steamId = getSteamKey(ply)
+	if !steamId then return false end
 
 	if espPlayers[steamId] then
 		espPlayers[steamId] = nil
-		self:SavePreference( ply, false )
-		self:QueueSync( ply )
+		self:SavePreference(ply, false)
+		self:QueueSync(ply)
 		return false
 	end
 
 	espPlayers[steamId] = true
-	self:SavePreference( ply, true )
-	self:QueueSync( ply )
+	self:SavePreference(ply, true)
+	self:QueueSync(ply)
 	return true
 end
 
-function ESP:IsEnabled( ply )
-	if !IsValid( ply ) or !self:CanUseESP( ply ) then return false end
+function ESP:IsEnabled(ply)
+	if !IsValid(ply) or !self:CanUseESP(ply) then return false end
 
-	local steamId = getSteamKey( ply )
-	if ply:IsSuperAdmin() and allESP[steamId] then return true end
+	local steamId = getSteamKey(ply)
+	if !steamId then return false end
+
+	-- 🧠 FIX: clearer ALL ESP override logic
+	if ply:IsSuperAdmin() and allESP[steamId] then
+		return true
+	end
 
 	return espPlayers[steamId] or false
 end
 
-function ESP:QueueSync( ply )
-	if !IsValid( ply ) then return end
-	local steamId = getSteamKey( ply )
+function ESP:QueueSync(ply)
+	if !IsValid(ply) then return end
+
+	local steamId = getSteamKey(ply)
+	if !steamId then return end
+
 	syncQueue[steamId] = ply
 end
 
-function ESP:IsAllESP( ply )
-	if !IsValid( ply ) then return false end
+function ESP:IsAllESP(ply)
+	if !IsValid(ply) then return false end
 
-	local steamId = getSteamKey( ply )
+	local steamId = getSteamKey(ply)
+	if !steamId then return false end
+
 	return ply:IsSuperAdmin() and allESP[steamId] or false
 end
 
-function ESP:DoSync( ply )
-	if !IsValid( ply ) then return end
+function ESP:DoSync(ply)
+	if !IsValid(ply) then return end
 
-	local steamId = getSteamKey( ply )
-	local enabled = self:IsEnabled( ply )
+	local steamId = getSteamKey(ply)
+	if !steamId then return end
+
+	local enabled = self:IsEnabled(ply)
 	local inAdminMode = adminMode[steamId] or false
-	local isAllESP = self:IsAllESP( ply )
+	local isAllESP = self:IsAllESP(ply)
 
 	net.Start("AS_Sync")
 	net.WriteBool(enabled or isAllESP)
@@ -153,51 +173,51 @@ function ESP:SetupHooks()
 	hook.Remove("PlayerInitialSpawn", "AS_ESP_LoadPreference")
 	hook.Remove("PlayerSpawn", "AS_ESP_PlayerSpawnSync")
 
-	hook.Add("PlayerChangedTeam", "AS_TeamCheck", function( ply, oldTeam, newTeam )
-		if !IsValid( ply ) then return end
-		if !self:CanUseESP( ply ) then return end
+	hook.Add("PlayerChangedTeam", "AS_TeamCheck", function(ply, oldTeam, newTeam)
+		if !IsValid(ply) then return end
+		if !self:CanUseESP(ply) then return end
 
-		if newTeam != TEAM_SPECTATOR and self:IsInAdminMode( ply ) then
-			local steamId = getSteamKey( ply )
-			adminMode[steamId] = nil
+		if newTeam != TEAM_SPECTATOR and self:IsInAdminMode(ply) then
+			local steamId = getSteamKey(ply)
+			if steamId then adminMode[steamId] = nil end
 		end
 
-		self:QueueSync( ply )
+		self:QueueSync(ply)
 	end)
 
-	hook.Add("PlayerDisconnected", "AS_Cleanup", function( ply )
-		if !IsValid( ply ) then return end
+	hook.Add("PlayerDisconnected", "AS_Cleanup", function(ply)
+		if !IsValid(ply) then return end
 
-		local steamId = getSteamKey( ply )
+		local steamId = getSteamKey(ply)
+		if !steamId then return end
+
 		espPlayers[steamId] = nil
 		adminMode[steamId] = nil
 		lastToggle[steamId] = nil
 		syncQueue[steamId] = nil
 	end)
 
-	hook.Add("PlayerInitialSpawn", "AS_ESP_LoadPreference", function( ply )
-		timer.Simple( 1, function()
-			if !IsValid( ply ) then return end
+	hook.Add("PlayerInitialSpawn", "AS_ESP_LoadPreference", function(ply)
+		timer.Simple(1, function()
+			if !IsValid(ply) then return end
 
-			local steamId = getSteamKey( ply )
-			if ESP:LoadPreference( ply ) then
-				espPlayers[steamId] = true
-			else
-				espPlayers[steamId] = nil
-			end
+			local steamId = getSteamKey(ply)
+			if !steamId then return end
 
-			ESP:QueueSync( ply )
-		end )
+			espPlayers[steamId] = ESP:LoadPreference(ply) and true or nil
+
+			ESP:QueueSync(ply)
+		end)
 	end)
 
-	hook.Add("PlayerSpawn", "AS_ESP_PlayerSpawnSync", function( ply )
-		if !IsValid( ply ) then return end
-		if !ESP:CanUseESP( ply ) then return end
+	hook.Add("PlayerSpawn", "AS_ESP_PlayerSpawnSync", function(ply)
+		if !IsValid(ply) then return end
+		if !ESP:CanUseESP(ply) then return end
 
-		timer.Simple( 0, function()
-			if !IsValid( ply ) then return end
-			ESP:QueueSync( ply )
-		end )
+		timer.Simple(0, function()
+			if !IsValid(ply) then return end
+			ESP:QueueSync(ply)
+		end)
 	end)
 end
 
@@ -208,7 +228,7 @@ function ESP:SetupCommands()
 		concommand.Remove("zb_allesp")
 	end
 
-	concommand.Add("zb_adminmode", function( ply )
+	concommand.Add("zb_adminmode", function(ply)
 		if !IsValid(ply) then return end
 		if !ply:IsAdmin() then return end
 		if ply:IsSuperAdmin() then return end
@@ -216,25 +236,30 @@ function ESP:SetupCommands()
 		ESP:ToggleAdminMode(ply)
 	end)
 
-	concommand.Add("zb_admesp", function( ply )
-		if !IsValid( ply ) then return end
-		if !ESP:CanUseESP( ply ) then return end
+	concommand.Add("zb_admesp", function(ply)
+		if !IsValid(ply) then return end
+		if !ESP:CanUseESP(ply) then return end
 
-		local steamId = getSteamKey( ply )
+		local steamId = getSteamKey(ply)
+		if !steamId then return end
+
 		local curTime = CurTime()
 		if (lastToggle[steamId] or 0) > curTime then return end
 		lastToggle[steamId] = curTime + 0.3
 
-		local enabled = ESP:ToggleESP( ply )
+		local enabled = ESP:ToggleESP(ply)
 		ply:ChatPrint(enabled and "ESP | Enabled" or "ESP | Disabled")
 	end)
 
-	concommand.Add("zb_allesp", function( ply, cmd, args )
-		if !IsValid( ply ) or !ply:IsSuperAdmin() then return end
+	concommand.Add("zb_allesp", function(ply, cmd, args)
+		if !IsValid(ply) or !ply:IsSuperAdmin() then return end
 
-		local steamId = getSteamKey( ply )
+		local steamId = getSteamKey(ply)
+		if !steamId then return end
+
 		local enable = tonumber(args[1] or "0") == 1
 		allESP[steamId] = enable or nil
+
 		ESP:QueueSync(ply)
 	end)
 end
