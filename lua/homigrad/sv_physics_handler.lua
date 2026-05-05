@@ -53,8 +53,25 @@ local propClasses = {
 	"prop_physics_multiplayer"
 }
 
+local function IsPermaAllProp(ent)
+	if not IsValid(ent) then return false end
+
+	if ent.PermaID ~= nil then return true end
+	if ent.PermaAllNormalPropFix then return true end
+	if ent.PermaAllStaticStyle then return true end
+	if ent:GetNWBool("IsPermaEntity", false) then return true end
+	if ent:GetNWString("_PermaUID", "") ~= "" then return true end
+
+	return false
+end
+
 local function IsLooseOptimizableProp(ent)
 	if not IsValid(ent) then return false end
+
+	-- Do not touch PermaAll entities.
+	-- PermaAll already manages frozen/collision state itself.
+	if IsPermaAllProp(ent) then return false end
+
 	if IsValid(ent:GetParent()) then return false end
 	if ent:GetCustomCollisionCheck() then return false end
 	if ent:IsPlayerHolding() then return false end
