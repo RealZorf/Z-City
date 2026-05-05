@@ -1,6 +1,6 @@
 # VOTTUR'S ZCITY
 
-![votturs](https://media.discordapp.net/attachments/1500507441677209702/1501234933417377944/votturs.gif?ex=69fb557b&is=69fa03fb&hm=e01ed235db59788c46511af177cb21411e90d16271fbc933c237fe407841f37f&=))
+![votturs](https://media.discordapp.net/attachments/1500507441677209702/1501234933417377944/votturs.gif?ex=69fb557b&is=69fa03fb&hm=e01ed235db59788c46511af177cb21411e90d16271fbc933c237fe407841f37f&=)
 
 ## About
 
