@@ -43,4 +43,18 @@ function CLASS.On(self)
 	self:SetNWString("PlayerName", table.Random(vortNames))
 end
 
+if SERVER then
+	local vort_phrases = {}
+
+	for i = 1, 30 do
+		vort_phrases[i] = string.format("vortigaunt/06_%05d.wav", i)
+	end
+
+	hook.Add("HG_ReplacePhrase", "vortigaunt_phrase", function(ply, phrase, muffed, pitch)
+		if IsValid(ply) and ply.PlayerClassName == "Vortigaunt" then
+			return ply, vort_phrases[math.random(#vort_phrases)], muffed, pitch
+		end
+	end)
+end
+
 return CLASS
