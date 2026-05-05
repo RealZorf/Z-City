@@ -1,6 +1,7 @@
 local MODE = MODE
 
 local VORT_MODEL = "models/player/vortigaunt.mdl"
+local VORT_ALLOWED_WEAPON = "vort_swep"
 local VORT_TEAM = 2
 local TEAM_ORDER = {0, 1, VORT_TEAM}
 local MAX_TRIANGLE_POINTS = 40
@@ -23,15 +24,27 @@ local MAX_TEAM_SPAWN_DIST_SQR = 3500 * 3500
 local TEAM_SPAWN_TARGET_PERCENTILE = 0.75
 local VORT_START_HEALTH = 150
 local VORT_HEALTH_CAP = 150
-local VORT_START_ARMOR = 100
-local VORT_ARMOR_CAP = 140
+local VORT_START_ARMOR = 0
+local VORT_ARMOR_CAP = 0
 local VORT_REGEN_DELAY = 5
 local VORT_REGEN_INTERVAL = 1
 local VORT_REGEN_HEALTH = 2
-local VORT_REGEN_ARMOR = 5
+local VORT_REGEN_ARMOR = 0
 local VORT_SUPPORT_RADIUS_SQR = 320 * 320
 local VORT_SUPPORT_HEALTH_BONUS = 1
-local VORT_SUPPORT_ARMOR_BONUS = 2
+local VORT_SUPPORT_ARMOR_BONUS = 0
+local VORT_ESSENCE_START = 35
+local VORT_ESSENCE_CAP = 100
+local VORT_PASSIVE_ESSENCE = 1.25
+local VORT_CHORUS_ESSENCE = 4
+local VORT_CRITICAL_ESSENCE = 3
+local VORT_CHORUS_RADIUS_SQR = 460 * 460
+local VORT_SHIELD_DAMAGE_RATIO = 0.22
+local VORT_SHIELD_ESSENCE_RATIO = 0.55
+local VORT_DEATH_ECHO_MIN_ESSENCE = 45
+local VORT_DEATH_ECHO_RADIUS = 360
+local VORT_DEATH_ECHO_DAMAGE = 72
+local VORT_DEATH_ECHO_HEAL = 22
 
 local function shuffle(tbl)
 	for i = #tbl, 2, -1 do
@@ -405,6 +418,69 @@ local function isLiveVort(ply)
 		and not (ply.organism and ply.organism.incapacitated)
 end
 
+local function isActiveHL3Round()
+	return CurrentRound and CurrentRound() == MODE and zb and zb.ROUND_STATE == 1
+end
+
+local function enforceVortRoundRestrictions(ply)
+	if not IsValid(ply) or ply:Team() ~= VORT_TEAM then return end
+
+	if ply:Alive() and not ply:HasWeapon(VORT_ALLOWED_WEAPON) then
+		ply:Give(VORT_ALLOWED_WEAPON)
+	end
+
+	for _, wep in ipairs(ply:GetWeapons()) do
+		local class = IsValid(wep) and wep:GetClass()
+		if class and class ~= VORT_ALLOWED_WEAPON then
+			ply:StripWeapon(class)
+		end
+	end
+
+	if ply.RemoveAllAmmo then
+		ply:RemoveAllAmmo()
+	end
+
+	if ply:Armor() ~= 0 then
+		ply:SetArmor(0)
+	end
+
+	if ply:Alive() and ply:HasWeapon(VORT_ALLOWED_WEAPON) then
+		local active = ply:GetActiveWeapon()
+		if not IsValid(active) or active:GetClass() ~= VORT_ALLOWED_WEAPON then
+			ply:SelectWeapon(VORT_ALLOWED_WEAPON)
+		end
+	end
+end
+
+local function getVortEssence(ply)
+	if not IsValid(ply) then return 0 end
+	return ply:GetNWFloat("ZC_HL3_VortEssence", 0)
+end
+
+local function getVortEssenceMax(ply)
+	if not IsValid(ply) then return VORT_ESSENCE_CAP end
+	return ply:GetNWFloat("ZC_HL3_VortEssenceMax", VORT_ESSENCE_CAP)
+end
+
+local function setVortEssence(ply, amount)
+	if not IsValid(ply) then return 0 end
+	local maxEssence = getVortEssenceMax(ply)
+	local value = math.Clamp(amount or 0, 0, maxEssence)
+	ply:SetNWFloat("ZC_HL3_VortEssence", value)
+	return value
+end
+
+local function addVortEssence(ply, amount)
+	if not isLiveVort(ply) then return 0 end
+	return setVortEssence(ply, getVortEssence(ply) + (amount or 0))
+end
+
+local function combatCenter(ent)
+	if not IsValid(ent) then return vector_origin end
+	if ent.WorldSpaceCenter then return ent:WorldSpaceCenter() end
+	return ent:GetPos()
+end
+
 local function resolvePlayerEntity(ent)
 	if not IsValid(ent) then return nil end
 
@@ -509,6 +585,11 @@ function MODE:ApplyVortBattleState(ply)
 	ply:SetNWBool("ZC_HL3_Vort", true)
 	ply:SetNWInt("ZC_HL3_VortHealthCap", VORT_HEALTH_CAP)
 	ply:SetNWInt("ZC_HL3_VortArmorCap", VORT_ARMOR_CAP)
+	ply:SetNWFloat("ZC_HL3_VortEssenceMax", VORT_ESSENCE_CAP)
+	ply:SetNWFloat("ZC_HL3_VortEssence", math.max(ply:GetNWFloat("ZC_HL3_VortEssence", 0), VORT_ESSENCE_START))
+	ply:SetNWFloat("ZC_HL3_NextRiftAt", ply:GetNWFloat("ZC_HL3_NextRiftAt", 0))
+	ply:SetNWFloat("ZC_HL3_NextBlinkAt", ply:GetNWFloat("ZC_HL3_NextBlinkAt", 0))
+	ply:SetNWInt("ZC_HL3_VortChorusCount", 0)
 
 	if ply.SetMaxHealth then
 		ply:SetMaxHealth(VORT_HEALTH_CAP)
@@ -517,6 +598,7 @@ function MODE:ApplyVortBattleState(ply)
 	ply:SetHealth(VORT_START_HEALTH)
 	ply:SetArmor(VORT_START_ARMOR)
 	ply.ZCHL3NextRegenAt = CurTime() + VORT_REGEN_DELAY
+	enforceVortRoundRestrictions(ply)
 end
 
 function MODE:ClearVortBattleState(ply)
@@ -525,6 +607,11 @@ function MODE:ClearVortBattleState(ply)
 	ply:SetNWBool("ZC_HL3_Vort", false)
 	ply:SetNWInt("ZC_HL3_VortHealthCap", 0)
 	ply:SetNWInt("ZC_HL3_VortArmorCap", 0)
+	ply:SetNWFloat("ZC_HL3_VortEssence", 0)
+	ply:SetNWFloat("ZC_HL3_VortEssenceMax", 0)
+	ply:SetNWFloat("ZC_HL3_NextRiftAt", 0)
+	ply:SetNWFloat("ZC_HL3_NextBlinkAt", 0)
+	ply:SetNWInt("ZC_HL3_VortChorusCount", 0)
 	ply.ZCHL3NextRegenAt = nil
 end
 
@@ -608,16 +695,14 @@ function MODE:GiveEquipment()
 				ply:SetNWString("PlayerRole", "Vortigaunt")
 				ply:SetPlayerClass("Vortigaunt")
 				ply:StripWeapons()
+				ply:RemoveAllAmmo()
 				ply:SetModel(VORT_MODEL)
 				ply:SetNetVar("Accessories", "")
 				self:ClearVortBattleState(ply)
-				local beam = ply:Give("vort_swep")
-				local hands = ply:Give("weapon_hands_sh")
+				local beam = ply:Give(VORT_ALLOWED_WEAPON)
 				self:ApplyVortBattleState(ply)
 				if IsValid(beam) then
-					ply:SelectWeapon("vort_swep")
-				elseif IsValid(hands) then
-					ply:SelectWeapon("weapon_hands_sh")
+					ply:SelectWeapon(VORT_ALLOWED_WEAPON)
 				end
 			else
 				self:ClearVortBattleState(ply)
@@ -687,9 +772,7 @@ function MODE:GiveEquipment()
 
 				if ply:Team() == VORT_TEAM then
 					self:ApplyVortBattleState(ply)
-					if ply:HasWeapon("vort_swep") then
-						ply:SelectWeapon("vort_swep")
-					end
+					enforceVortRoundRestrictions(ply)
 				end
 
 				ply.noSound = false
@@ -708,34 +791,84 @@ function MODE:RoundThink()
 
 	local aliveVorts = {}
 	for _, ply in player.Iterator() do
+		if IsValid(ply) and ply:Team() == VORT_TEAM then
+			enforceVortRoundRestrictions(ply)
+		end
+
 		if isLiveVort(ply) then
 			aliveVorts[#aliveVorts + 1] = ply
 		end
 	end
 
 	for _, ply in ipairs(aliveVorts) do
-		if (ply.ZCHL3NextRegenAt or 0) > CurTime() then continue end
-
 		local healthCap = ply:GetNWInt("ZC_HL3_VortHealthCap", VORT_HEALTH_CAP)
 		local armorCap = ply:GetNWInt("ZC_HL3_VortArmorCap", VORT_ARMOR_CAP)
-		if ply:Health() >= healthCap and ply:Armor() >= armorCap then continue end
+		local nearbyVorts = 0
 
-		local supportBonus = 0
 		for _, other in ipairs(aliveVorts) do
 			if other == ply then continue end
-			if other:GetPos():DistToSqr(ply:GetPos()) <= VORT_SUPPORT_RADIUS_SQR then
-				supportBonus = 1
-				break
+			if other:GetPos():DistToSqr(ply:GetPos()) <= VORT_CHORUS_RADIUS_SQR then
+				nearbyVorts = nearbyVorts + 1
 			end
 		end
 
+		ply:SetNWInt("ZC_HL3_VortChorusCount", nearbyVorts)
+
+		local criticalBonus = ply:Health() <= math.floor(healthCap * 0.35) and VORT_CRITICAL_ESSENCE or 0
+		addVortEssence(ply, VORT_PASSIVE_ESSENCE + math.min(nearbyVorts, 3) * VORT_CHORUS_ESSENCE + criticalBonus)
+
+		if (ply.ZCHL3NextRegenAt or 0) > CurTime() then continue end
+
+		local supportBonus = nearbyVorts > 0 and 1 or 0
 		if ply:Health() < healthCap then
 			ply:SetHealth(math.min(healthCap, ply:Health() + VORT_REGEN_HEALTH + supportBonus * VORT_SUPPORT_HEALTH_BONUS))
 		end
+	end
+end
 
-		if ply:Armor() < armorCap then
-			ply:SetArmor(math.min(armorCap, ply:Armor() + VORT_REGEN_ARMOR + supportBonus * VORT_SUPPORT_ARMOR_BONUS))
+function MODE:VortDeathEcho(ply)
+	if not IsValid(ply) then return end
+
+	local essence = getVortEssence(ply)
+	if essence < VORT_DEATH_ECHO_MIN_ESSENCE then return end
+
+	local pos = ply:GetPos() + Vector(0, 0, 38)
+	local radius = VORT_DEATH_ECHO_RADIUS + essence * 1.6
+	local damage = VORT_DEATH_ECHO_DAMAGE + essence * 0.35
+
+	local fx = EffectData()
+	fx:SetOrigin(pos)
+	fx:SetScale(2)
+	util.Effect("cball_explode", fx, true, true)
+	ply:EmitSound("NPC_Vortigaunt.Dispell", 100, 72)
+
+	for _, ent in ipairs(ents.FindInSphere(pos, radius)) do
+		if not IsValid(ent) or ent == ply then continue end
+
+		local targetPly = resolvePlayerEntity(ent)
+		if IsValid(targetPly) and targetPly:Alive() and targetPly:Team() == VORT_TEAM then
+			local healthCap = targetPly:GetNWInt("ZC_HL3_VortHealthCap", VORT_HEALTH_CAP)
+			targetPly:SetHealth(math.min(healthCap, targetPly:Health() + VORT_DEATH_ECHO_HEAL))
+			addVortEssence(targetPly, math.floor(essence * 0.22))
+			continue
 		end
+
+		local combatEnt = targetPly or ent
+		if IsValid(targetPly) and targetPly:Team() == VORT_TEAM then continue end
+		if not (combatEnt:IsPlayer() or combatEnt:IsNPC() or string.find(combatEnt:GetClass() or "", "ragdoll", 1, true)) then continue end
+
+		local entPos = combatCenter(combatEnt)
+		local dir = entPos - pos
+		if dir:LengthSqr() <= 1 then dir = VectorRand() else dir:Normalize() end
+
+		local dmg = DamageInfo()
+		dmg:SetDamageType(bit.bor(DMG_SHOCK, DMG_BLAST, DMG_DISSOLVE))
+		dmg:SetDamage(damage)
+		dmg:SetAttacker(ply)
+		dmg:SetInflictor(ply)
+		dmg:SetDamagePosition(entPos)
+		dmg:SetDamageForce(dir * 42000)
+		combatEnt:TakeDamageInfo(dmg)
 	end
 end
 
@@ -744,11 +877,22 @@ function MODE:EntityTakeDamage(target, dmgInfo)
 	if not isLiveVort(ply) then return end
 	if not dmgInfo or (dmgInfo.GetDamage and dmgInfo:GetDamage() <= 0) then return end
 
+	local damage = dmgInfo:GetDamage()
+	local essence = getVortEssence(ply)
+	if essence > 0 and damage > 0 then
+		local absorbed = math.min(damage * VORT_SHIELD_DAMAGE_RATIO, essence * VORT_SHIELD_ESSENCE_RATIO)
+		if absorbed > 0 then
+			dmgInfo:SetDamage(math.max(0, damage - absorbed))
+			setVortEssence(ply, essence - absorbed / math.max(VORT_SHIELD_ESSENCE_RATIO, 0.01))
+		end
+	end
+
 	ply.ZCHL3NextRegenAt = CurTime() + VORT_REGEN_DELAY
 end
 
 function MODE:PlayerDeath(ply)
 	if not IsValid(ply) then return end
+	self:VortDeathEcho(ply)
 	ply.ZCHL3NextRegenAt = nil
 end
 
@@ -770,3 +914,22 @@ function MODE:EndRound()
 		net.Broadcast()
 	end)
 end
+
+hook.Add("PlayerCanPickupWeapon", "ZC_HL3_VortWeaponLock", function(ply, wep)
+	if not isActiveHL3Round() then return end
+	if not IsValid(ply) or ply:Team() ~= VORT_TEAM then return end
+	if not IsValid(wep) then return false end
+
+	return wep:GetClass() == VORT_ALLOWED_WEAPON
+end)
+
+hook.Add("PlayerCanPickupItem", "ZC_HL3_VortArmorLock", function(ply, item)
+	if not isActiveHL3Round() then return end
+	if not IsValid(ply) or ply:Team() ~= VORT_TEAM then return end
+	if not IsValid(item) then return false end
+
+	local class = string.lower(item:GetClass() or "")
+	if class == "item_battery" or class == "item_suit" then
+		return false
+	end
+end)

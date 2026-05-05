@@ -14,8 +14,8 @@ end
 
 if CLIENT then
 	SWEP.DrawAmmo = true
-	SWEP.PrintName = "Vort Beam"
-	SWEP.Instructions = ""
+	SWEP.PrintName = "Vortessence Hands"
+	SWEP.Instructions = "Primary: Vort beam. Secondary: heavy beam; at full Vortessence it tears open a rift. Sprint + Reload: blink. Reload near ally: heal."
 	SWEP.Author = "HL3"
 	SWEP.DrawCrosshair = true
 	SWEP.ViewModelFOV = 60
@@ -111,6 +111,30 @@ SWEP.HL3SupportHealHealth = 10
 SWEP.HL3SupportHealArmor = 14
 SWEP.HL3AltSupportHealHealth = 18
 SWEP.HL3AltSupportHealArmor = 24
+
+-- Vortessence super-kit. These only matter in HL3 / Vort team mode.
+SWEP.HL3EssenceMax = 100
+SWEP.HL3EssencePrimaryGain = 16
+SWEP.HL3EssenceAltGain = 28
+SWEP.HL3EssenceSupportGain = 8
+SWEP.HL3EssenceHealGain = 5
+
+SWEP.HL3RiftCost = 100
+SWEP.HL3RiftCooldown = 18
+SWEP.HL3RiftRadius = 520
+SWEP.HL3RiftDuration = 3.2
+SWEP.HL3RiftPulseDamage = 7
+SWEP.HL3RiftFinalDamage = 145
+SWEP.HL3RiftPullForce = 920
+SWEP.HL3RiftPropForce = 520
+
+SWEP.HL3BlinkCost = 32
+SWEP.HL3BlinkCooldown = 4.5
+SWEP.HL3BlinkRange = 560
+SWEP.HL3BlinkShockRadius = 170
+SWEP.HL3BlinkShockDamage = 28
+SWEP.HL3BlinkHullMins = Vector(-16, -16, 0)
+SWEP.HL3BlinkHullMaxs = Vector(16, 16, 72)
 
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
@@ -229,6 +253,63 @@ function SWEP:GetArmorLimitFor(target)
 	return target.GetMaxArmor and target:GetMaxArmor() or self.ArmorLimit
 end
 
+function SWEP:GetVortEssence(owner)
+	if not IsValid(owner) then return 0 end
+	return owner:GetNWFloat("ZC_HL3_VortEssence", 0)
+end
+
+function SWEP:GetVortEssenceMax(owner)
+	if not IsValid(owner) then return self.HL3EssenceMax end
+	return owner:GetNWFloat("ZC_HL3_VortEssenceMax", self.HL3EssenceMax)
+end
+
+function SWEP:SetVortEssence(owner, amount)
+	if not SERVER or not IsValid(owner) then return 0 end
+
+	local maxEssence = self:GetVortEssenceMax(owner)
+	local newAmount = math.Clamp(amount or 0, 0, maxEssence)
+	owner:SetNWFloat("ZC_HL3_VortEssence", newAmount)
+	return newAmount
+end
+
+function SWEP:AddVortEssence(owner, amount)
+	if not SERVER or not IsValid(owner) or not self:IsHL3Vort(owner) then return 0 end
+	return self:SetVortEssence(owner, self:GetVortEssence(owner) + (amount or 0))
+end
+
+function SWEP:CanSpendVortEssence(owner, amount)
+	return IsValid(owner) and self:GetVortEssence(owner) >= (amount or 0)
+end
+
+function SWEP:IsHL3CombatTarget(owner, target)
+	if not IsValid(owner) or not IsValid(target) or target == owner then return false end
+
+	local class = target:GetClass() or ""
+	local combatEntity = target:IsPlayer() or target:IsNPC() or string.find(class, "ragdoll", 1, true)
+	if not combatEntity then return false end
+	if self:ShouldBlockHL3FriendlyDamage(owner, target) then return false end
+	if self:IsFriendlyHL3Target(owner, target) then return false end
+
+	return true
+end
+
+function SWEP:GetEntityCenter(ent)
+	if not IsValid(ent) then return vector_origin end
+	if ent.WorldSpaceCenter then return ent:WorldSpaceCenter() end
+	return ent:GetPos()
+end
+
+function SWEP:BuildShockDamage(owner, damage, pos, forceDir, forceAmount)
+	local dmg = DamageInfo()
+	dmg:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE, DMG_ENERGYBEAM))
+	dmg:SetDamage(damage)
+	dmg:SetAttacker(owner)
+	dmg:SetInflictor(self)
+	dmg:SetDamagePosition(pos)
+	dmg:SetDamageForce((forceDir or vector_origin) * (forceAmount or self.DamageForce))
+	return dmg
+end
+
 function SWEP:IsFriendlyHL3Target(owner, target)
 	if not self:IsHL3Mode() then return false end
 
@@ -342,6 +423,22 @@ function SWEP:CreateImpactSprite(scale, pos)
 	sprite:SetKeyValue("renderamt", "255")
 	sprite:Spawn()
 	sprite:Fire("kill", "", 0.45)
+end
+
+function SWEP:VortBurstEffect(pos, scale)
+	if not pos then return end
+
+	local data = EffectData()
+	data:SetOrigin(pos)
+	data:SetScale(scale or 1)
+	util.Effect("cball_explode", data, true, true)
+
+	local sparks = EffectData()
+	sparks:SetOrigin(pos)
+	sparks:SetMagnitude(2)
+	sparks:SetScale(scale or 1)
+	sparks:SetRadius(64 * (scale or 1))
+	util.Effect("ManhackSparks", sparks, true, true)
 end
 
 function SWEP:ImpactEffect(traceHit)
@@ -693,6 +790,7 @@ end
 function SWEP:ApplyBeamSiphon(owner, target, isAlt)
 	if not SERVER or not IsValid(owner) or not self:IsHL3Mode() then return end
 	if not IsValid(target) or self:IsFriendlyHL3Target(owner, target) then return end
+	if not self:IsHL3CombatTarget(owner, target) then return end
 
 	local healthCap = self:GetHealthLimitFor(owner)
 	local armorCap = self:GetArmorLimitFor(owner)
@@ -706,6 +804,8 @@ function SWEP:ApplyBeamSiphon(owner, target, isAlt)
 	if armorGain > 0 then
 		owner:SetArmor(math.min(armorCap, owner:Armor() + armorGain))
 	end
+
+	self:AddVortEssence(owner, isAlt and self.HL3EssenceAltGain or self.HL3EssencePrimaryGain)
 end
 
 function SWEP:ApplyBeamSupport(owner, target, isAlt)
@@ -725,6 +825,239 @@ function SWEP:ApplyBeamSupport(owner, target, isAlt)
 	ally:SetArmor(math.min(armorCap, ally:Armor() + armorGain))
 	owner:EmitSound(self.AllyHealSound)
 	ally:EmitSound(self.HealSound)
+	self:AddVortEssence(owner, self.HL3EssenceSupportGain)
+	self:AddVortEssence(ally, math.floor(self.HL3EssenceSupportGain * 0.5))
+	return true
+end
+
+function SWEP:PullEntityIntoRift(owner, ent, origin, radius, pullForce)
+	if not SERVER or not IsValid(ent) or ent == owner then return end
+
+	local entPos = self:GetEntityCenter(ent)
+	local pullDir = (origin + Vector(0, 0, 32)) - entPos
+	local distance = math.max(pullDir:Length(), 1)
+	pullDir:Normalize()
+
+	local strength = math.Clamp(1 - distance / radius, 0.08, 1)
+	local force = pullForce * strength
+
+	if ent:IsPlayer() or ent:IsNPC() then
+		if self:IsFriendlyHL3Target(owner, ent) or self:ShouldBlockHL3FriendlyDamage(owner, ent) then return end
+		ent:SetVelocity(pullDir * force + Vector(0, 0, 45 * strength))
+		return
+	end
+
+	if string.find(ent:GetClass() or "", "ragdoll", 1, true) then
+		local ragOwner = self:ResolvePlayerEntity(ent)
+		if IsValid(ragOwner) and (self:IsFriendlyHL3Target(owner, ragOwner) or self:ShouldBlockHL3FriendlyDamage(owner, ragOwner)) then return end
+	end
+
+	local physCount = ent.GetPhysicsObjectCount and ent:GetPhysicsObjectCount() or 0
+	if physCount > 0 then
+		for i = 0, physCount - 1 do
+			local phys = ent:GetPhysicsObjectNum(i)
+			if IsValid(phys) and phys:IsMoveable() then
+				phys:Wake()
+				phys:ApplyForceCenter(pullDir * math.max(phys:GetMass(), 20) * force * self.HL3RiftPropForce)
+			end
+		end
+		return
+	end
+
+	local phys = ent:GetPhysicsObject()
+	if IsValid(phys) and phys:IsMoveable() then
+		phys:Wake()
+		phys:ApplyForceCenter(pullDir * math.max(phys:GetMass(), 20) * force * self.HL3RiftPropForce)
+	end
+end
+
+function SWEP:DamageRiftTarget(owner, ent, origin, damage, finalBurst)
+	if not SERVER or not IsValid(ent) or ent == owner then return end
+
+	local target = self:ResolvePlayerEntity(ent) or ent
+	if not self:IsHL3CombatTarget(owner, target) then return end
+
+	local targetPos = self:GetEntityCenter(target)
+	local dir = targetPos - origin
+	if dir:LengthSqr() <= 1 then
+		dir = VectorRand()
+	else
+		dir:Normalize()
+	end
+
+	local forceAmount = finalBurst and self.AltDamageForce * 0.9 or self.DamageForce * 0.25
+	local dmg = self:BuildShockDamage(owner, damage, targetPos, finalBurst and dir or -dir, forceAmount)
+	target:TakeDamageInfo(dmg)
+end
+
+function SWEP:CreateVortRift(owner, pos, normal)
+	if not SERVER or not IsValid(owner) or not isvector(pos) then return end
+
+	local radius = self.HL3RiftRadius
+	local duration = self.HL3RiftDuration
+	local interval = 0.25
+	local pulses = math.max(4, math.ceil(duration / interval))
+	local origin = pos + (normal or Vector(0, 0, 1)) * 10
+	local id = "ZC_VortRift_" .. owner:EntIndex() .. "_" .. math.floor(CurTime() * 1000)
+
+	self:VortBurstEffect(origin, 1.5)
+	self:CreateImpactSprite(2.4, origin)
+	owner:EmitSound("NPC_Vortigaunt.Dispell", 95, 82)
+	owner:EmitSound("ambient/levels/citadel/weapon_disintegrate3.wav", 95, 125)
+
+	timer.Create(id, interval, pulses, function()
+		if not IsValid(owner) or not IsValid(self) then
+			timer.Remove(id)
+			return
+		end
+
+		local remaining = timer.RepsLeft(id) or 0
+		local pulseIndex = pulses - remaining
+		local pulseRadius = radius * (0.55 + 0.45 * (pulseIndex / pulses))
+
+		local fx = EffectData()
+		fx:SetOrigin(origin + VectorRand() * math.random(4, 18))
+		fx:SetScale(1 + pulseIndex * 0.12)
+		util.Effect("StunstickImpact", fx, true, true)
+
+		for _, ent in ipairs(ents.FindInSphere(origin, pulseRadius)) do
+			if not IsValid(ent) or ent == owner then continue end
+
+			self:PullEntityIntoRift(owner, ent, origin, pulseRadius, self.HL3RiftPullForce)
+
+			if pulseIndex % 2 == 0 then
+				self:DamageRiftTarget(owner, ent, origin, self.HL3RiftPulseDamage, false)
+			end
+
+			local ally = self:ResolvePlayerEntity(ent)
+			if IsValid(ally) and ally:Team() == owner:Team() and ally ~= owner then
+				ally:SetArmor(math.min(self:GetArmorLimitFor(ally), ally:Armor() + 1))
+			end
+		end
+
+		owner:SetVelocity((origin - owner:GetPos()):GetNormalized() * 40)
+
+		if remaining <= 0 then
+			self:VortBurstEffect(origin, 2.35)
+			self:CreateImpactSprite(3.1, origin)
+			owner:EmitSound("NPC_Vortigaunt.ClawBeam", 100, 70)
+
+			for _, ent in ipairs(ents.FindInSphere(origin, radius * 1.05)) do
+				if not IsValid(ent) or ent == owner then continue end
+				self:DamageRiftTarget(owner, ent, origin, self.HL3RiftFinalDamage, true)
+				self:PullEntityIntoRift(owner, ent, origin + Vector(0, 0, 120), radius, -self.HL3RiftPullForce * 0.85)
+			end
+		end
+	end)
+end
+
+function SWEP:TryConsumeRift(owner)
+	if not SERVER or not IsValid(owner) or not self:IsHL3Vort(owner) then return false end
+	if (owner:GetNWFloat("ZC_HL3_NextRiftAt", 0) or 0) > CurTime() then return false end
+	if not self:CanSpendVortEssence(owner, self.HL3RiftCost) then return false end
+
+	self:AddVortEssence(owner, -self.HL3RiftCost)
+	owner:SetNWFloat("ZC_HL3_NextRiftAt", CurTime() + self.HL3RiftCooldown)
+	return true
+end
+
+function SWEP:VortBlinkShockwave(owner, pos)
+	if not SERVER or not IsValid(owner) then return end
+
+	self:VortBurstEffect(pos + Vector(0, 0, 36), 1.05)
+
+	for _, ent in ipairs(ents.FindInSphere(pos + Vector(0, 0, 36), self.HL3BlinkShockRadius)) do
+		if not IsValid(ent) or ent == owner then continue end
+
+		local target = self:ResolvePlayerEntity(ent) or ent
+		if self:IsHL3CombatTarget(owner, target) then
+			local targetPos = self:GetEntityCenter(target)
+			local dir = targetPos - pos
+			if dir:LengthSqr() <= 1 then dir = VectorRand() else dir:Normalize() end
+			target:TakeDamageInfo(self:BuildShockDamage(owner, self.HL3BlinkShockDamage, targetPos, dir + Vector(0, 0, 0.35), self.DamageForce * 0.28))
+		end
+	end
+end
+
+function SWEP:TryVortBlink()
+	local owner = self:GetOwner()
+	if not IsValid(owner) or not self:IsHL3Vort(owner) then return false end
+	if not owner:KeyDown(IN_SPEED) then return false end
+	if self:IsBusy() then return true end
+
+	if CLIENT then return true end
+
+	local now = CurTime()
+	if (owner:GetNWFloat("ZC_HL3_NextBlinkAt", 0) or 0) > now then
+		owner:EmitSound(self.Deny)
+		return true
+	end
+
+	if not self:CanSpendVortEssence(owner, self.HL3BlinkCost) then
+		owner:EmitSound(self.Deny)
+		return true
+	end
+
+	local startPos = owner:GetPos()
+	local eyePos = owner:EyePos()
+	local aim = owner:GetAimVector()
+	local range = self.HL3BlinkRange
+
+	local tr = util.TraceHull({
+		start = eyePos,
+		endpos = eyePos + aim * range,
+		mins = self.HL3BlinkHullMins,
+		maxs = self.HL3BlinkHullMaxs,
+		filter = owner,
+		mask = MASK_PLAYERSOLID
+	})
+
+	local wanted = tr.HitPos - aim * 28
+	local ground = util.TraceLine({
+		start = wanted + Vector(0, 0, 72),
+		endpos = wanted - Vector(0, 0, 96),
+		filter = owner,
+		mask = MASK_PLAYERSOLID
+	})
+
+	if ground.Hit and not ground.StartSolid and not ground.AllSolid then
+		wanted = ground.HitPos + Vector(0, 0, 2)
+	end
+
+	if not util.IsInWorld(wanted + Vector(0, 0, 36)) then
+		owner:EmitSound(self.Deny)
+		return true
+	end
+
+	local clear = util.TraceHull({
+		start = wanted,
+		endpos = wanted,
+		mins = self.HL3BlinkHullMins,
+		maxs = self.HL3BlinkHullMaxs,
+		filter = owner,
+		mask = MASK_PLAYERSOLID
+	})
+
+	if clear.StartSolid or clear.AllSolid or clear.Hit then
+		owner:EmitSound(self.Deny)
+		return true
+	end
+
+	self:AddVortEssence(owner, -self.HL3BlinkCost)
+	owner:SetNWFloat("ZC_HL3_NextBlinkAt", now + self.HL3BlinkCooldown)
+
+	self:VortBlinkShockwave(owner, startPos)
+	owner:SetPos(wanted)
+	owner:SetVelocity(-owner:GetVelocity() * 0.45 + aim * 120)
+	owner:ViewPunch(Angle(math.Rand(-2, 2), math.Rand(-4, 4), 0))
+	self:VortBlinkShockwave(owner, wanted)
+
+	owner:EmitSound("NPC_Vortigaunt.Dispell", 90, 120)
+	owner:EmitSound("ambient/levels/citadel/weapon_disintegrate1.wav", 80, 150)
+
+	local nextTime = now + 0.3
+	self:SetNextPrimaryFire(nextTime)
+	self:SetNextSecondaryFire(nextTime)
 	return true
 end
 
@@ -744,12 +1077,21 @@ function SWEP:FireBeam()
 	end
 
 	if SERVER then
+		local riftShot = isAlt and self:TryConsumeRift(owner)
+		if riftShot then
+			self:CreateVortRift(owner, traceRes.HitPos, traceRes.HitNormal)
+		end
+
 		local friendlyTarget = self:IsFriendlyHL3Target(owner, traceRes.Entity)
 		local blockFriendlyDamage = self:ShouldBlockHL3FriendlyDamage(owner, traceRes.Entity)
 		if friendlyTarget then
 			self:ApplyBeamSupport(owner, traceRes.Entity, isAlt)
 		elseif not blockFriendlyDamage then
 			local damage = isAlt and self:GetAltDamage() or self:GetPrimaryDamage()
+			if riftShot then
+				damage = math.floor(damage * 0.72)
+			end
+
 			local dmg = DamageInfo()
 			dmg:SetDamageType(bit.bor(DMG_SHOCK, DMG_DISSOLVE))
 			dmg:SetDamage(damage)
@@ -813,6 +1155,7 @@ function SWEP:GiveArmor()
 		local healthLimit = self:GetHealthLimitFor(owner)
 		local healthGain = math.random(self.HL3SelfHealMin, self.HL3SelfHealMax)
 		owner:SetHealth(math.min(owner:Health() + healthGain, healthLimit))
+		self:AddVortEssence(owner, self.HL3EssenceHealGain)
 	end
 end
 
@@ -897,6 +1240,11 @@ function SWEP:DoAllyHeal()
 	self:DispatchEffect(CHARGE_PARTICLE)
 	owner:EmitSound(self.AllyHealSound)
 	target:EmitSound(self.HealSound)
+
+	if hl3Vort then
+		self:AddVortEssence(owner, self.HL3EssenceSupportGain)
+		self:AddVortEssence(target, math.floor(self.HL3EssenceSupportGain * 0.75))
+	end
 
 	self.NextAllyHealTime = CurTime() + (hl3Vort and self.HL3AllyHealCooldown or self.AllyHealCooldown)
 	local nextTime = CurTime() + 0.8
@@ -986,6 +1334,7 @@ function SWEP:SecondaryAttack()
 end
 
 function SWEP:Reload()
+	if self:TryVortBlink() then return end
 	if self:DoAllyHeal() then return end
 	if self:IsHL3Vort(self:GetOwner()) then
 		self:BeginArmorHeal()
