@@ -1,8 +1,8 @@
 --\\
 hg.VGUI = hg.VGUI or {}
-hg.VGUI.MainColor = Color(125, 205, 255)
-hg.VGUI.SecondaryColor = Color(38, 110, 168, 240)
-hg.VGUI.BackgroundColor = Color(8, 18, 34, 220)
+hg.VGUI.MainColor = Color(35, 225, 110, 255)
+hg.VGUI.SecondaryColor = Color(35, 255, 110, 240)
+hg.VGUI.BackgroundColor = Color(6, 14, 10, 220)
 hg.VGUI.MainSkin = "ZCity"
 
 function hg.GetMainSkin()
@@ -114,12 +114,12 @@ local gradient = surface.GetTextureID("vgui/gradient-d")
 local gradientUp = surface.GetTextureID("vgui/gradient-u")
 local gradientLeft = surface.GetTextureID("vgui/gradient-l")
 -- local gradientRadial = Material("helix/gui/radial-gradient.png")
-local defaultBackgroundColor = Color(8, 18, 34, 200)
-local panelBackground = Color(8, 18, 34, 220)
-local panelOverlay = Color(14, 28, 48, 220)
-local panelSoft = Color(18, 36, 62, 190)
-local accentMain = Color(125, 205, 255)
-local accentSoft = Color(38, 110, 168)
+local defaultBackgroundColor = Color(6, 14, 10, 220)
+local panelBackground = Color(10, 26, 18, 235)
+local panelOverlay = Color(14, 40, 28, 220)
+local panelSoft = Color(14, 40, 28, 220)
+local accentMain = Color(35, 225, 110, 255)
+local accentSoft = Color(35, 255, 110, 45)
 local textEntryBackground = Color(255, 255, 255, 245)
 local textEntryBackgroundFocus = Color(255, 255, 255, 255)
 local textEntryBackgroundDisabled = Color(225, 232, 240, 220)
@@ -137,29 +137,28 @@ SKIN.fontCategoryBlur = "ZCity_Fixed_Medium_Light_Blur"
 SKIN.fontSegmentedProgress = "ZCity_Fixed_Medium_Light"
 
 SKIN.Colours = table.Copy(derma.SkinList.Default.Colours)
-
-SKIN.Colours.Info = Color(100, 185, 255)
-SKIN.Colours.Success = Color(64, 185, 85)
-SKIN.Colours.Error = Color(125, 205, 255)
-SKIN.Colours.Warning = Color(230, 180, 0)
+SKIN.Colours.Info = Color(35, 225, 110, 255)
+SKIN.Colours.Success = Color(35, 225, 110, 255)
+SKIN.Colours.Error = Color(35, 255, 110, 45)
+SKIN.Colours.Warning = Color(35, 255, 110, 45)
 SKIN.Colours.MenuLabel = color_white
-SKIN.Colours.DarkerBackground = Color(8, 18, 34, 160)
+SKIN.Colours.DarkerBackground = Color(6, 14, 10, 200)
 
-SKIN.Colours.Outline = Color(125, 205, 255, 255)
-SKIN.Colours.Background = Color(8, 18, 34, 205)
+SKIN.Colours.Outline = Color(35, 225, 110, 255)
+SKIN.Colours.Background = Color(10, 26, 18, 235)
 
 SKIN.Colours.SegmentedProgress = {}
-SKIN.Colours.SegmentedProgress.Bar = Color(64, 185, 85)
+SKIN.Colours.SegmentedProgress.Bar = Color(35, 225, 110, 255)
 SKIN.Colours.SegmentedProgress.Text = color_white
 
 SKIN.Colours.Area = {}
 
-SKIN.Colours.Window.TitleActive = Color(0, 0, 0)
+SKIN.Colours.Window.TitleActive = Color(35, 225, 110, 255)
 SKIN.Colours.Window.TitleInactive = color_white
 
 SKIN.Colours.Button.Normal = color_white
-SKIN.Colours.Button.Hover = color_white
-SKIN.Colours.Button.Down = Color(180, 180, 180)
+SKIN.Colours.Button.Hover = Color(35, 225, 110, 255)
+SKIN.Colours.Button.Down = Color(35, 255, 110, 45)
 SKIN.Colours.Button.Disabled = Color(0, 0, 0, 100)
 
 SKIN.Colours.Label.Default = color_white
@@ -578,7 +577,7 @@ end
 
 function SKIN:PaintChatboxTabButton(panel, width, height)
 	if (panel:GetActive()) then
-		surface.SetDrawColor(hg.VGUI.MainColor or Color(75, 119, 190, 255))
+		surface.SetDrawColor(hg.VGUI.MainColor or Color(35, 225, 110, 255))
 		surface.DrawRect(0, 0, width, height)
 	else
 		surface.SetDrawColor(0, 0, 0, 100)

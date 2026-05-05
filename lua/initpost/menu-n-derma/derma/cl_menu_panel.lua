@@ -1,11 +1,11 @@
 local PANEL = {}
 local curent_panel 
-local lightblue_select = Color(125, 205, 255)
+local select_color = Color(35, 255, 110)
 
 local Selects = {
     {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
     {Title = "Main Menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
-    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.com/invite/vPMnZ45QHE")  end},
+    {Title = "Discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.com/votturzcity")  end},
     {Title = "Traitor Role",
     GamemodeOnly = true,
     CreatedFunc = function(self, parent, luaMenu)
@@ -33,7 +33,7 @@ local Selects = {
             self.HoverLerp = selfa.HoverLerp
             self.HoverLerp2 = LerpFT(0.2, self.HoverLerp2 or 0, self:IsHovered() and 1 or 0)
                 
-            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(lightblue_select, self.HoverLerp2), self.HoverLerp))
+            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(select_color, self.HoverLerp2), self.HoverLerp))
             self:SetX(self.x + ScreenScaleH(40) + self.HoverLerp * ScreenScaleH(50))
         end
 
@@ -60,7 +60,7 @@ local Selects = {
             self.HoverLerp = selfa.HoverLerp
             self.HoverLerp2 = LerpFT(0.2, self.HoverLerp2 or 0, self:IsHovered() and 1 or 0)
     
-            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(lightblue_select, self.HoverLerp2), self.HoverLerp))
+            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(select_color, self.HoverLerp2), self.HoverLerp))
             self:SetX(self.x + ScreenScaleH(35))
         end
     end,
@@ -79,21 +79,21 @@ local Selects = {
 }
 
 local splasheh = {
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)',
-    'JOIN OUR DC :)'
+    'JOIN OUR DISCORD',
+    'PLUV PLUV PLUVISKI',
+    'LULU IS NOT DEAD | !PLUV',
+    'THE TRAITOR WAS KILLED',
+    'NAB HOMICIDE SERVER',
+    'ALSO TRY MODDED HOMICIDE 2',
+    'HOP ON Z-CITY',
+    'JOHN Z-CITY',
+    ':pluvrare:',
+    'SAW51 IS REAL',
+    'MORE SMALLTOWN',
+    'MORE CLUE2022',
+    'BACKROOMS == CLUE',
+    'HELL IS NEAR',
+    'I WISH YOU GOOD HEALTH, JASON STATHAM'
 }
 
 --print(string.upper('I wish you good health, Jason Statham'))
@@ -123,13 +123,13 @@ function PANEL:InitializeMarkup()
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=125,205,255,255>VOTTUR's</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=35,255,110,255>VOTTUR'S</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
-local color_red = Color(90, 170, 235, 28)
-local clr_gray = Color(255,255,255,25)
-local clr_verygray = Color(8, 18, 34, 228)
+local color_red = Color(13, 82, 37, 45)
+local clr_gray = Color(255, 255, 255, 25)
+local clr_verygray = Color(10, 10, 19, 235)
 
 function PANEL:Init()
     self:SetAlpha(0)
@@ -203,7 +203,7 @@ function PANEL:Init()
     zteam:DockMargin(ScreenScale(10), 0, 0, 0)
     zteam:SetFont("ZCity_Tiny")
     zteam:SetTextColor(clr_gray)
-    zteam:SetText("Authors: VOTTUR")
+    zteam:SetText("Authors: Vottur, Zorf, Patidinho")
     zteam:SetContentAlignment(4)
     zteam:SizeToContents()
 end
@@ -216,7 +216,7 @@ local gradient_d = surface.GetTextureID("vgui/gradient-d")
 local gradient_r = surface.GetTextureID("vgui/gradient-u")
 local gradient_l = surface.GetTextureID("vgui/gradient-l")
 
-local clr_1 = Color(38, 110, 168, 72)
+local clr_1 = Color(13, 64, 22, 72)
 function PANEL:Paint(w,h)
     draw.RoundedBox( 0, 0, 0, w, h, self.ColorBG )
     hg.DrawBlur(self, 5)
@@ -286,7 +286,7 @@ function PANEL:AddSelect( pParent, strTitle, tbl )
         self.HoverLerp = LerpFT(0.2, self.HoverLerp or 0, (self:IsHovered() or (IsValid(self:GetChild(0)) and self:GetChild(0):IsHovered()) or (IsValid(self:GetChild(0)) and IsValid(self:GetChild(0):GetChild(0)) and self:GetChild(0):GetChild(0):IsHovered())) and 1 or 0)
 
         local v = self.HoverLerp
-        self:SetTextColor(self.RColor:Lerp(lightblue_select, v))
+        self:SetTextColor(self.RColor:Lerp(select_color, v))
 
         local targetText = (self:IsHovered()) and string.upper(strTitle) or strTitle
         local crw = self:GetText()

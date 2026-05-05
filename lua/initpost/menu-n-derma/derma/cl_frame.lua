@@ -5,8 +5,8 @@ local PANEL = {}
 --[[
 hg.VGUI.SecondaryColor = Color(155,0,0,240)
 hg.VGUI.BackgroundColor = Color(25,25,35,220)]]
-local color_blacky = Color(8, 18, 34, 220)
-local color_reddy = Color(125, 205, 255, 240)
+local color_blacky = Color(6, 14, 10, 220)
+local color_reddy = Color(35, 225, 110, 240)
 
 function PANEL:Init()
     self.Itensens = {}

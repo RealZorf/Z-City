@@ -420,19 +420,17 @@ hook.Add("InitPostEntity", "furryhuy", function()
 	end
 end)
 
-local colGray = Color(122,122,122,255)
-local colBlue = Color(18, 36, 62, 220)
-local colBlueUp = Color(28, 52, 86, 220)
-local col = Color(255,255,255,255)
-
-local colSpect1 = Color(12, 24, 40, 220)
-local colSpect2 = Color(20, 38, 62, 220)
-
-local colorBG = Color(8, 18, 34, 228)
-local colorBGBlacky = Color(14, 28, 48, 220)
-local tabAccent = Color(125, 205, 255, 160)
-local tabAccentStrong = Color(125, 205, 255, 255)
-local tabAccentSoft = Color(38, 110, 168, 72)
+local colGray = Color(122, 122, 122, 255)
+local col = Color(255, 255, 255, 255)
+local colorBG = Color(6, 14, 10, 220)
+local colorBGBlacky = Color(10, 26, 18, 235)
+local colSpect1 = Color(6, 14, 10, 235)
+local colSpect2 = Color(10, 26, 18, 220)
+local tabAccent = Color(35, 225, 110, 160)
+local tabAccentStrong = Color(35, 225, 110, 255)
+local tabAccentSoft = Color(35, 255, 110, 45)
+local colBlue = Color(10, 26, 18, 235)
+local colBlueUp = Color(14, 40, 28, 220)
 
 hg.muteall = false
 hg.mutespect = false

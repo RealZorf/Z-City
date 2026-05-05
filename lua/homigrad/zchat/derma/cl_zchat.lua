@@ -144,7 +144,7 @@ end
 local gradient_l = Material("vgui/gradient-l")
 
 function PANEL:Paint(w, h)
-	surface.SetDrawColor(14, 28, 48, 115)
+	surface.SetDrawColor(6, 14, 10, 220)
 	surface.DrawRect(0, 0, w, h)
 
 	-- surface.SetDrawColor(137, 137, 137, 150)
@@ -270,11 +270,11 @@ local gray = Color(184, 205, 225, 120)
 local black = Color(6, 14, 24, 220)
 
 function PANEL:Paint(w, h)
-	surface.SetDrawColor(38, 110, 168, 96 + math.sin(CurTime()) * 18)
+	surface.SetDrawColor(35, 225, 110, 35 + math.sin(CurTime()) * 18)
 	surface.SetMaterial(gradient_d)
 	surface.DrawTexturedRect(0, h * 0.5, w, h * 0.5)
 
-	surface.SetDrawColor(8, 18, 34, 210)
+	surface.SetDrawColor(10, 26, 18, 235)
 	surface.DrawRect(0, 0, w, h)
 
 	surface.SetAlphaMultiplier(1)

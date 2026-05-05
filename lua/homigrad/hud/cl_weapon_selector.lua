@@ -48,10 +48,10 @@ end
 
 local scrW, scrH = ScrW(), ScrH()
 
-local selectorAccent = Color(125, 205, 255)
-local selectorAccentSoft = Color(38, 110, 168)
-local selectorBg = Color(8, 18, 34)
-local selectorBgAlt = Color(14, 28, 48)
+local selectorAccent = Color(35, 225, 110, 255)
+local selectorAccentSoft = Color(35, 255, 110, 45)
+local selectorBg = Color(6, 14, 10, 220)
+local selectorBgAlt = Color(10, 26, 18, 235)
 local gradient_u = Material("vgui/gradient-d")
 
 function WS.WeaponSelectorDraw( ply )

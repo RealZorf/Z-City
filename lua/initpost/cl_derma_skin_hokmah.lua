@@ -1,8 +1,8 @@
 --\\
 	HOKMAH_VGUI = HOKMAH_VGUI or {}
-	HOKMAH_VGUI.MainColor = Color(125, 205, 255)
-	HOKMAH_VGUI.SecondaryColor = Color(38, 110, 168, 240)
-	HOKMAH_VGUI.BackgroundColor = Color(8, 18, 34)
+	HOKMAH_VGUI.MainColor = Color(35, 225, 110)
+	HOKMAH_VGUI.SecondaryColor = Color(14, 40, 28, 240)
+	HOKMAH_VGUI.BackgroundColor = Color(6, 14, 10)
 --//
 
 --; Adapted from Helix
@@ -32,7 +32,7 @@ local textEntryBorder = Color(150, 170, 195, 255)
 local textEntryText = Color(12, 18, 28, 255)
 local textEntryPlaceholder = Color(110, 120, 135, 255)
 local textEntryCursor = Color(12, 18, 28, 255)
-local textEntryHighlight = Color(125, 205, 255, 120)
+local textEntryHighlight = Color(35, 255, 110, 120)
 
 local SKIN = {}
 derma.DefineSkin("Hokmah", "Hokmah skin.", SKIN)
@@ -43,14 +43,14 @@ SKIN.fontSegmentedProgress = "ZCity_Fixed_Medium_Light"
 
 SKIN.Colours = table.Copy(derma.SkinList.Default.Colours)
 
-SKIN.Colours.Info = Color(100, 185, 255)
+SKIN.Colours.Info = Color(35, 225, 110, 255)
 SKIN.Colours.Success = Color(64, 185, 85)
 SKIN.Colours.Error = Color(125, 205, 255)
 SKIN.Colours.Warning = Color(230, 180, 0)
 SKIN.Colours.MenuLabel = color_white
 SKIN.Colours.DarkerBackground = Color(0, 0, 0, 77)
 
-SKIN.Colours.Outline = Color(125, 205, 255, 255)
+SKIN.Colours.Outline = Color(35, 225, 110, 255)
 SKIN.Colours.Background = Color(8, 18, 34, 205)
 
 SKIN.Colours.SegmentedProgress = {}
@@ -580,7 +580,7 @@ end
 
 function SKIN:PaintChatboxTabButton(panel, width, height)
 	if (panel:GetActive()) then
-		surface.SetDrawColor(HOKMAH_VGUI.MainColor or Color(75, 119, 190, 255))
+		surface.SetDrawColor(HOKMAH_VGUI.MainColor or Color(35, 225, 110, 255))
 		surface.DrawRect(0, 0, width, height)
 	else
 		surface.SetDrawColor(0, 0, 0, 100)

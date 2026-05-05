@@ -1180,6 +1180,6 @@ if CLIENT then
         local y = ScrH() * 0.82
 
         draw.SimpleTextOutlined(mainText, "HomigradFontBig", x, y, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 2, Color(0, 0, 0, 220))
-        draw.SimpleTextOutlined(timerText, "HomigradFont", x, y + 42, Color(125, 205, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 2, Color(0, 0, 0, 220))
+        draw.SimpleTextOutlined(timerText, "HomigradFont", x, y + 42, Color(35, 225, 110), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 2, Color(0, 0, 0, 220))
     end)
 end

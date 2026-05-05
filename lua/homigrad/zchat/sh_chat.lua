@@ -207,7 +207,7 @@ if CLIENT then
 	end
 
 	local ghost = Color(118, 159, 255)
-	local dead = Color(125, 205, 255)
+	local dead = Color(255, 0, 0)
 	hook.Add("OnPlayerChat", "ZChatDead", function(ply, text, bTeam, bDead, bWhisper)
 		if ( ply:IsPlayer() and !ply:Alive() ) then
 			chat.AddText( dead, "*DEAD* ", ghost, ply:Nick(), ghost, ": "..text )
