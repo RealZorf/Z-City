@@ -116,7 +116,7 @@ if SERVER then
     util.AddNetworkString("AnotherLightningEffect")
     util.AddNetworkString("PluvCommand")
 
-    local ZC_GOD_MODEL = "models/player/anon/anon.mdl"
+    local ZC_GOD_MODEL = "models/player/jesus/jesus.mdl"
     local ZC_POWER_RECOIL_MUL = 0.25
     local ZC_POWER_MELEE_MAX_DISTANCE_SQR = 180 * 180
     local ZC_POWER_MELEE_FORCE = 22000
