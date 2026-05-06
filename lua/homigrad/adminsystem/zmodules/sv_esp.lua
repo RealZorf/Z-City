@@ -226,7 +226,10 @@ function ESP:SetupCommands()
 		lastToggle[steamId] = curTime + 0.3
 
 		local enabled = ESP:ToggleESP( ply )
-		ply:ChatPrint(enabled and "ESP | Enabled" or "ESP | Disabled")
+		local msg = enabled and "ESP | Enabled" or "ESP | Disabled"
+
+		ply:ChatPrint(msg)
+		print("[INFO] " .. ply:Nick() .. " | " .. msg)
 	end)
 
 	concommand.Add("zb_allesp", function( ply, cmd, args )
