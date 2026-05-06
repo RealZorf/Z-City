@@ -23,10 +23,18 @@ end
 
 local ents_FindInSphere, CurTime, ipairs, table, math, VectorRand = ents.FindInSphere, CurTime, ipairs, table, math, VectorRand
 
+local function isChemistSubRole(ent)
+	local owner = ent.organism and ent.organism.owner
+	local subRole = IsValid(owner) and owner.SubRole or ent.SubRole
+
+	return subRole == "traitor_chemist" or subRole == "traitor_chemist_soe"
+end
+
 local function canSedate(ent)
 	if not ent.organism then return false end
 	if ent.organism.holdingbreath then return false end
 	if not IsValid(ent.organism.owner) or not ent.organism.owner:IsPlayer() then return false end
+	if isChemistSubRole(ent) then return false end
 	if ent.organism.owner.armors["face"] == "mask2" then return false end
 	if ent.PlayerClassName == "Combine" then return false end
 

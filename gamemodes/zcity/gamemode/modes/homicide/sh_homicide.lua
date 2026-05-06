@@ -221,6 +221,34 @@ Can detect presence and potency of chemical agents in the air.]],
 		end,
 	},	
 	--==//
+
+	["traitor_chemist_soe"] = {
+			Name = "Chemist",
+			Description = [[Has multiple chemical agents and epipen and knife.
+Resistant to a certain degree to all chemical agents mentioned.
+Can detect presence and potency of chemical agents in the air.]],
+			Objective = "You're a chemist who decided to use his knowledge to hurt others. Poison everything.",
+			SpawnFunction = function(ply)
+				ply:Give("weapon_sogknife")
+				ply:Give("weapon_adrenaline")
+				ply:Give("weapon_traitor_poison1")
+				ply:Give("weapon_traitor_poison2")
+				ply:Give("weapon_traitor_poison3")
+				ply:Give("weapon_traitor_poison4")
+				ply:Give("weapon_traitor_poison_consumable")
+				ply:Give("weapon_traitor_sleepcanister")
+				ply:Give("weapon_zc_fiberwire_standalone")
+			
+				ply.organism.stamina.max = 220
+				local inv = ply:GetNetVar("Inventory", {})
+				inv["Weapons"]["hg_flashlight"] = true
+			
+				ply:SetNetVar("Inventory", inv)
+				if CleanChemicalsOfPlayer then
+					CleanChemicalsOfPlayer(ply)
+				end
+			end,
+		},	
 	
 	--==\\
 	["traitor_shadow"] = {
@@ -701,6 +729,7 @@ MODE.RoleChooseRoundTypes = {
 		Traitor = {
 			["traitor_default_soe"] = true,
 			["traitor_infiltrator_soe"] = true,
+			["traitor_chemist_soe"] = true,
 			["traitor_shadow_soe"] = true,
 			["traitor_assasin_soe"] = true,
 			["traitor_maniac_soe"] = true,

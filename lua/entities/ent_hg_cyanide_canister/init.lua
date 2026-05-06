@@ -22,6 +22,14 @@ function ENT:Initialize()
 	end
 end
 local ents_FindInSphere, CurTime, ipairs, table, math, VectorRand = ents.FindInSphere, CurTime, ipairs, table, math, VectorRand
+
+local function isChemistSubRole(ent)
+	local owner = ent.organism and ent.organism.owner
+	local subRole = IsValid(owner) and owner.SubRole or ent.SubRole
+
+	return subRole == "traitor_chemist" or subRole == "traitor_chemist_soe"
+end
+
 function ENT:Think()
 	if self.spawntime + 10 > CurTime() then return end
 	--if util.PointContents(self:GetPos()) --если в воде добавить проверку потом
@@ -56,6 +64,8 @@ function ENT:Think()
 			if not ent.organism.owner:IsPlayer() then continue end
 			if util.TraceLine({start = pos,endpos = ent:GetPos(),filter = {self,ent},mask = MASK_SOLID_BRUSHONLY}).Hit then continue end
 			
+			if isChemistSubRole(ent) then continue end
+
 			if (ent.organism.owner.armors["face"] != "mask2") and ent.PlayerClassName ~= "Combine" and (math.random(2) == 1) then
 				local mode_hmcd = (zb and zb.modes) and zb.modes["hmcd"]
 				

@@ -45,10 +45,6 @@ local clawClasses = {
 
 local addHandsGestureSafe
 
-local function canUseSuperadminGrab(ply)
-	return IsValid(ply) and ply:IsPlayer() and ply:IsUserGroup("superadmin")
-end
-
 local function qerp(delta, a, b)
 	local qdelta = -(delta ^ 2) + (delta * 2)
 	qdelta = math.Clamp(qdelta, 0, 1)
@@ -64,39 +60,7 @@ function SWEP:Initialize()
 	self:SetBlocking(false)
 end
 
-function SWEP:ClearSuperadminGrab()
-	local owner = self:GetOwner()
-	local victim = self.AdminGrabVictim
-
-	if IsValid(victim) and victim.AdminHandsGrabber == owner then
-		victim.AdminHandsGrabber = nil
-	end
-
-	if IsValid(owner) and owner.AdminHandsGrabVictim == victim then
-		owner.AdminHandsGrabVictim = nil
-	end
-
-	self.AdminGrabVictim = nil
-	self.AdminGrabRefresh = nil
-end
-
-function SWEP:SetSuperadminGrab(victim)
-	local owner = self:GetOwner()
-
-	if self.AdminGrabVictim == victim then return end
-
-	self:ClearSuperadminGrab()
-
-	if not IsValid(owner) or not IsValid(victim) then return end
-
-	self.AdminGrabVictim = victim
-	self.AdminGrabRefresh = 0
-	owner.AdminHandsGrabVictim = victim
-	victim.AdminHandsGrabber = owner
-end
-
 function SWEP:OnRemove()
-	self:ClearSuperadminGrab()
 	--[[if IsValid(self.worldModel) then
 		self.worldModel:Remove()
 	end--]]
@@ -902,24 +866,6 @@ function SWEP:SecondaryAttack()
 				sound.Play("Flesh.ImpactSoft", owner:GetShootPos(), 65, math.random(90, 110))
 				self:SetNextSecondaryFire(CurTime() + .25)
 
-				if canUseSuperadminGrab(owner) then
-					if IsValid(tr.Entity.AdminHandsGrabber) and tr.Entity.AdminHandsGrabber ~= owner then return end
-
-					hg.LightStunPlayer(tr.Entity, 4)
-					timer.Simple(0, function()
-						if not IsValid(self) or not IsValid(owner) or not IsValid(tr.Entity) then return end
-						if owner:GetActiveWeapon() ~= self then return end
-
-						local rag = hg.GetCurrentCharacter(tr.Entity)
-						if IsValid(rag) and rag ~= tr.Entity then
-							self:SetSuperadminGrab(tr.Entity)
-							self:SetCarrying(rag, tr.PhysicsBone, tr.HitPos, Dist)
-						end
-					end)
-
-					return
-				end
-
 				owner:SetVelocity(owner:GetAimVector() * 20)
 				tr.Entity:SetVelocity((owner:KeyDown(IN_SPEED) and 1 or -1) * owner:GetAimVector() * 50)
 				if owner.organism.superfighter or owner.PlayerClassName == "sc_infiltrator" or (clawClasses[owner.PlayerClassName] and !(tr.Entity.PlayerClassName == "furry" or (tr.Entity.IsBerserk and tr.Entity:IsBerserk()))) or owner:IsBerserk() then
@@ -957,17 +903,6 @@ function SWEP:ApplyForce()
 	local target = self:GetOwner():GetAimVector() * self.CarryDist + select(1, hg.eye(ply))
 	if not IsValid(self.CarryEnt) then return end
 	local phys = self.CarryEnt:GetPhysicsObjectNum(self.CarryBone)
-
-	if IsValid(self.AdminGrabVictim) then
-		local victimRag = hg.GetCurrentCharacter(self.AdminGrabVictim)
-
-		if victimRag ~= self.CarryEnt then
-			self:ClearSuperadminGrab()
-		elseif (self.AdminGrabRefresh or 0) < CurTime() then
-			self.AdminGrabRefresh = CurTime() + 0.1
-			hg.LightStunPlayer(self.AdminGrabVictim, 0.4)
-		end
-	end
 
 	if ply.organism and ply.organism.rarmamputated and ply:IsTyping() then
 		self:SetCarrying()
@@ -1244,10 +1179,6 @@ end
 function SWEP:SetCarrying(ent, bone, pos, dist)
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
-
-	if not IsValid(ent) or (IsValid(self.AdminGrabVictim) and hg.GetCurrentCharacter(self.AdminGrabVictim) ~= ent) then
-		self:ClearSuperadminGrab()
-	end
 
 	if IsValid(ent) or game.GetWorld() == ent then
 		self.CarryEnt = ent
@@ -2032,30 +1963,6 @@ if SERVER then
 end
 
 if SERVER then
-	hook.Add("Should Fake Up", "SuperadminHandsGrab", function(ply)
-		local grabber = ply.AdminHandsGrabber
-		if not IsValid(grabber) then
-			ply.AdminHandsGrabber = nil
-			return
-		end
-
-		local wep = grabber:GetActiveWeapon()
-		if not IsValid(wep) or wep:GetClass() ~= "weapon_hands_sh" or wep.AdminGrabVictim ~= ply then
-			ply.AdminHandsGrabber = nil
-			return
-		end
-
-		return false
-	end)
-
-	hook.Add("CanControlFake", "SuperadminHandsGrab", function(ply)
-		if IsValid(ply.AdminHandsGrabber) then
-			return false
-		end
-	end)
-end
-
-if SERVER then
 	hook.Add( "StartCommand", "tuda-suda-hahaha", function( ply, cmd )
 		local whl = cmd:GetMouseWheel()
 		if ( whl != 0 ) then
@@ -2154,8 +2061,6 @@ end
 function SWEP:Holster( wep )
 	if not IsFirstTimePredicted() then return true end
 	local owner = self:GetOwner()
-
-	self:ClearSuperadminGrab()
 
 	if owner:GetNetVar("handcuffed",false) then return false end
 
