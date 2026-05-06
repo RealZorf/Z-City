@@ -298,7 +298,6 @@ if CLIENT then
             ["hmcd"] = true,
             ["hl2dm"] = true,
             ["hl3"] = true,
-            ["gravitydm"] = true,
             ["shipassassins"] = true,
             ["riot"] = true,
             ["gwars"] = true,
