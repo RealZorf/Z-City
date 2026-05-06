@@ -424,6 +424,7 @@ end
 
 local function enforceVortRoundRestrictions(ply)
 	if not IsValid(ply) or ply:Team() ~= VORT_TEAM then return end
+	local needsWeaponStrip = false
 
 	if ply:Alive() and not ply:HasWeapon(VORT_ALLOWED_WEAPON) then
 		ply:Give(VORT_ALLOWED_WEAPON)
@@ -432,11 +433,21 @@ local function enforceVortRoundRestrictions(ply)
 	for _, wep in ipairs(ply:GetWeapons()) do
 		local class = IsValid(wep) and wep:GetClass()
 		if class and class ~= VORT_ALLOWED_WEAPON then
-			ply:StripWeapon(class)
+			needsWeaponStrip = true
+			break
 		end
 	end
 
-	if ply.RemoveAllAmmo then
+	if needsWeaponStrip then
+		for _, wep in ipairs(ply:GetWeapons()) do
+			local class = IsValid(wep) and wep:GetClass()
+			if class and class ~= VORT_ALLOWED_WEAPON then
+				ply:StripWeapon(class)
+			end
+		end
+	end
+
+	if ply.RemoveAllAmmo and (ply:GetAmmoCount("Pistol") > 0 or ply:GetAmmoCount("SMG1") > 0 or ply:GetAmmoCount("Buckshot") > 0 or ply:GetAmmoCount("357") > 0 or ply:GetAmmoCount("AR2") > 0 or ply:GetAmmoCount("XBowBolt") > 0 or ply:GetAmmoCount("Grenade") > 0 or ply:GetAmmoCount("RPG_Round") > 0 or ply:GetAmmoCount("slam") > 0) then
 		ply:RemoveAllAmmo()
 	end
 

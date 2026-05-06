@@ -1,3 +1,6 @@
+local impactRings
+local queueImpactRing
+
 if SERVER then
 	AddCSLuaFile("shared.lua")
 
@@ -10,6 +13,7 @@ if SERVER then
 	SWEP.AutoSwitchTo = true
 	SWEP.AutoSwitchFrom = true
 	util.AddNetworkString("ZC_VortBeamHitFlash")
+	util.AddNetworkString("ZC_VortBeamImpactRing")
 end
 
 if CLIENT then
@@ -21,6 +25,51 @@ if CLIENT then
 	SWEP.ViewModelFOV = 60
 
 	killicon.Add("vort_swep", "VGUI/killicons/weapon_vortbeam", Color(255, 255, 255))
+	impactRings = {}
+
+	local impactRingMat = Material("effects/select_ring")
+
+	queueImpactRing = function(pos, scale)
+		if not isvector(pos) then return end
+
+		local now = CurTime()
+		for i = #impactRings, math.max(1, #impactRings - 5), -1 do
+			local ring = impactRings[i]
+			if ring and ring.pos:DistToSqr(pos) <= 4 and math.abs(ring.time - now) <= 0.1 then
+				return
+			end
+		end
+
+		impactRings[#impactRings + 1] = {
+			pos = pos,
+			scale = math.max(scale or 1, 0.1),
+			time = now,
+			die = now + 0.22
+		}
+	end
+
+	net.Receive("ZC_VortBeamImpactRing", function()
+		queueImpactRing(net.ReadVector(), net.ReadFloat())
+	end)
+
+	hook.Add("PostDrawTranslucentRenderables", "ZC_VortBeamImpactRing", function(depth, skybox)
+		if skybox or not impactRings or #impactRings == 0 then return end
+
+		local now = CurTime()
+		render.SetMaterial(impactRingMat)
+
+		for i = #impactRings, 1, -1 do
+			local ring = impactRings[i]
+			if not ring or now >= ring.die then
+				table.remove(impactRings, i)
+				continue
+			end
+
+			local frac = 1 - ((now - ring.time) / (ring.die - ring.time))
+			local size = 64 * ring.scale * (1.05 + (1 - frac) * 0.35)
+			render.DrawSprite(ring.pos, size, size, Color(140, 255, 140, 175 * frac))
+		end
+	end)
 
 	net.Receive("ZC_VortBeamHitFlash", function()
 		local alpha = 255
@@ -135,6 +184,7 @@ SWEP.HL3BlinkShockRadius = 170
 SWEP.HL3BlinkShockDamage = 28
 SWEP.HL3BlinkHullMins = Vector(-16, -16, 0)
 SWEP.HL3BlinkHullMaxs = Vector(16, 16, 72)
+SWEP.HL3HighLoadThreshold = 10
 
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
@@ -216,6 +266,22 @@ function SWEP:IsHL3Vort(pPlayer)
 	return IsValid(pPlayer)
 		and self:IsHL3Mode()
 		and (pPlayer:GetNWBool("ZC_HL3_Vort", false) or pPlayer:Team() == HL3_VORT_TEAM or self:IsVortOwner(pPlayer))
+end
+
+function SWEP:GetHL3ActivePopulation()
+	local count = 0
+
+	for _, ply in ipairs(player.GetAll()) do
+		if IsValid(ply) and ply:Alive() and ply:Team() ~= TEAM_SPECTATOR then
+			count = count + 1
+		end
+	end
+
+	return count
+end
+
+function SWEP:IsHL3HighLoad()
+	return SERVER and self:IsHL3Mode() and self:GetHL3ActivePopulation() >= self.HL3HighLoadThreshold
 end
 
 function SWEP:ResolvePlayerEntity(target)
@@ -399,6 +465,9 @@ function SWEP:DispatchEffect(effectName)
 end
 
 function SWEP:PlayTracer(effectName, endPos)
+	if CLIENT and not IsFirstTimePredicted() then return end
+	if SERVER and self:IsHL3HighLoad() then return end
+
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
 
@@ -409,23 +478,25 @@ function SWEP:PlayTracer(effectName, endPos)
 end
 
 function SWEP:CreateImpactSprite(scale, pos)
-	if CLIENT then return end
+	if not isvector(pos) then return end
 
-	local sprite = ents.Create("env_sprite")
-	sprite:SetPos(pos)
-	sprite:SetKeyValue("model", "sprites/vortring1.vmt")
-	sprite:SetKeyValue("scale", tostring(scale))
-	sprite:SetKeyValue("framerate", 60)
-	sprite:SetKeyValue("spawnflags", "1")
-	sprite:SetKeyValue("brightness", "255")
-	sprite:SetKeyValue("angles", "0 0 0")
-	sprite:SetKeyValue("rendermode", "9")
-	sprite:SetKeyValue("renderamt", "255")
-	sprite:Spawn()
-	sprite:Fire("kill", "", 0.45)
+	if CLIENT then
+		if queueImpactRing then
+			queueImpactRing(pos, scale)
+		end
+		return
+	end
+
+	if self:IsHL3HighLoad() then return end
+
+	net.Start("ZC_VortBeamImpactRing")
+	net.WriteVector(pos)
+	net.WriteFloat(scale or 1)
+	net.SendPVS(pos)
 end
 
 function SWEP:VortBurstEffect(pos, scale)
+	if CLIENT and not IsFirstTimePredicted() then return end
 	if not pos then return end
 
 	local data = EffectData()
@@ -442,6 +513,9 @@ function SWEP:VortBurstEffect(pos, scale)
 end
 
 function SWEP:ImpactEffect(traceHit)
+	if CLIENT and not IsFirstTimePredicted() then return end
+	if SERVER and self:IsHL3HighLoad() then return end
+
 	local data = EffectData()
 	data:SetOrigin(traceHit.HitPos)
 	data:SetNormal(traceHit.HitNormal)
@@ -450,14 +524,12 @@ function SWEP:ImpactEffect(traceHit)
 
 	local rand = math.Rand(1, 1.5)
 	self:CreateImpactSprite(rand, traceHit.HitPos)
-	self:CreateImpactSprite(rand, traceHit.HitPos)
-
-	if SERVER and IsValid(traceHit.Entity) and string.find(traceHit.Entity:GetClass(), "ragdoll") then
-		traceHit.Entity:Fire("StartRagdollBoogie")
-	end
 end
 
 function SWEP:AltImpactEffect(traceHit)
+	if CLIENT and not IsFirstTimePredicted() then return end
+	if SERVER and self:IsHL3HighLoad() then return end
+
 	self:ImpactEffect(traceHit)
 
 	local data = EffectData()
@@ -467,7 +539,6 @@ function SWEP:AltImpactEffect(traceHit)
 	util.Effect(ALT_IMPACT_EFFECT, data, true, true)
 
 	local rand = math.Rand(1.4, 2.1)
-	self:CreateImpactSprite(rand, traceHit.HitPos)
 	self:CreateImpactSprite(rand, traceHit.HitPos)
 end
 
@@ -482,6 +553,46 @@ function SWEP:GetAimTrace(range)
 		filter = owner,
 		mask = MASK_SHOT
 	})
+end
+
+function SWEP:GetNearbyCombatTargets(origin, radius, owner, directTarget)
+	if not SERVER or not isvector(origin) or radius <= 0 then return {} end
+
+	local targets = {}
+	local seen = {}
+	local radiusSqr = radius * radius
+	local highLoad = self:IsHL3HighLoad()
+
+	local function tryAddTarget(target)
+		if not IsValid(target) or target == owner or target == directTarget or seen[target] then return end
+		if not (target:IsPlayer() or target:IsNPC() or target:GetClass() == "prop_ragdoll") then return end
+		if self:ShouldBlockHL3FriendlyDamage(owner, target) then return end
+		if self:IsFriendlyHL3Target(owner, target) then return end
+
+		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
+		if origin:DistToSqr(targetPos) > radiusSqr then return end
+
+		seen[target] = targetPos
+		targets[#targets + 1] = target
+	end
+
+	for _, ply in ipairs(player.GetAll()) do
+		tryAddTarget(ply)
+	end
+
+	if highLoad then
+		return targets, seen
+	end
+
+	for _, npc in ipairs(ents.FindByClass("npc_*")) do
+		tryAddTarget(npc)
+	end
+
+	for _, ragdoll in ipairs(ents.FindByClass("prop_ragdoll")) do
+		tryAddTarget(ragdoll)
+	end
+
+	return targets, seen
 end
 
 function SWEP:StopViewParticles(owner)
@@ -648,16 +759,10 @@ function SWEP:ApplyPrimarySplash(owner, traceRes, directTarget)
 	if radius <= 0 or maxDamage <= 0 then return end
 
 	local origin = traceRes.HitPos
-	for _, target in ipairs(ents.FindInSphere(origin, radius)) do
-		if target == owner or target == directTarget then continue end
-		if not IsValid(target) then continue end
-		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
-		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
-		if self:IsFriendlyHL3Target(owner, target) then continue end
-
-		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
-		local distance = origin:Distance(targetPos)
-		if distance > radius then continue end
+	local targets, centers = self:GetNearbyCombatTargets(origin, radius, owner, directTarget)
+	for _, target in ipairs(targets) do
+		local targetPos = centers[target] or (target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos())
+		local distance = math.sqrt(origin:DistToSqr(targetPos))
 
 		local los = util.TraceLine({
 			start = origin + traceRes.HitNormal * 4,
@@ -696,16 +801,10 @@ function SWEP:ApplyAltSplash(owner, traceRes, directTarget)
 	if radius <= 0 or maxDamage <= 0 then return end
 
 	local origin = traceRes.HitPos
-	for _, target in ipairs(ents.FindInSphere(origin, radius)) do
-		if target == owner or target == directTarget then continue end
-		if not IsValid(target) then continue end
-		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
-		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
-		if self:IsFriendlyHL3Target(owner, target) then continue end
-
-		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
-		local distance = origin:Distance(targetPos)
-		if distance > radius then continue end
+	local targets, centers = self:GetNearbyCombatTargets(origin, radius, owner, directTarget)
+	for _, target in ipairs(targets) do
+		local targetPos = centers[target] or (target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos())
+		local distance = math.sqrt(origin:DistToSqr(targetPos))
 
 		local los = util.TraceLine({
 			start = origin + traceRes.HitNormal * 6,
@@ -744,14 +843,9 @@ function SWEP:ApplyPrimaryArc(owner, traceRes, directTarget)
 	if radius <= 0 or damage <= 0 then return end
 
 	local bestTarget, bestTargetPos, bestDistSqr
-	for _, target in ipairs(ents.FindInSphere(traceRes.HitPos, radius)) do
-		if target == owner or target == directTarget then continue end
-		if not IsValid(target) then continue end
-		if not (target:IsPlayer() or target:IsNPC() or string.find(target:GetClass() or "", "ragdoll", 1, true)) then continue end
-		if self:ShouldBlockHL3FriendlyDamage(owner, target) then continue end
-		if self:IsFriendlyHL3Target(owner, target) then continue end
-
-		local targetPos = target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos()
+	local targets, centers = self:GetNearbyCombatTargets(traceRes.HitPos, radius, owner, directTarget)
+	for _, target in ipairs(targets) do
+		local targetPos = centers[target] or (target.WorldSpaceCenter and target:WorldSpaceCenter() or target:GetPos())
 		local distToTarget = traceRes.HitPos:DistToSqr(targetPos)
 		if bestDistSqr and distToTarget >= bestDistSqr then continue end
 
@@ -780,11 +874,13 @@ function SWEP:ApplyPrimaryArc(owner, traceRes, directTarget)
 	arcDamage:SetDamageForce((bestTargetPos - traceRes.HitPos):GetNormalized() * self.DamageForce * 0.25)
 	bestTarget:TakeDamageInfo(arcDamage)
 
-	local arcEffect = EffectData()
-	arcEffect:SetStart(traceRes.HitPos)
-	arcEffect:SetOrigin(bestTargetPos)
-	arcEffect:SetMagnitude(1)
-	util.Effect("ToolTracer", arcEffect, true, true)
+	if not self:IsHL3HighLoad() then
+		local arcEffect = EffectData()
+		arcEffect:SetStart(traceRes.HitPos)
+		arcEffect:SetOrigin(bestTargetPos)
+		arcEffect:SetMagnitude(1)
+		util.Effect("ToolTracer", arcEffect, true, true)
+	end
 end
 
 function SWEP:ApplyBeamSiphon(owner, target, isAlt)
@@ -904,6 +1000,28 @@ function SWEP:CreateVortRift(owner, pos, normal)
 	self:CreateImpactSprite(2.4, origin)
 	owner:EmitSound("NPC_Vortigaunt.Dispell", 95, 82)
 	owner:EmitSound("ambient/levels/citadel/weapon_disintegrate3.wav", 95, 125)
+
+	if self:IsHL3HighLoad() then
+		for _, ply in ipairs(player.GetAll()) do
+			if not IsValid(ply) or not ply:Alive() or ply == owner then continue end
+			if self:IsFriendlyHL3Target(owner, ply) or self:ShouldBlockHL3FriendlyDamage(owner, ply) then continue end
+
+			local targetPos = self:GetEntityCenter(ply)
+			if origin:DistToSqr(targetPos) > radius * radius then continue end
+
+			local dir = origin - targetPos
+			if dir:LengthSqr() <= 1 then
+				dir = VectorRand()
+			else
+				dir:Normalize()
+			end
+
+			ply:SetVelocity(dir * math.min(self.HL3RiftPullForce * 0.2, 180) + Vector(0, 0, 30))
+			self:DamageRiftTarget(owner, ply, origin, self.HL3RiftFinalDamage * 0.65, true)
+		end
+
+		return
+	end
 
 	timer.Create(id, interval, pulses, function()
 		if not IsValid(owner) or not IsValid(self) then
@@ -1069,11 +1187,15 @@ function SWEP:FireBeam()
 	local traceRes = self:GetAimTrace(isAlt and self:GetAltRange() or self:GetPrimaryRange())
 	if not traceRes then return end
 
-	if isAlt then
-		self:PlayTracer(ALT_ZAP_PARTICLE, traceRes.HitPos)
-		self:PlayTracer(ZAP_PARTICLE, traceRes.HitPos)
-	else
-		self:PlayTracer(ZAP_PARTICLE, traceRes.HitPos)
+	local canPlayFX = SERVER or IsFirstTimePredicted()
+
+	if canPlayFX then
+		if isAlt then
+			self:PlayTracer(ALT_ZAP_PARTICLE, traceRes.HitPos)
+			self:PlayTracer(ZAP_PARTICLE, traceRes.HitPos)
+		else
+			self:PlayTracer(ZAP_PARTICLE, traceRes.HitPos)
+		end
 	end
 
 	if SERVER then
@@ -1104,7 +1226,8 @@ function SWEP:FireBeam()
 				traceRes.Entity:TakeDamageInfo(dmg)
 
 				local tracePly = self:ResolvePlayerEntity(traceRes.Entity)
-				if IsValid(tracePly) then
+				if not self:IsHL3HighLoad() and IsValid(tracePly) and (tracePly.ZCNextVortBeamHitFlash or 0) <= CurTime() then
+					tracePly.ZCNextVortBeamHitFlash = CurTime() + 0.15
 					net.Start("ZC_VortBeamHitFlash")
 					net.Send(tracePly)
 				end
@@ -1123,10 +1246,12 @@ function SWEP:FireBeam()
 		owner:EmitSound(self.AttackSound, isAlt and 95 or 85, isAlt and 85 or 100)
 	end
 
-	if isAlt then
-		self:AltImpactEffect(traceRes)
-	else
-		self:ImpactEffect(traceRes)
+	if canPlayFX then
+		if isAlt then
+			self:AltImpactEffect(traceRes)
+		else
+			self:ImpactEffect(traceRes)
+		end
 	end
 	self:ResetState()
 
