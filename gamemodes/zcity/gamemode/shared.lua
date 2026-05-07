@@ -66,23 +66,47 @@ hook.Add( "PlayerNoClip", "FeelFreeToTurnItOff", function( ply, desiredState )
 end )
 
 if CLIENT then
-	hook.Add( "PlayerBindPress", "PlayerBindPressExample", function( ply, bind, pressed )
-		if ( string.find( bind, "+menu" ) ) then
-			--return true
-		end
-	end )
+	local ZCTools_ULXGroups = {
+		admin = true,
+		headadmin = true,
+		developer = true,
+		superadmin = true
+	}
 
-	hook.Add( "SpawnMenuOpen", "SpawnMenuWhitelist", function()
+	local function ZCTools_HasULXAccess(ply)
+		if not IsValid(ply) then return false end
+
+		-- Native GMod admin checks
+		if ply:IsSuperAdmin() then return true end
+		if ply:IsAdmin() then return true end
+
+		-- ULX / ULib usergroup check
+		if ply.GetUserGroup then
+			local group = string.lower(tostring(ply:GetUserGroup() or ""))
+			if ZCTools_ULXGroups[group] then return true end
+		end
+
+		return false
+	end
+
+	hook.Add("PlayerBindPress", "PlayerBindPressExample", function(ply, bind, pressed)
+		if string.find(bind, "+menu", 1, true) then
+			-- return true
+		end
+	end)
+
+	hook.Add("SpawnMenuOpen", "SpawnMenuWhitelist", function()
 		local ply = LocalPlayer()
+
 		if HG_SANDBOX and HG_SANDBOX.IsSandboxModeActive and HG_SANDBOX.IsSandboxModeActive() then
 			if HG_SANDBOX.IsBypassPlayer and HG_SANDBOX.IsBypassPlayer(ply) then return true end
 			if HG_SANDBOX.IsRestrictedPlayer and HG_SANDBOX.IsRestrictedPlayer(ply) then return true end
 		end
 
-		if ply:IsSuperAdmin() then return end
-		if ply:IsAdmin() then return end
+		if ZCTools_HasULXAccess(ply) then return end
+
 		return false
-	end )
+	end)
 end
 
 local team_GetAllTeams = team.GetAllTeams
