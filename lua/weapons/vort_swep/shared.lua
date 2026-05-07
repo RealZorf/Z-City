@@ -269,15 +269,16 @@ function SWEP:IsHL3Vort(pPlayer)
 end
 
 function SWEP:GetHL3ActivePopulation()
-	local count = 0
+	local totalCount = #player.GetAll()
+	local activeCount = 0
 
 	for _, ply in ipairs(player.GetAll()) do
 		if IsValid(ply) and ply:Alive() and ply:Team() ~= TEAM_SPECTATOR then
-			count = count + 1
+			activeCount = activeCount + 1
 		end
 	end
 
-	return count
+	return math.max(totalCount, activeCount)
 end
 
 function SWEP:IsHL3HighLoad()
@@ -593,6 +594,23 @@ function SWEP:GetNearbyCombatTargets(origin, radius, owner, directTarget)
 	end
 
 	return targets, seen
+end
+
+function SWEP:GetNearbyFriendlyPlayers(origin, radius, owner)
+	if not SERVER or not isvector(origin) or radius <= 0 or not IsValid(owner) then return {} end
+
+	local friends = {}
+	local radiusSqr = radius * radius
+
+	for _, ply in ipairs(player.GetAll()) do
+		if not IsValid(ply) or not ply:Alive() or ply == owner then continue end
+		if ply:Team() ~= owner:Team() then continue end
+		if origin:DistToSqr(self:GetEntityCenter(ply)) > radiusSqr then continue end
+
+		friends[#friends + 1] = ply
+	end
+
+	return friends
 end
 
 function SWEP:StopViewParticles(owner)
@@ -929,42 +947,22 @@ end
 function SWEP:PullEntityIntoRift(owner, ent, origin, radius, pullForce)
 	if not SERVER or not IsValid(ent) or ent == owner then return end
 
-	local entPos = self:GetEntityCenter(ent)
-	local pullDir = (origin + Vector(0, 0, 32)) - entPos
-	local distance = math.max(pullDir:Length(), 1)
-	pullDir:Normalize()
-
-	local strength = math.Clamp(1 - distance / radius, 0.08, 1)
-	local force = pullForce * strength
-
 	if ent:IsPlayer() or ent:IsNPC() then
 		if self:IsFriendlyHL3Target(owner, ent) or self:ShouldBlockHL3FriendlyDamage(owner, ent) then return end
+
+		local entPos = self:GetEntityCenter(ent)
+		local pullDir = (origin + Vector(0, 0, 32)) - entPos
+		local distance = math.max(pullDir:Length(), 1)
+		pullDir:Normalize()
+
+		local strength = math.Clamp(1 - distance / radius, 0.08, 1)
+		local force = pullForce * strength
 		ent:SetVelocity(pullDir * force + Vector(0, 0, 45 * strength))
 		return
 	end
 
-	if string.find(ent:GetClass() or "", "ragdoll", 1, true) then
-		local ragOwner = self:ResolvePlayerEntity(ent)
-		if IsValid(ragOwner) and (self:IsFriendlyHL3Target(owner, ragOwner) or self:ShouldBlockHL3FriendlyDamage(owner, ragOwner)) then return end
-	end
-
-	local physCount = ent.GetPhysicsObjectCount and ent:GetPhysicsObjectCount() or 0
-	if physCount > 0 then
-		for i = 0, physCount - 1 do
-			local phys = ent:GetPhysicsObjectNum(i)
-			if IsValid(phys) and phys:IsMoveable() then
-				phys:Wake()
-				phys:ApplyForceCenter(pullDir * math.max(phys:GetMass(), 20) * force * self.HL3RiftPropForce)
-			end
-		end
-		return
-	end
-
-	local phys = ent:GetPhysicsObject()
-	if IsValid(phys) and phys:IsMoveable() then
-		phys:Wake()
-		phys:ApplyForceCenter(pullDir * math.max(phys:GetMass(), 20) * force * self.HL3RiftPropForce)
-	end
+	-- Do not pull arbitrary props/ragdoll physics. On prop-heavy maps the old rift
+	-- force loop could wake hundreds of physics objects and push them into bad origins.
 end
 
 function SWEP:DamageRiftTarget(owner, ent, origin, damage, finalBurst)
@@ -1038,19 +1036,17 @@ function SWEP:CreateVortRift(owner, pos, normal)
 		fx:SetScale(1 + pulseIndex * 0.12)
 		util.Effect("StunstickImpact", fx, true, true)
 
-		for _, ent in ipairs(ents.FindInSphere(origin, pulseRadius)) do
-			if not IsValid(ent) or ent == owner then continue end
-
+		local targets = self:GetNearbyCombatTargets(origin, pulseRadius, owner)
+		for _, ent in ipairs(targets) do
 			self:PullEntityIntoRift(owner, ent, origin, pulseRadius, self.HL3RiftPullForce)
 
 			if pulseIndex % 2 == 0 then
 				self:DamageRiftTarget(owner, ent, origin, self.HL3RiftPulseDamage, false)
 			end
+		end
 
-			local ally = self:ResolvePlayerEntity(ent)
-			if IsValid(ally) and ally:Team() == owner:Team() and ally ~= owner then
-				ally:SetArmor(math.min(self:GetArmorLimitFor(ally), ally:Armor() + 1))
-			end
+		for _, ally in ipairs(self:GetNearbyFriendlyPlayers(origin, pulseRadius, owner)) do
+			ally:SetArmor(math.min(self:GetArmorLimitFor(ally), ally:Armor() + 1))
 		end
 
 		owner:SetVelocity((origin - owner:GetPos()):GetNormalized() * 40)
@@ -1060,8 +1056,8 @@ function SWEP:CreateVortRift(owner, pos, normal)
 			self:CreateImpactSprite(3.1, origin)
 			owner:EmitSound("NPC_Vortigaunt.ClawBeam", 100, 70)
 
-			for _, ent in ipairs(ents.FindInSphere(origin, radius * 1.05)) do
-				if not IsValid(ent) or ent == owner then continue end
+			local finalTargets = self:GetNearbyCombatTargets(origin, radius * 1.05, owner)
+			for _, ent in ipairs(finalTargets) do
 				self:DamageRiftTarget(owner, ent, origin, self.HL3RiftFinalDamage, true)
 				self:PullEntityIntoRift(owner, ent, origin + Vector(0, 0, 120), radius, -self.HL3RiftPullForce * 0.85)
 			end
@@ -1084,16 +1080,11 @@ function SWEP:VortBlinkShockwave(owner, pos)
 
 	self:VortBurstEffect(pos + Vector(0, 0, 36), 1.05)
 
-	for _, ent in ipairs(ents.FindInSphere(pos + Vector(0, 0, 36), self.HL3BlinkShockRadius)) do
-		if not IsValid(ent) or ent == owner then continue end
-
-		local target = self:ResolvePlayerEntity(ent) or ent
-		if self:IsHL3CombatTarget(owner, target) then
-			local targetPos = self:GetEntityCenter(target)
-			local dir = targetPos - pos
-			if dir:LengthSqr() <= 1 then dir = VectorRand() else dir:Normalize() end
-			target:TakeDamageInfo(self:BuildShockDamage(owner, self.HL3BlinkShockDamage, targetPos, dir + Vector(0, 0, 0.35), self.DamageForce * 0.28))
-		end
+	for _, target in ipairs(self:GetNearbyCombatTargets(pos + Vector(0, 0, 36), self.HL3BlinkShockRadius, owner)) do
+		local targetPos = self:GetEntityCenter(target)
+		local dir = targetPos - pos
+		if dir:LengthSqr() <= 1 then dir = VectorRand() else dir:Normalize() end
+		target:TakeDamageInfo(self:BuildShockDamage(owner, self.HL3BlinkShockDamage, targetPos, dir + Vector(0, 0, 0.35), self.DamageForce * 0.28))
 	end
 end
 
@@ -1204,10 +1195,11 @@ function SWEP:FireBeam()
 			self:CreateVortRift(owner, traceRes.HitPos, traceRes.HitNormal)
 		end
 
-		local friendlyTarget = self:IsFriendlyHL3Target(owner, traceRes.Entity)
-		local blockFriendlyDamage = self:ShouldBlockHL3FriendlyDamage(owner, traceRes.Entity)
+		local traceEntity = traceRes.Entity
+		local friendlyTarget = self:IsFriendlyHL3Target(owner, traceEntity)
+		local blockFriendlyDamage = self:ShouldBlockHL3FriendlyDamage(owner, traceEntity)
 		if friendlyTarget then
-			self:ApplyBeamSupport(owner, traceRes.Entity, isAlt)
+			self:ApplyBeamSupport(owner, traceEntity, isAlt)
 		elseif not blockFriendlyDamage then
 			local damage = isAlt and self:GetAltDamage() or self:GetPrimaryDamage()
 			if riftShot then
@@ -1222,10 +1214,10 @@ function SWEP:FireBeam()
 			dmg:SetDamagePosition(traceRes.HitPos)
 			dmg:SetDamageForce(owner:GetAimVector() * (isAlt and self.AltDamageForce or self.DamageForce))
 
-			if IsValid(traceRes.Entity) then
-				traceRes.Entity:TakeDamageInfo(dmg)
+			if IsValid(traceEntity) and ((not self:IsHL3Mode()) or self:IsHL3CombatTarget(owner, traceEntity)) then
+				traceEntity:TakeDamageInfo(dmg)
 
-				local tracePly = self:ResolvePlayerEntity(traceRes.Entity)
+				local tracePly = self:ResolvePlayerEntity(traceEntity)
 				if not self:IsHL3HighLoad() and IsValid(tracePly) and (tracePly.ZCNextVortBeamHitFlash or 0) <= CurTime() then
 					tracePly.ZCNextVortBeamHitFlash = CurTime() + 0.15
 					net.Start("ZC_VortBeamHitFlash")
@@ -1234,13 +1226,13 @@ function SWEP:FireBeam()
 			end
 
 			if isAlt then
-				self:ApplyAltSplash(owner, traceRes, traceRes.Entity)
+				self:ApplyAltSplash(owner, traceRes, traceEntity)
 			else
-				self:ApplyPrimarySplash(owner, traceRes, traceRes.Entity)
-				self:ApplyPrimaryArc(owner, traceRes, traceRes.Entity)
+				self:ApplyPrimarySplash(owner, traceRes, traceEntity)
+				self:ApplyPrimaryArc(owner, traceRes, traceEntity)
 			end
 
-			self:ApplyBeamSiphon(owner, traceRes.Entity, isAlt)
+			self:ApplyBeamSiphon(owner, traceEntity, isAlt)
 		end
 
 		owner:EmitSound(self.AttackSound, isAlt and 95 or 85, isAlt and 85 or 100)

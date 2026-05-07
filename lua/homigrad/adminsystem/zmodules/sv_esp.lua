@@ -12,6 +12,9 @@ local lastToggle = {}
 local liveESPUserGroups = {
 	["superadmin"] = true,
 	["developer"] = true
+	["developer"] = true,
+	["headadmin"] = true,
+	["admin"] = true
 }
 local ESP_PDATA_KEY = "zcity_live_esp_enabled"
 

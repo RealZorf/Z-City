@@ -13,6 +13,9 @@ local ESPEye = CreateClientConVar("zb_espeye", "0", true, false, "Show admin ESP
 local liveESPUserGroups = {
 	["superadmin"] = true,
 	["developer"] = true
+	["developer"] = true,
+	["headadmin"] = true,
+	["admin"] = true
 }
 
 local col_default = Color(255, 0, 0)
