@@ -23,6 +23,25 @@ if CLIENT then
 	local OpenInv
 	net.Receive("should_open_inv", function()
 		local ent = net.ReadEntity()
+		if IsValid(ent) then
+			ent.PAT_SearchVisibleLootMask = nil
+			ent.PAT_SearchLivePlayer = nil
+
+			if net.BytesLeft and net.BytesLeft() > 0 and net.ReadBool() then
+				local mask = net.ReadTable()
+				ent.PAT_SearchVisibleLootMask = istable(mask) and mask or nil
+			end
+
+			if net.BytesLeft and net.BytesLeft() > 0 then
+				ent.PAT_SearchLivePlayer = net.ReadBool() or nil
+			end
+		end
+
+		if PAT_SearchMinigame_OpenInv then
+			PAT_SearchMinigame_OpenInv(ent)
+			return
+		end
+
 		OpenInv(ent)
 	end)
 

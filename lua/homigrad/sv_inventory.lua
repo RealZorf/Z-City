@@ -35,6 +35,10 @@ local function canThiefSearchLive(ply, ent)
 		and not IsValid(ply.FakeRagdoll)
 end
 
+function hg.HMCDCanThiefSearchLive(ply, ent)
+	return canThiefSearchLive(ply, ent)
+end
+
 local function getThiefPickupKeys(tab, key, ...)
 	if tab == "Armor" then
 		local armor = select(1, ...)
@@ -106,6 +110,32 @@ end
 local function buildSearchVisibilityMask(ent)
 	if not isHMCDThief(ent) then return nil end
 	return table.Copy(ent.HMCD_ThiefPickupInventory or {})
+end
+
+local function weaponUsesSling(wepClass, weaponEnt)
+	if wepClass == "hg_sling" then return true end
+
+	if IsValid(weaponEnt) and weaponEnt.IsPistolHoldType then
+		return not weaponEnt:IsPistolHoldType()
+	end
+
+	local weaponData = weapons.Get(wepClass)
+	if not weaponData then return false end
+	if weaponData.weaponInvCategory == 1 then return true end
+	if weaponData.IsPistol or weaponData.HoldType == "pistol" or weaponData.HoldType == "revolver" then return false end
+
+	return false
+end
+
+local function isSlingProtectedLoot(ent, tab, key)
+	if tab ~= "Weapons" or not IsValid(ent) then return false end
+	if not ent:IsPlayer() or IsValid(ent.FakeRagdoll) then return false end
+
+	local inv = ent.inventory or ent:GetNetVar("Inventory", {})
+	local weaponsInv = istable(inv) and inv.Weapons
+	if not istable(weaponsInv) or not weaponsInv["hg_sling"] then return false end
+
+	return weaponUsesSling(key, weaponsInv[key])
 end
 
 local function resolveLootEntityFromTrace(ply, trace)
@@ -399,6 +429,7 @@ local functions = {
     ["Weapons"] = function(ply, ent, wep)
         if (ent:IsPlayer() and IsValid(ent:GetActiveWeapon()) and ent:GetActiveWeapon():GetClass() == wep) then return end
         if (not ent.inventory.Weapons[wep]) then return end
+        if ent:IsPlayer() and isSlingProtectedLoot(ent, "Weapons", wep) then return end
 
         --local weapon = weapons.Get(wep)
         --if not weapon then return end
@@ -518,6 +549,7 @@ net.Receive("ply_take_item", function(len, ply)
     if !IsValid(ent) or !IsValid(ply) then return end
     if ent:IsPlayer() and not IsValid(ent.FakeRagdoll) and not canThiefSearchLive(ply, ent) then return end
     if not isThiefPickupVisible(ent, tblIndex, thing, unpack(tbl)) then return end
+    if isSlingProtectedLoot(ent, tblIndex, thing) then return end
 
     if ent:GetPos():Distance(ply:GetPos()) > 125 then return end
     local func = functions[tblIndex]
@@ -541,12 +573,14 @@ function playerMeta:OpenInventory(ent)
     if self:IsPlayer() then hg.RenewInv(self) end
     self.cooldown_takeitem = CurTime() + 0.5
     local visibilityMask = buildSearchVisibilityMask(ent)
+    local liveThiefSearch = ent:IsPlayer() and not IsValid(ent.FakeRagdoll) and canThiefSearchLive(self, ent)
     net.Start("should_open_inv")
     net.WriteEntity(ent)
     net.WriteBool(visibilityMask ~= nil)
     if visibilityMask then
         net.WriteTable(visibilityMask)
     end
+    net.WriteBool(liveThiefSearch)
     net.Send(self)
 end
 
