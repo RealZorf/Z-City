@@ -239,6 +239,9 @@ else
     end
 
     function entityMeta:ClearNetVars(receiver)
+		local hadNetVars = zb.net.list[self] ~= nil or zb.net.locals[self] ~= nil
+		if not hadNetVars then return end
+
     	zb.net.list[self] = nil
     	zb.net.locals[self] = nil
 

@@ -39,6 +39,41 @@ local hg_fov = ConVarExists("hg_fov") and GetConVar("hg_fov") or CreateClientCon
 local hg_realismcam = ConVarExists("hg_realismcam") and GetConVar("hg_realismcam") or CreateClientConVar("hg_realismcam", "0", true, false, "Toggle realism first-person camera view", 0, 1)
 local hg_gopro = ConVarExists("hg_gopro") and GetConVar("hg_gopro") or CreateClientConVar("hg_gopro", "0", true, false, "Toggle GoPro-like first-person camera view", 0, 1)
 
+local function SetLocalFirstPersonHeadHidden(ply, hidden)
+	if not IsValid(ply) or ply ~= LocalPlayer() or not ply.LookupBone then return end
+
+	local bone = ply:LookupBone("ValveBiped.Bip01_Head1")
+	if not bone then return end
+
+	local scale = hidden and vecZero or vecFull
+	local current = ply:GetManipulateBoneScale(bone)
+	if current and current:IsEqualTol(scale, 0.001) then return end
+
+	ply:ManipulateBoneScale(bone, scale)
+	ply.ZC_FirstPersonHeadHidden = hidden or nil
+end
+
+local function RestoreLocalFirstPersonHead()
+	local ply = LocalPlayer()
+	if not IsValid(ply) or not ply.ZC_FirstPersonHeadHidden then return end
+
+	SetLocalFirstPersonHeadHidden(ply, false)
+end
+
+hook.Add("Think", "ZC_RestoreLocalFirstPersonHead", function()
+	local ply = LocalPlayer()
+	if not IsValid(ply) or not ply.ZC_FirstPersonHeadHidden then return end
+	if ply:Alive() and GetViewEntity() == ply then return end
+
+	RestoreLocalFirstPersonHead()
+end)
+
+hook.Add("Player Spawn", "ZC_RestoreLocalFirstPersonHead", function(ply)
+	if ply ~= LocalPlayer() then return end
+
+	RestoreLocalFirstPersonHead()
+end)
+
 local oldview = render.GetViewSetup()
 local breathing_amount = 0
 local walk_amount = 0
@@ -446,6 +481,8 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	if not ply.GetAimVector then return end
 
 	local firstPerson = GetViewEntity() == lply
+	local hideLocalHead = firstPerson and ply == lply and ply:Alive() and (not hg_thirdperson:GetBool() or hg_legacycam:GetBool() or lerpaim < 0.3)
+	SetLocalFirstPersonHeadHidden(lply, hideLocalHead)
 
 	local fova = {0}
 	hook.Run("HG_CalcView", ply, origin, angles, fova, znear, zfar)
@@ -534,8 +571,6 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 			return HuyControl
 		end
 	end
-
-	--ply:ManipulateBoneScale(ply:LookupBone("ValveBiped.Bip01_Head1"), firstPerson and (not hg_thirdperson:GetBool() or hg_legacycam:GetBool() or lerpaim < 0.3) and vecZero or vecFull)
 
 	--local angle = tr.Normal:Angle()
 	--angle[3] = angles[3]

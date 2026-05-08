@@ -447,10 +447,10 @@ hook.Add( "ScalePlayerDamage", "FlinchPlayersOnHit", function(ply, grp)
 			group = ACT_FLINCH_PHYSICS
 		end
 
-		net.Start( "DoPlayerFlinch" )
+		net.Start( "DoPlayerFlinch", true )
 			net.WriteInt( group, 32 )
 			net.WriteEntity( ply )
-		net.Broadcast()
+		net.SendPVS(ply:GetPos())
 	end
 end )
 
@@ -556,9 +556,9 @@ function entMeta.EmitSound(self,soundName,soundLevel,pitch,volume,channel,soundF
 end
 
 function hg.ExplosionEffect(pos, dis, dmg)
-	net.Start("add_supression") -- i think this useless for now
+	net.Start("add_supression", true) -- i think this useless for now
 	net.WriteVector(pos)
-	net.Broadcast()
+	net.SendPVS(pos)
 end
 
 -- MANUAL PICKUP

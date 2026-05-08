@@ -782,12 +782,12 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 		timer.Simple(0, function()
 			timer.Create("Blood_burst_input"..ent:EntIndex(), 0.02, 1, function()
 				if not IsValid(ent) then return end
-				net.Start("hg_bloodimpact")
+				net.Start("hg_bloodimpact", true)
 				net.WriteVector(inputHole[1])
 				net.WriteVector(dir / 2)
 				net.WriteFloat(dmg)
 				net.WriteInt(ent.bloodamt2, 8)
-				net.Broadcast()
+				net.SendPVS(inputHole[1])
 				ent.bloodamt2 = 0
 			end)
 		end)
@@ -1021,22 +1021,22 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 				if !rag.bloodsquirted and !rag.headexploded and (hitgroup == HITGROUP_HEAD) and (bit.band(dmgtype, DMG_BULLET + DMG_BUCKSHOT) > 0) and math.random(4) == 1 and org.pulse > 30 then
 					rag.bloodsquirted = true
 
-					net.Start("bloodsquirt")
+					net.Start("bloodsquirt", true)
 					net.WriteEntity(rag)
 					net.WriteString(bonename)
 					net.WriteMatrix(mat)
 					net.WriteVector(dmgPos + dirCool * 2)
 					net.WriteVector(-dirCool * 2)
-					net.Broadcast()
+					net.SendPVS(dmgPos)
 
 					if outputHole and #outputHole > 0 then
-						net.Start("bloodsquirt")
+						net.Start("bloodsquirt", true)
 						net.WriteEntity(rag)
 						net.WriteString(bonename)
 						net.WriteMatrix(mat)
 						net.WriteVector(outputHole[1] - dirCool * 2)
 						net.WriteVector(dirCool * 2)
-						net.Broadcast()
+						net.SendPVS(outputHole[1])
 					end
 				end
 			end
@@ -1085,12 +1085,12 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 	-- EFFECT
 	if dmgInfo:IsDamageType(DMG_BULLET + DMG_BUCKSHOT) then
 		if dmgBlood > 1 and #inputHole > 0 then
-			net.Start("hg_bloodimpact")
+			net.Start("hg_bloodimpact", true)
 			net.WriteVector(dmgPos)
 			net.WriteVector(dirCool / 15)
 			net.WriteFloat(dmg / 10)
 			net.WriteInt(1, 8)
-			net.Broadcast()
+			net.SendPVS(dmgPos)
 
 			--[[if (hitgroup ~= HITGROUP_HEAD) then
 				if dmgInfo:IsDamageType(DMG_BULLET + DMG_BUCKSHOT) then
