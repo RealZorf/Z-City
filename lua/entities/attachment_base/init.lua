@@ -32,6 +32,9 @@ function ENT:TakeByPlayer(activator)
 	if activator:IsPlayer() then-- and not table.HasValue(activator.inventory.Attachments, self.name) then
 		activator.inventory = activator:GetNetVar("Inventory") or activator.inventory
 		activator.inventory.Attachments[#activator.inventory.Attachments + 1] = self.name
+		if hg.MarkThiefPickup then
+			hg.MarkThiefPickup(activator, "Attachments", #activator.inventory.Attachments, self.name)
+		end
 		activator:SetNetVar("Inventory",activator.inventory)
 		self:EmitSound("physics/metal/weapon_impact_soft" .. math.random(3) .. ".wav", 65, math.random(90, 110), 1, CHAN_ITEM)
 		self:Remove()

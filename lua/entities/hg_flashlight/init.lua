@@ -32,6 +32,9 @@ function ENT:TakeByPlayer(activator)
 	if activator:IsPlayer() then-- and not table.HasValue(activator.inventory.Attachments, self.name) then
 		activator.inventory = activator:GetNetVar("Inventory") or activator.inventory
 		activator.inventory["Weapons"]["hg_flashlight"] = true
+		if hg.MarkThiefPickup then
+			hg.MarkThiefPickup(activator, "Weapons", "hg_flashlight")
+		end
 		activator:SetNetVar("Inventory",activator.inventory)
 		activator:SetNetVar("flashlight",self:GetNetVar("enabled"))
 		activator:ViewPunch(AngleRand(-1, 1))

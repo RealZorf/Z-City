@@ -19,6 +19,95 @@ local lootableSearchClasses = {
 	["func_physbox"] = true,
 }
 
+local function isHMCDThief(ent)
+	return IsValid(ent) and ent.HMCD_IsThief == true
+end
+
+local function canThiefSearchLive(ply, ent)
+	return isHMCDThief(ply)
+		and IsValid(ent)
+		and ent:IsPlayer()
+		and ent ~= ply
+		and ent:Alive()
+		and not IsValid(ent.FakeRagdoll)
+		and IsValid(ply)
+		and ply:Alive()
+		and not IsValid(ply.FakeRagdoll)
+end
+
+local function getThiefPickupKeys(tab, key, ...)
+	if tab == "Armor" then
+		local armor = select(1, ...)
+		return tostring(key), armor and tostring(armor) or nil
+	end
+
+	if tab == "Attachments" then
+		local attachment = select(1, ...)
+		return tostring(attachment or key), tostring(key)
+	end
+
+	return tostring(key)
+end
+
+function hg.MarkThiefPickup(ply, tab, key, ...)
+	if not isHMCDThief(ply) or ply.HMCD_ThiefInitializing then return end
+	if not tab or key == nil then return end
+
+	local picked = ply.HMCD_ThiefPickupInventory or {}
+	if not istable(picked) then picked = {} end
+
+	picked[tab] = picked[tab] or {}
+	local key1, key2 = getThiefPickupKeys(tab, key, ...)
+	picked[tab][key1] = true
+	if key2 then picked[tab][key2] = true end
+
+	ply.HMCD_ThiefPickupInventory = picked
+end
+
+local function isThiefPickupVisible(ent, tab, key, ...)
+	if not isHMCDThief(ent) then return true end
+
+	local picked = ent.HMCD_ThiefPickupInventory or {}
+	if not istable(picked) or not istable(picked[tab]) then return false end
+
+	local key1, key2 = getThiefPickupKeys(tab, key, ...)
+	return picked[tab][key1] == true or (key2 and picked[tab][key2] == true) or false
+end
+
+local function thiefNowOwnsItem(ply, tab, key, ...)
+	if not isHMCDThief(ply) then return false end
+
+	if tab == "Weapons" then
+		return ply.inventory and ply.inventory.Weapons and ply.inventory.Weapons[key] ~= nil
+	end
+
+	if tab == "Ammo" then
+		local ammoName = game.GetAmmoName(tonumber(key) or -1)
+		return ammoName and ply:GetAmmoCount(ammoName) > 0
+	end
+
+	if tab == "Armor" then
+		local armor = select(1, ...)
+		return armor and ply.armors and ply.armors[key] == armor
+	end
+
+	if tab == "Attachments" then
+		local attachment = select(1, ...)
+		if not attachment or not ply.inventory or not istable(ply.inventory.Attachments) then return false end
+
+		for _, owned in pairs(ply.inventory.Attachments) do
+			if owned == attachment then return true end
+		end
+	end
+
+	return false
+end
+
+local function buildSearchVisibilityMask(ent)
+	if not isHMCDThief(ent) then return nil end
+	return table.Copy(ent.HMCD_ThiefPickupInventory or {})
+end
+
 local function resolveLootEntityFromTrace(ply, trace)
 	if not trace then return nil end
 
@@ -129,6 +218,7 @@ hook.Add("WeaponEquip", "homigrad-inventory", function(wep, ply)
 
     inv.Weapons = inv.Weapons or {}
     inv.Weapons[wep:GetClass()] = wep
+    hg.MarkThiefPickup(ply, "Weapons", wep:GetClass())
     
     if wep.sling then
         wep.sling = nil
@@ -160,6 +250,9 @@ end)
 hook.Add("PlayerAmmoChanged", "homigrad-inventory", function(ply,ammoID,oldcount,newcount)
     if not ply.inventory then return end
     ply.inventory.Ammo = ply:GetAmmo()
+    if newcount > oldcount then
+        hg.MarkThiefPickup(ply, "Ammo", ammoID)
+    end
     ply:SetNetVar("Inventory", ply.inventory)
 
     if game.GetAmmoName(ammoID) == "Grenade" then
@@ -268,6 +361,8 @@ function hg.TransferItems(ply,ragdoll)
 		--end
 		ragdoll.inventory = inv
 		ragdoll:SetNetVar("Inventory",ragdoll.inventory)
+		ragdoll.HMCD_IsThief = ply.HMCD_IsThief == true
+		ragdoll.HMCD_ThiefPickupInventory = table.Copy(ply.HMCD_ThiefPickupInventory or {})
 		-- ragdoll:SetNetVar("zb_Scrappers_RaidMoney",ply:GetNetVar("zb_Scrappers_RaidMoney"))
 
 		hg.CreateInv(ply)
@@ -421,11 +516,15 @@ net.Receive("ply_take_item", function(len, ply)
     local ent = net.ReadEntity()
     
     if !IsValid(ent) or !IsValid(ply) then return end
-    if ent:IsPlayer() and not IsValid(ent.FakeRagdoll) then return end
+    if ent:IsPlayer() and not IsValid(ent.FakeRagdoll) and not canThiefSearchLive(ply, ent) then return end
+    if not isThiefPickupVisible(ent, tblIndex, thing, unpack(tbl)) then return end
 
     if ent:GetPos():Distance(ply:GetPos()) > 125 then return end
     local func = functions[tblIndex]
     if func then func(ply, ent, thing, unpack(tbl)) end
+    if thiefNowOwnsItem(ply, tblIndex, thing, unpack(tbl)) then
+        hg.MarkThiefPickup(ply, tblIndex, thing, unpack(tbl))
+    end
     ply:SetNetVar("Inventory", ply.inventory)
     ent:SetNetVar("Inventory", ent.inventory)
     ply:SyncArmor()
@@ -437,12 +536,17 @@ local playerMeta = FindMetaTable("Player")
 function playerMeta:OpenInventory(ent)
     hook.Run("ZB_InventoryOpened",self,ent)
     if not IsValid(ent) then return end
-    if ent:IsPlayer() and not IsValid(ent.FakeRagdoll) then return end
+    if ent:IsPlayer() and not IsValid(ent.FakeRagdoll) and not canThiefSearchLive(self, ent) then return end
     if ent:IsPlayer() then hg.RenewInv(ent) end
     if self:IsPlayer() then hg.RenewInv(self) end
     self.cooldown_takeitem = CurTime() + 0.5
+    local visibilityMask = buildSearchVisibilityMask(ent)
     net.Start("should_open_inv")
     net.WriteEntity(ent)
+    net.WriteBool(visibilityMask ~= nil)
+    if visibilityMask then
+        net.WriteTable(visibilityMask)
+    end
     net.Send(self)
 end
 

@@ -103,7 +103,7 @@ if CLIENT then
 			if HG_SANDBOX.IsRestrictedPlayer and HG_SANDBOX.IsRestrictedPlayer(ply) then return true end
 		end
 
-		if ZCTools_HasULXAccess(ply) then return end
+		if ZCTools_HasULXAccess(ply) then return true end
 
 		return false
 	end)

@@ -511,6 +511,11 @@ end
 local function RestoreFakeUpLoadout(ply, snapshot)
 	if not IsValid(ply) or not ply:Alive() or not snapshot then return end
 
+	local restoringThiefInventory = ply.HMCD_IsThief == true
+	if restoringThiefInventory then
+		ply.HMCD_ThiefInitializing = true
+	end
+
 	ply:SetSuppressPickupNotices(true)
 	ply:StripWeapons()
 	ply:RemoveAllAmmo()
@@ -579,6 +584,10 @@ local function RestoreFakeUpLoadout(ply, snapshot)
 		ply:SelectWeapon(snapshot.activeWeaponClass)
 	else
 		ply:SelectWeapon("weapon_hands_sh")
+	end
+
+	if restoringThiefInventory then
+		ply.HMCD_ThiefInitializing = nil
 	end
 
 	timer.Simple(0, function()

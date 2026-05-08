@@ -122,6 +122,9 @@ function hg.AddArmor(ply, equipment, ent)
 	end
 
     ply.armors[placement] = equipment
+	if ent and hg.MarkThiefPickup then
+		hg.MarkThiefPickup(ply, "Armor", placement, equipment)
+	end
     
     ply:SyncArmor()
     return true

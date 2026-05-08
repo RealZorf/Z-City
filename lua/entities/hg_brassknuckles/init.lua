@@ -26,6 +26,9 @@ function ENT:TakeByPlayer(activator)
 		activator.inventory["Weapons"] = activator.inventory["Weapons"] or {}
 		if activator.inventory["Weapons"]["hg_brassknuckles"] then return end
 		activator.inventory["Weapons"]["hg_brassknuckles"] = true
+		if hg.MarkThiefPickup then
+			hg.MarkThiefPickup(activator, "Weapons", "hg_brassknuckles")
+		end
 		activator:SetNetVar("Inventory",activator.inventory)
 		activator:ViewPunch(AngleRand(-1, 1))
 		self:EmitSound("snd_jack_tinyequip.wav", 65, math.random(95, 105), 1, CHAN_BODY)

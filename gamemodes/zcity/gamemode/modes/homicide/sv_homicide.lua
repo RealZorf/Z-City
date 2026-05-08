@@ -2095,6 +2095,9 @@ function MODE.SpawnPlayers(spawn_with_subroles)
     for idx, current_ply in player.Iterator() do
         if(current_ply:Team() != TEAM_SPECTATOR)then
             current_ply.SubRole = nil
+            current_ply.HMCD_ThiefInitializing = nil
+            current_ply.HMCD_IsThief = nil
+            current_ply.HMCD_ThiefPickupInventory = nil
 
             ApplyAppearance(current_ply,nil,nil,nil,true)
             current_ply:Spawn()
@@ -2151,8 +2154,8 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             
             if(MODE.Type == "soe")then
                 if(current_ply.isTraitor)then
-                    local walkie_talkie = current_ply:Give("weapon_walkie_talkie")
-					if walkie_talkie.Frequencies then
+                    local walkie_talkie = current_ply:HasWeapon("weapon_walkie_talkie") and current_ply:GetWeapon("weapon_walkie_talkie") or current_ply:Give("weapon_walkie_talkie")
+					if IsValid(walkie_talkie) and walkie_talkie.Frequencies then
 						MODE.TraitorFrequency = MODE.TraitorFrequency or math.random(1, #walkie_talkie.Frequencies)
 						walkie_talkie.Frequency = MODE.TraitorFrequency
 						current_ply:ChatPrint("Walkie-Talkie Frequency = " .. walkie_talkie.Frequencies[MODE.TraitorFrequency])
