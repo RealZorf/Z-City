@@ -43,11 +43,12 @@ You've prepared for a long time.
 You are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and a zoraki signal pistol to help you kill.]],
 		Objective = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
 		SpawnFunction = function(ply)
-			local wep = ply:Give("weapon_zoraki")
+			if not IsValid(ply) then return end
+			local p22 = ply:Give("weapon_p22")
+			if not IsValid(p22) then return end
+			ply:GiveAmmo(p22:GetMaxClip1() * 1, p22:GetPrimaryAmmoType(), true)
 			
-			timer.Simple(1, function()
-				wep:ApplyAmmoChanges(2)
-			end)
+			hg.AddAttachmentForce(ply, p22, "supressor4")
 			
 			ply:Give("weapon_buck200knife")	
 			ply:Give("weapon_hg_rgd_tpik")
@@ -152,8 +153,6 @@ For people who like to play chess.]],
 	--==//
 	
 	--==\\
-	--; СДЕЛАТЬ ЕМУ ЛУТ ДРУГИХ ИГРОКОВ ДАЖЕ ПОКА У НИХ НЕТ ПУШКИ В РУКАХ
-	--; Сделать ему вырубание по вагус нерву
 	["traitor_thief"] = {
 		Name = "Thief",
 		Description = [[Can search standing players.
@@ -176,6 +175,9 @@ Your starting gear is hidden from anyone searching you; only items you pick up d
 			MODE.MarkThiefStartInventory(ply)
 		end,
 	},
+	--==//
+	
+	--==\\
 	["traitor_thief_soe"] = {
 		Name = "Thief",
 		Description = [[Can search standing players.
@@ -460,6 +462,9 @@ Perfect for aggressive players who want to spread chaos and kill as many people 
 			ply:Give("weapon_bombvest")
 			ply:Give("weapon_matches")
 			ply:Give("weapon_hg_pipebomb_tpik")
+			ply:Give("weapon_hg_molotov_tpik")
+			ply:Give("weapon_hg_grenade_tpik")
+			ply:Give("weapon_traitor_ied")
 			ply:Give("weapon_buck200knife")
 
 			ply.organism.stamina.max = 300
@@ -479,6 +484,9 @@ Perfect for aggressive players who want to spread chaos and kill as many people 
 			ply:Give("weapon_bombvest")
 			ply:Give("weapon_matches")
 			ply:Give("weapon_hg_pipebomb_tpik")
+			ply:Give("weapon_hg_molotov_tpik")
+			ply:Give("weapon_hg_grenade_tpik")
+			ply:Give("weapon_traitor_ied")
 			ply:Give("weapon_buck200knife")
 
 			ply.organism.recoilmul = 1
