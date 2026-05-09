@@ -1,6 +1,46 @@
 local PANEL = {}
 local curent_panel 
 local select_color = Color(35, 255, 110)
+local menuFontW, menuFontH
+
+local function MenuScale(size)
+    local scale = math.Clamp(math.min(ScrW() / 1920, ScrH() / 1080), 0.78, 1.15)
+    return math.Round(size * scale)
+end
+
+local function MenuLeftWidth()
+    local maxWidth = math.min(ScrW() * 0.34, 680)
+    local minWidth = math.min(360, maxWidth)
+
+    return math.Clamp(MenuScale(520), minWidth, maxWidth)
+end
+
+local function CreateMenuFonts()
+    if menuFontW == ScrW() and menuFontH == ScrH() then return end
+
+    menuFontW, menuFontH = ScrW(), ScrH()
+
+    surface.CreateFont("ZC_MM_Title", {
+        font = "Bahnschrift",
+        size = MenuScale(98),
+        weight = 800,
+        antialias = true
+    })
+
+    surface.CreateFont("ZC_MM_Button", {
+        font = "Bahnschrift",
+        size = MenuScale(38),
+        weight = 700,
+        antialias = true
+    })
+
+    surface.CreateFont("ZC_MM_Tiny", {
+        font = "Bahnschrift",
+        size = MenuScale(18),
+        weight = 700,
+        antialias = true
+    })
+end
 
 local Selects = {
     {Title = "Disconnect", Func = function(luaMenu) RunConsoleCommand("disconnect") end},
@@ -43,12 +83,6 @@ local splasheh = {
 }
 
 --print(string.upper('I wish you good health, Jason Statham'))
-surface.CreateFont("ZC_MM_Title", {
-    font = "Bahnschrift",
-    size = ScreenScale(40),
-    weight = 800,
-    antialias = true
-})
 -- local Title = markup.Parse("error")
 
 local Pluv = Material("pluv/pluvkid.jpg")
@@ -62,14 +96,14 @@ function PANEL:InitializeMarkup()
 	local gm = splasheh[math.random(#splasheh)] .. " | " .. string.NiceName(mapname) 
 
     if hg.PluvTown.Active then
-        local text = "<font=ZC_MM_Title><colour=125,205,255>    </colour>City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+        local text = "<font=ZC_MM_Title><colour=125,205,255>    </colour>City</font>\n<font=ZC_MM_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
 
         self.SelectedPluv = table.Random(hg.PluvTown.PluvMats)
 
         return markup.Parse(text)
     end
 
-    local text = "<font=ZC_MM_Title><colour=35,255,110,255>VOTTUR'S</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+    local text = "<font=ZC_MM_Title><colour=35,255,110,255>VOTTUR'S</colour><colour=255,255,255,0>  </colour>\nZCITY</font>\n<font=ZC_MM_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
     return markup.Parse(text)
 end
 
@@ -78,6 +112,8 @@ local clr_gray = Color(255, 255, 255, 25)
 local clr_verygray = Color(10, 10, 19, 235)
 
 function PANEL:Init()
+    CreateMenuFonts()
+
     self:SetAlpha(0)
     self:SetSize(ScrW(), ScrH() + 50)
     self:Center()
@@ -98,33 +134,54 @@ function PANEL:Init()
 
     self.lDock = vgui.Create("DPanel", self)
     local lDock = self.lDock
+    local leftWidth = MenuLeftWidth()
+    local visibleSelects = {}
+    for k, v in ipairs(Selects) do
+        if v.GamemodeOnly and engine.ActiveGamemode() != "zcity" then continue end
+
+        visibleSelects[#visibleSelects + 1] = v
+    end
+
+    local buttonHeight = MenuScale(47)
+    local buttonGap = MenuScale(2)
+    local titleToButtons = MenuScale(185)
+    local footerHeight = MenuScale(76)
+    local buttonDockH = #visibleSelects * (buttonHeight + buttonGap) + buttonGap
+    local footerY = ScrH() - footerHeight - MenuScale(34)
+    local maxGroupTop = footerY - titleToButtons - buttonDockH - MenuScale(44)
+    local groupTop = math.max(MenuScale(54), math.min(ScrH() * 0.32, maxGroupTop))
+    local buttonDockY = groupTop + titleToButtons
+
     lDock:Dock(LEFT)
-    lDock:SetSize(ScrW() / 4, ScrH())
-    lDock:DockMargin(ScreenScale(0), ScreenScaleH(90), ScreenScale(10), ScreenScaleH(90))
+    lDock:SetSize(leftWidth, ScrH())
+    lDock:DockMargin(0, 0, MenuScale(10), 0)
     lDock.Paint = function(this, w, h)
         if hg.PluvTown.Active then
             surface.SetDrawColor(color_white)
             surface.SetMaterial(self.SelectedPluv or Pluv)
-            surface.DrawTexturedRect(0, ScreenScale(27), ScreenScale(35), ScreenScale(27))
+            surface.DrawTexturedRect(0, MenuScale(54), MenuScale(70), MenuScale(54))
         end
 
-        self.Title:Draw(ScreenScale(12), ScreenScale(50), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 255, TEXT_ALIGN_LEFT)
+        self.Title:Draw(MenuScale(34), groupTop + MenuScale(120), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 255, TEXT_ALIGN_LEFT)
     end
 
     self.Buttons = {}
-    for k, v in ipairs(Selects) do
-        if v.GamemodeOnly and engine.ActiveGamemode() != "zcity" then continue end
-        self:AddSelect(lDock, v.Title, v)
+    local buttonDock = vgui.Create("DPanel", lDock)
+    buttonDock:SetPos(0, buttonDockY)
+    buttonDock:SetSize(leftWidth, buttonDockH)
+    buttonDock.Paint = function(this, w, h) end
+
+    for k, v in ipairs(visibleSelects) do
+        self:AddSelect(buttonDock, v.Title, v)
     end
 
-
     local bottomDock = vgui.Create("DPanel", self)
-    bottomDock:SetPos(ScreenScale(1), ScrH() - ScrH()/10)
-    bottomDock:SetSize(ScreenScale(190), ScreenScaleH(40))
+    bottomDock:SetPos(MenuScale(24), footerY)
+    bottomDock:SetSize(leftWidth, footerHeight)
     bottomDock.Paint = function(this, w, h) end
     self.panelparrent = vgui.Create("DPanel", self)
-    self.panelparrent:SetPos(bottomDock:GetWide()+bottomDock:GetX(), 0)
-    self.panelparrent:SetSize(ScrW() - bottomDock:GetWide()*1, ScrH())
+    self.panelparrent:SetPos(leftWidth + MenuScale(32), 0)
+    self.panelparrent:SetSize(ScrW() - leftWidth - MenuScale(32), ScrH())
     self.panelparrent.Paint = function(this, w, h) end
     
     local gitHubURL = "https://github.com/RealZorf/Z-City"
@@ -132,8 +189,8 @@ function PANEL:Init()
 
     local git = vgui.Create("DLabel", bottomDock)
     git:Dock(BOTTOM)
-    git:DockMargin(ScreenScale(10), 0, 0, 0)
-    git:SetFont("ZCity_Tiny")
+    git:DockMargin(MenuScale(10), 0, 0, 0)
+    git:SetFont("ZC_MM_Tiny")
     git:SetTextColor(clr_gray)
     git:SetText(gitHubText)
     git:SetContentAlignment(4)
@@ -146,8 +203,8 @@ function PANEL:Init()
 
     local zteam = vgui.Create("DLabel", bottomDock)
     zteam:Dock(BOTTOM)
-    zteam:DockMargin(ScreenScale(10), 0, 0, 0)
-    zteam:SetFont("ZCity_Tiny")
+    zteam:DockMargin(MenuScale(10), 0, 0, 0)
+    zteam:SetFont("ZC_MM_Tiny")
     zteam:SetTextColor(clr_gray)
     zteam:SetText("Authors: Vottur, Zorf, Patidinho")
     zteam:SetContentAlignment(4)
@@ -181,10 +238,10 @@ function PANEL:AddSelect( pParent, strTitle, tbl )
     btn:SetText( strTitle )
     btn:SetMouseInputEnabled( true )
     btn:SizeToContents()
-    btn:SetFont( "ZCity_Small" )
-    btn:SetTall( ScreenScale( 15 ) )
+    btn:SetFont( "ZC_MM_Button" )
+    btn:SetTall( MenuScale( 44 ) )
     btn:Dock(BOTTOM)
-    btn:DockMargin(ScreenScale(15),ScreenScale(1.5),0,0)
+    btn:DockMargin(MenuScale(34), MenuScale(2), 0, 0)
     btn.Func = tbl.Func
     btn.HoveredFunc = tbl.HoveredFunc
     local luaMenu = self 
