@@ -37,7 +37,7 @@ function hg.DrawBlur(panel, amount, passes, alpha)
 end
 
 local function BlockSpawn(ply, ent)
-	if game.SinglePlayer() or ply:IsAdmin() then return true end
+	if game.SinglePlayer() or ply:IsAdmin() or ply:IsUserGroup("mapper") then return true end
 	if HG_SANDBOX and HG_SANDBOX.IsSandboxModeActive and HG_SANDBOX.IsSandboxModeActive() then
 		if HG_SANDBOX.IsBypassPlayer and HG_SANDBOX.IsBypassPlayer(ply) then
 			return true
@@ -58,7 +58,7 @@ end
 hook.Add( "PlayerNoClip", "FeelFreeToTurnItOff", function( ply, desiredState )
 	if ( desiredState == false ) then -- the player wants to turn noclip off
 		return true -- always allow
-	elseif ( ply:IsAdmin() ) then
+	elseif ( ply:IsAdmin() or ply:IsUserGroup("mapper") ) then
 		return true -- allow administrators to enter noclip
 	end
 
@@ -71,6 +71,7 @@ if CLIENT then
 		headadmin = true,
 		developer = true,
 		superadmin = true
+		mapper = true;
 	}
 
 	local function ZCTools_HasULXAccess(ply)

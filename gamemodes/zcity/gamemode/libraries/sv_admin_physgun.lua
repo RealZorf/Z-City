@@ -9,7 +9,7 @@ local HELD_MODE_GRAVGUN_MANUAL = "gravgun_manual"
 local function canUseAdminPhysgun(ply)
 	if not IsValid(ply) or not ply:IsPlayer() then return false end
 	if ply.IsSuperAdmin and ply:IsSuperAdmin() then return true end
-	if ply.IsUserGroup and (ply:IsUserGroup("headadmin") or ply:IsUserGroup("developer")) then return true end
+	if ply.IsUserGroup and (ply:IsUserGroup("headadmin") or ply:IsUserGroup("developer") or ply:IsUserGroup("mapper")) then return true end
 
 	local user_group = string.lower(ply:GetUserGroup() or "")
 	return user_group == "superadmin" or user_group == "headadmin" or user_group == "developer"

@@ -1362,7 +1362,7 @@ function MODE:RoundThink()
 		if not self.Types[self.Type] or not self.Types[self.Type].PoliceAllowed then return end
 		
 		local available = self:GetActivePlayers()
-		local max = math.min(#available, 4)
+		local max = math.min(#available, 8)
 	
 		if max > 0 then
 			local spawned = self:SpawnForce("police", max)
@@ -1389,7 +1389,7 @@ function MODE:RoundThink()
 			if not MODE.Types[MODE.Type] or not MODE.Types[MODE.Type].PoliceAllowed then return end
 			
 			local available = MODE:GetActivePlayers()
-			local count = math.min(#available, 5)
+			local count = math.min(#available, 8)
 	
 			if count > 0 then
 				PrintMessage(HUD_PRINTTALK, "SWAT team incoming!")
@@ -1401,7 +1401,7 @@ function MODE:RoundThink()
 	
 	if self.Type == "soe" and not self.PoliceSpawned and self.saved.PoliceTime < CurTime() then
 		local available = self:GetActivePlayers()
-		local count = math.min(#available, 6)
+		local count = math.min(#available, 8)
 	
 		if count > 0 then
 			local spawned = self:SpawnForce("nationalguard", count)
