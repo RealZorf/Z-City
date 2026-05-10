@@ -8,6 +8,7 @@ local validUserGroupSuperAdmin = {
 
 local validUserGroup = {
 	admin = true,
+    mapper = true,
 }
 
 function COMMAND_GETACCES(ply)
