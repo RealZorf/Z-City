@@ -44,7 +44,7 @@ local IMMUNE_GROUPS = {
     "developer",
     "headadmin",
     "admin",
-    "operator"
+    "operator",
     "mapper"
 }
 
