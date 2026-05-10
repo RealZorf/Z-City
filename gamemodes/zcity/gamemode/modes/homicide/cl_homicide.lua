@@ -631,12 +631,29 @@ net.Receive("HMCD(StartPlayersRoleSelection)", function()
 	hg.SelectPlayerRole(role)
 end)
 
-function hg.SelectPlayerRole(role, mode)
+function hg.SelectPlayerRole(role, mode, parent)
 	role = role or "Traitor"
-	mode = mode or "soe"
+
+	if not mode then
+		if(IsValid(VGUI_HMCD_RolePanelList))then
+			VGUI_HMCD_RolePanelList:Remove()
+		end
+
+		if(IsValid(VGUI_HMCD_TraitorTileMenu))then
+			VGUI_HMCD_TraitorTileMenu:Remove()
+		end
+
+		hg.HMCD_TraitorTileEmbedParent = IsValid(parent) and parent or nil
+		VGUI_HMCD_TraitorTileMenu = vgui.Create("HMCD_TraitorTileMenu")
+		return
+	end
 
 	if(IsValid(VGUI_HMCD_RolePanelList))then
 		VGUI_HMCD_RolePanelList:Remove()
+	end
+
+	if(IsValid(VGUI_HMCD_TraitorTileMenu))then
+		VGUI_HMCD_TraitorTileMenu:Remove()
 	end
 
 	if(MODE.RoleChooseRoundTypes[mode])then
@@ -657,6 +674,10 @@ end
 net.Receive("HMCD(EndPlayersRoleSelection)", function()
 	if(IsValid(VGUI_HMCD_RolePanelList))then
 		VGUI_HMCD_RolePanelList:Remove()
+	end
+
+	if(IsValid(VGUI_HMCD_TraitorTileMenu))then
+		VGUI_HMCD_TraitorTileMenu:Remove()
 	end
 end)
 
