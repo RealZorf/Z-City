@@ -85,6 +85,14 @@ local function refreshTraitorTileFonts()
 		antialias = true
 	})
 
+	surface.CreateFont("HMCD_TraitorTiles_DetailHeader", {
+		font = "Bahnschrift SemiBold",
+		size = traitor_ui(18),
+		weight = 800,
+		extended = true,
+		antialias = true
+	})
+
 	surface.CreateFont("HMCD_TraitorTiles_Button", {
 		font = "Bahnschrift SemiBold",
 		size = traitor_ui(17),
@@ -296,22 +304,70 @@ function PANEL:Init()
 	self.Scroll:GetVBar().btnUp.Paint = function() end
 	self.Scroll:GetVBar().btnDown.Paint = function() end
 
-	self.Body = vgui.Create("DLabel", self.Scroll)
-	self.Body:SetFont("HMCD_TraitorTiles_Text")
-	self.Body:SetTextColor(traitorTileMuted)
-	self.Body:SetWrap(true)
-	self.Body:SetAutoStretchVertical(true)
-	self.Body:SetContentAlignment(7)
-	self.Body:SetMouseInputEnabled(false)
+	self.Body = vgui.Create("DPanel", self.Scroll)
+	self.Body.Paint = function(_, w, h)
+		if self.DetailMarkup then
+			self.DetailMarkup:Draw(0, 0, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 255)
+		end
+	end
+
 	self.Scroll:AddItem(self.Body)
+	self.DetailParts = {}
 	self:SetRoleData(nil)
+end
+
+local function detailMarkupColor(color)
+	return string.format("%d,%d,%d,%d", color.r, color.g, color.b, color.a or 255)
+end
+
+function PANEL:ClearDetailLabels()
+	self.DetailParts = {}
+	self.DetailMarkup = nil
+	self.DetailMarkupWidth = nil
+end
+
+function PANEL:AddDetailLabel(text, font, color, topGap)
+	if not text or text == "" then return end
+
+	self.DetailParts[#self.DetailParts + 1] = {
+		Text = text,
+		Font = font,
+		Color = color,
+		TopGap = topGap or 0
+	}
+end
+
+function PANEL:AddDetailSection(title, body)
+	if not body or body == "" then return end
+
+	self:AddDetailLabel(title, "HMCD_TraitorTiles_DetailHeader", Color(220, 255, 232), #self.DetailParts > 0 and traitor_ui(18) or 0)
+	self:AddDetailLabel(body, "HMCD_TraitorTiles_Text", traitorTileMuted, traitor_ui(2))
+end
+
+function PANEL:BuildDetailMarkup(width)
+	width = math.max(width or 1, 1)
+	if self.DetailMarkup and self.DetailMarkupWidth == width then return end
+
+	local text = {}
+	for _, part in ipairs(self.DetailParts or {}) do
+		if part.TopGap and part.TopGap > 0 then
+			text[#text + 1] = "\n"
+		end
+
+		text[#text + 1] = string.format("<font=%s><colour=%s>%s</colour></font>", part.Font, detailMarkupColor(part.Color), part.Text)
+	end
+
+	self.DetailMarkup = markup.Parse(table.concat(text, "\n"), width)
+	self.DetailMarkupWidth = width
 end
 
 function PANEL:SetRoleData(data)
 	self.RoleData = data
+	self:ClearDetailLabels()
 
 	if not data then
-		self.Body:SetText("Hover or click a role node to inspect its full profile.\n\nSTD and SOE selections stay under each tile.")
+		self:AddDetailLabel("Hover or click a role node to inspect its full profile.\n\nSTD and SOE selections stay under each tile.", "HMCD_TraitorTiles_Text", traitorTileMuted)
+		self:InvalidateLayout(true)
 		return
 	end
 
@@ -320,23 +376,27 @@ function PANEL:SetRoleData(data)
 	local soeText = data.SOELoadout ~= "" and data.SOELoadout or "No SOE loadout configured."
 	local objective = data.StandardObjective ~= "" and data.StandardObjective or data.SOEObjective
 
-	local text = ""
 	if objective and objective ~= "" then
-		text = text .. "OBJECTIVE\n" .. objective .. "\n\n"
+		self:AddDetailSection("OBJECTIVE", objective)
 	end
 
 	if description and description ~= "" then
-		text = text .. "DESCRIPTION\n" .. description .. "\n\n"
+		self:AddDetailSection("DESCRIPTION", description)
 	end
 
-	text = text .. "STANDARD LOADOUT\n" .. standardText .. "\n\nSOE LOADOUT\n" .. soeText
-	self.Body:SetText(text)
+	self:AddDetailSection("STANDARD LOADOUT", standardText)
+	self:AddDetailSection("SOE LOADOUT", soeText)
+	self:InvalidateLayout(true)
 end
 
 function PANEL:PerformLayout(w, h)
 	self.Scroll:SetPos(traitor_ui(18), traitor_ui(68))
 	self.Scroll:SetSize(w - traitor_ui(36), h - traitor_ui(86))
-	self.Body:SetWide(self.Scroll:GetWide() - traitor_ui(10))
+	local bodyW = math.max(self.Scroll:GetWide() - traitor_ui(10), 1)
+
+	self:BuildDetailMarkup(bodyW)
+
+	self.Body:SetSize(bodyW, (self.DetailMarkup and self.DetailMarkup:GetHeight() or 0) + traitor_ui(8))
 end
 
 function PANEL:Paint(w, h)

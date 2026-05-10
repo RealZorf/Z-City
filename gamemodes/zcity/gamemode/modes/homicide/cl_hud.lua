@@ -407,8 +407,9 @@ net.Receive("HMCD_UpdateTraitorAssistants", function()
         local color = net.ReadColor()
         local name = net.ReadString()
         local steamID = net.ReadString()
+        local subRole = net.ReadString()
         
-        table.insert(MODE.TraitorsLocal, {color, name, steamID})
+        table.insert(MODE.TraitorsLocal, {color, name, steamID, subRole})
     end
 end)
 
@@ -523,6 +524,7 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
                 local color = traitor_info[1]
                 local name = traitor_info[2]
                 local steamID = traitor_info[3] or ""
+                local subRole = traitor_info[4] or ""
                 
                 local player_found = nil
                 for _, v in player.Iterator() do
@@ -583,8 +585,11 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
                     end
                 end
                 
+                local roleName = MODE.SubRoles and MODE.SubRoles[subRole] and MODE.SubRoles[subRole].Name or "Traitor"
                 draw.SimpleText(display_name..status, "TraitorPanelText", x + traitor_panel.left_padding, assist_y, 
                                 display_color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                draw.SimpleText(roleName, "TraitorPanelText", x + traitor_panel.width - 18, assist_y,
+                                Color(255, 135, 135, alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
                 
                 assist_y = assist_y + 25   
                 

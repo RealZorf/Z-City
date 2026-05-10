@@ -107,17 +107,18 @@ if SERVER then
         end
 
         for _, other_ply in player.Iterator() do
-            if other_ply.isTraitor and other_ply.CurAppearance then
-                local appearance = other_ply.CurAppearance
-                local color = appearance.AColor or color_white
-                local name = appearance.AName or "error"
+            if other_ply.isTraitor then
+                local appearance = other_ply.CurAppearance or {}
+                local color = appearance.AColor or (other_ply.GetPlayerColor and other_ply:GetPlayerColor():ToColor()) or color_white
+                local name = appearance.AName or (other_ply.GetPlayerName and other_ply:GetPlayerName()) or other_ply:Nick() or "error"
                 local steamID = other_ply:SteamID() or ""
+                local subRole = other_ply.SubRole or ""
 
                 if not IsColor(color) then
                     color = Color(color.r, color.g, color.b)
                 end
 
-                traitor_assistants[#traitor_assistants + 1] = {color, name, steamID}
+                traitor_assistants[#traitor_assistants + 1] = {color, name, steamID, subRole}
             end
         end
 
@@ -157,6 +158,13 @@ if SERVER then
                 net.WriteUInt(0, mode.TraitorExpectedAmtBits)
             end
 
+            if ply.MainTraitor then
+                for _, traitor_info in ipairs(traitor_assistants) do
+                    net.WriteColor(traitor_info[1], false)
+                    net.WriteString(traitor_info[2])
+                end
+            end
+
             net.WriteString(ply.Profession or "")
         net.Send(ply)
 
@@ -171,6 +179,7 @@ if SERVER then
                         net.WriteColor(info[1])
                         net.WriteString(info[2])
                         net.WriteString(info[3])
+                        net.WriteString(info[4] or "")
                     end
                 net.Send(ply)
             end)
@@ -194,6 +203,7 @@ if SERVER then
                         net.WriteColor(info[1])
                         net.WriteString(info[2])
                         net.WriteString(info[3])
+                        net.WriteString(info[4] or "")
                     end
                 net.Send(main_traitor)
             end
