@@ -11,7 +11,7 @@ include("loader.lua")
 
 local zb_voicechat_panel_groups = ConVarExists("zb_voicechat_panel_groups") and GetConVar("zb_voicechat_panel_groups") or CreateConVar(
 	"zb_voicechat_panel_groups",
-	"superadmin,admin,headadmin,developer,operator",
+	"superadmin,admin,headadmin,developer,operator,mapper",
 	bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE, FCVAR_NOTIFY),
 	"Comma-separated ULX/ULib groups allowed to always see alive voice panels."
 )

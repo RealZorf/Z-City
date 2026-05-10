@@ -71,6 +71,7 @@ if CLIENT then
 		headadmin = true,
 		developer = true,
 		superadmin = true
+		mapper = true;
 	}
 
 	local function ZCTools_HasULXAccess(ply)
