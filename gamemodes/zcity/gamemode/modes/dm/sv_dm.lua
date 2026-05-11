@@ -24,7 +24,7 @@ local function IsDeathmatchZoneMode(round)
 end
 
 function MODE:CanLaunch()
-    return true//(zb.GetWorldSize() >= ZBATTLE_BIGMAP)
+    return true
 end
 
 function MODE:Intermission()

@@ -243,62 +243,17 @@ function zb.GetModes()
 	return newtbl
 end
 
-ZBATTLE_BIGMAP = 5700
-
-hook.Add("InitPostEntity", "loadbigmap", function()
-	local filik = file.Read("zbattle/mapsizes.json", "DATA")
-
-	if filik then
-		local tbl = util.JSONToTable(filik)
-
-		if tbl[game.GetMap()] then
-			ZBATTLE_BIGMAP = tbl[game.GetMap()]
-		end
-	end
-end)
-
-COMMANDS.bigmap = {
-	function(ply, args)
-		if not ply:IsAdmin() then ply:ChatPrint("You don't have access") return end
-		ZBATTLE_BIGMAP = tonumber(args[1])
-		ply:ChatPrint("Distance for big map: " .. ZBATTLE_BIGMAP)
-		zb.RerollChances()
-
-		file.CreateDir("zbattle")
-
-		local tbl = util.JSONToTable(file.Read("zbattle/mapsizes.json", "DATA") or util.TableToJSON({[game.GetMap()] = ZBATTLE_BIGMAP}))
-
-		tbl[game.GetMap()] = ZBATTLE_BIGMAP
-
-		file.Write("zbattle/mapsizes.json", util.TableToJSON(tbl))
-
-		ply:ChatPrint("Saved into a file")
-	end,
-	0
-}
-
-
-zb.BigMaps = {
-	["mu_smallotown_v2_snow"] = true,
-	["mu_smallotown_v2_13"] = true,
-	["mu_smallotown_v2_13_night"] = true,
-}
-
 function zb.GetAvailableModes()
 	zb.tdm_checkpoints()
 
 	local newtbl = {}
 
 	for i, name in pairs(zb.GetModes()) do
-
 		local tbl = zb.modes[name]
-		if (tbl.CanLaunch and tbl:CanLaunch()) and
-		(
-			( not tbl.ForBigMaps ) or
-			( zb.GetWorldSize() > ZBATTLE_BIGMAP )
-		) then
+
+		if tbl.CanLaunch and tbl:CanLaunch() then
 			if tbl.SubModes then
-				for i, name2 in pairs(tbl:SubModes()) do
+				for _, name2 in pairs(tbl:SubModes()) do
 					table.insert(newtbl, name2)
 				end
 			else
@@ -371,27 +326,28 @@ function zb.GetModesChances()
 end
 
 function zb.WeightedChanceMode(modes_chances)
-	local weight = 0
+    local totalWeight = 0
+    local adjustedChances = {}
 
-	local newchancestbl = {}
-	for name, chance in pairs(modes_chances) do
-		local newchance = zb.GetChance(name, {rounds = zb.RoundList}) or chance
-		newchancestbl[name] = newchance
-		weight = weight + newchance * 100
-	end
+    for name, chance in pairs(modes_chances) do
+        local newchance = zb.GetChance(name, {rounds = zb.RoundList}) or chance
 
-	local random = math.random(weight)
+        adjustedChances[name] = newchance
+        totalWeight = totalWeight + newchance
+    end
 
-	local count = 0
-	for name, chance in RandomPairs(modes_chances) do
-		count = count + (newchancestbl[name] or chance) * 100
+    local rnd = math.Rand(0, totalWeight)
+    local cumulative = 0
 
-		if count >= random then
-			return name
-		end
-	end
+    for name, chance in pairs(adjustedChances) do
+        cumulative = cumulative + chance
 
-	return "hmcd"
+        if rnd <= cumulative then
+            return name
+        end
+    end
+
+    return table.GetFirstKey(adjustedChances) or "hmcd"
 end
 
 function zb.GetWorldSize()
@@ -445,18 +401,41 @@ function zb.CheckChances()
 	end
 end
 
+function zb.IsStandardMode(mode)
+    return mode == "soe" or mode == "standard"
+end
+
 function zb.RerollChances()
-	zb.RoundList = {}
+    zb.RoundList = {}
 
-	local chances = zb.GetModesChances()
+    local chances = zb.GetModesChances()
 
-	for i = 1, 20 do
-		local round = zb.WeightedChanceMode(chances)
+    local standardModes = {}
+    local specialModes = {}
 
-		zb.RoundList[i] = round
-	end
+    for name, chance in pairs(chances) do
+        if zb.IsStandardMode(name) then
+            standardModes[name] = chance
+        else
+            specialModes[name] = chance
+        end
+    end
 
-	zb.nextround = table.remove(zb.RoundList, 1)
+    for i = 1, 20 do
+        local round
+
+        local cyclePos = (i - 1) % 4
+
+        if cyclePos < 3 then
+            round = zb.WeightedChanceMode(standardModes)
+        else
+            round = zb.WeightedChanceMode(specialModes)
+        end
+
+        zb.RoundList[i] = round
+    end
+
+    zb.nextround = table.remove(zb.RoundList, 1)
 end
 
 function zb.GetModesInfo()

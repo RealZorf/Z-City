@@ -19,7 +19,7 @@ util.AddNetworkString("supfight_start")
 util.AddNetworkString("supfight_end")
 
 function MODE:CanLaunch()
-    return true//(zb.GetWorldSize() >= ZBATTLE_BIGMAP)
+    return true
 end
 
 function MODE:Intermission()

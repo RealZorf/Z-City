@@ -688,7 +688,7 @@ MODE.Type = MODE.Type or "standard"
 MODE.Types = MODE.Types or {}
 MODE.Types.standard = {
 	Chance = 0.2,
-	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["standard"] or zb.modes["hmcd"].Types.standard.Chance) or 0 end,
+	ChanceFunction = function() return zb.ModesChances["standard"] or zb.modes["hmcd"].Types.standard.Chance end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
 		[3] = "Everyone died.",
@@ -764,7 +764,7 @@ MODE.Types.standard = {
 }
 MODE.Types.wildwest = {
 	Chance = 0.05,
-	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["wildwest"] or zb.modes["hmcd"].Types.wildwest.Chance) or 0 end,
+	ChanceFunction = function() return zb.ModesChances["wildwest"] or zb.modes["hmcd"].Types.standard.Chance end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
 		[3] = "The dead silence fills the empty city...",
@@ -900,7 +900,7 @@ MODE.Types.wildwest = {
 
 MODE.Types.gunfreezone = {
 	Chance = 0.05,
-	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["gunfreezone"] or zb.modes["hmcd"].Types.gunfreezone.Chance) or 0 end,
+	ChanceFunction = function() return zb.ModesChances["gunfreezone"] or zb.modes["hmcd"].Types.standard.Chance end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
 		[3] = "Everyone died.",
@@ -976,7 +976,7 @@ MODE.Types.gunfreezone = {
 
 MODE.Types.soe = {
 	Chance = 0.2,
-	ChanceFunction = function() return (zb.GetWorldSize() >= ZBATTLE_BIGMAP) and (zb.ModesChances["soe"] or zb.modes["hmcd"].Types.soe.Chance) or 0 end,
+	ChanceFunction = function() return zb.ModesChances["soe"] or zb.modes["hmcd"].Types.standard.Chance end,
 	LootTable = MODE.LootTable,
 	Messages = {
 		[3] = "Everyone died.",
