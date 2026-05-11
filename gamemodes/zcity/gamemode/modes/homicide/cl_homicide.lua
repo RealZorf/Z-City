@@ -678,7 +678,7 @@ local function draw_hmcd_traitor_solo_cell(y, alpha)
 	surface.SetDrawColor(255, 70, 70, 70 * alpha)
 	surface.DrawRect(x + hmcd_intro_scale(24), cy + hmcd_intro_scale(72), tileW - hmcd_intro_scale(48), 1)
 
-	draw.SimpleText("NO CELL LINK DETECTED", "ZB_HomicideCellName", sw * 0.5, cy + hmcd_intro_scale(28), Color(255, 95, 95, 235 * alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	draw.SimpleText("NO CELL LINK DETECTED", "ZB_HomicideCellName", sw * 0.5, cy + hmcd_intro_scale(44), Color(255, 95, 95, 235 * alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 	draw.SimpleText(hmcd_fit_text("Solo protocol active. Stay quiet, control evidence, and choose the first kill carefully.", "ZB_HomicideCellTip", tileW - hmcd_intro_scale(48)), "ZB_HomicideCellTip", sw * 0.5, cy + hmcd_intro_scale(78), Color(255, 175, 175, 220 * alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 
 	return hmcd_intro_scale(32) + tileH

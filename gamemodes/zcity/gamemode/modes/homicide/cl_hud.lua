@@ -345,36 +345,189 @@ local traitor_panel = {
     assistant_status_cache = {},
     assistant_avatars = {}, 
     avatar_materials = {}, 
+    assistant_rows = {},
+    assistants_dirty = true,
+    avatars_visible = false,
     colors = {
-        bg = Color(30, 0, 0, 230),
-        border = Color(180, 0, 0, 255),
-        border_inner = Color(90, 0, 0, 150),
+        bg = Color(9, 0, 0, 235),
+        bg_top = Color(60, 0, 0, 210),
+        panel = Color(26, 0, 0, 185),
+        panel_soft = Color(75, 0, 0, 70),
+        border = Color(210, 18, 18, 245),
+        border_inner = Color(120, 0, 0, 150),
+        accent = Color(255, 55, 55, 230),
+        accent_soft = Color(255, 35, 35, 55),
         title = Color(255, 255, 255, 255),
+        text_soft = Color(205, 175, 175, 220),
         words = Color(255, 80, 80, 255),
-        assistant = Color(200, 70, 70, 255)
+        word_bg = Color(55, 0, 0, 175),
+        assistant = Color(200, 70, 70, 255),
+        row_bg = Color(40, 0, 0, 135),
+        row_dead = Color(35, 35, 35, 155),
+        role_bg = Color(75, 0, 0, 170)
     }
 }
 
+local function DrawTraitorCutPoly(x, y, w, h, cut, col)
+    surface.SetDrawColor(col)
+    draw.NoTexture()
+    surface.DrawPoly({
+        {x = x + cut, y = y},
+        {x = x + w - cut, y = y},
+        {x = x + w, y = y + cut},
+        {x = x + w, y = y + h - cut},
+        {x = x + w - cut, y = y + h},
+        {x = x + cut, y = y + h},
+        {x = x, y = y + h - cut},
+        {x = x, y = y + cut}
+    })
+end
+
+local function DrawTraitorCutOutline(x, y, w, h, cut, col, thick)
+    surface.SetDrawColor(col)
+    thick = thick or 1
+
+    for i = 0, thick - 1 do
+        local xi, yi = x + i, y + i
+        local wi, hi = w - i * 2, h - i * 2
+        local ci = math.max(cut - i, 0)
+
+        surface.DrawLine(xi + ci, yi, xi + wi - ci, yi)
+        surface.DrawLine(xi + wi - ci, yi, xi + wi, yi + ci)
+        surface.DrawLine(xi + wi, yi + ci, xi + wi, yi + hi - ci)
+        surface.DrawLine(xi + wi, yi + hi - ci, xi + wi - ci, yi + hi)
+        surface.DrawLine(xi + wi - ci, yi + hi, xi + ci, yi + hi)
+        surface.DrawLine(xi + ci, yi + hi, xi, yi + hi - ci)
+        surface.DrawLine(xi, yi + hi - ci, xi, yi + ci)
+        surface.DrawLine(xi, yi + ci, xi + ci, yi)
+    end
+end
+
+local function DrawTraitorCutBox(x, y, w, h, cut, fill, outline, thick)
+    DrawTraitorCutPoly(x, y, w, h, cut, fill)
+    DrawTraitorCutOutline(x, y, w, h, cut, outline, thick)
+end
+
+local function DrawTraitorPanelTopBand(x, y, w, headerH, cut)
+    surface.SetDrawColor(traitor_panel.colors.bg_top)
+    draw.NoTexture()
+    surface.DrawPoly({
+        {x = x + cut + 1, y = y + 1},
+        {x = x + w - cut - 1, y = y + 1},
+        {x = x + w - 1, y = y + cut + 1},
+        {x = x + w - 1, y = y + headerH},
+        {x = x + 1, y = y + headerH},
+        {x = x + 1, y = y + cut + 1}
+    })
+end
+
+local function DrawTraitorPanelShell(x, y, w, h)
+    local cut = 12
+    local headerH = 46
+
+    DrawTraitorCutBox(x, y, w, h, cut, traitor_panel.colors.bg, traitor_panel.colors.border, 1)
+    DrawTraitorCutBox(x + 3, y + 3, w - 6, h - 6, cut - 3, traitor_panel.colors.panel, traitor_panel.colors.border_inner, 1)
+    DrawTraitorPanelTopBand(x + 3, y + 3, w - 6, headerH, cut - 3)
+
+    surface.SetDrawColor(traitor_panel.colors.accent_soft)
+    surface.DrawRect(x + 18, y + headerH + 4, w - 36, 1)
+    surface.DrawRect(x + 46, y + headerH + 9, w - 92, 1)
+
+    surface.SetDrawColor(traitor_panel.colors.accent)
+    surface.DrawRect(x + 9, y + headerH + 16, 3, h - headerH - 30)
+    surface.SetDrawColor(traitor_panel.colors.accent_soft)
+    surface.DrawRect(x + 14, y + h - 12, w - 28, 1)
+end
+
+local function DrawTraitorWordBox(text, x, y, w)
+    DrawTraitorCutBox(x, y - 12, w, 24, 6, traitor_panel.colors.word_bg, traitor_panel.colors.border_inner, 1)
+    surface.SetDrawColor(traitor_panel.colors.accent_soft)
+    surface.DrawRect(x + 10, y + 9, w - 20, 1)
+    draw.SimpleText(text, "TraitorPanelWords", x + w / 2, y, traitor_panel.colors.words, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end
+
+
+local function HideTraitorPanelAvatars()
+    for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
+        if IsValid(avatar) then
+            avatar:SetVisible(false)
+        end
+    end
+
+    traitor_panel.avatars_visible = false
+end
 
 local function CreateAvatarPanel(steamid)
     if not steamid or steamid == "" then return nil end
-    
+
+    local ply = player.GetBySteamID(steamid)
+    if not IsValid(ply) then
+        local oldAvatar = traitor_panel.assistant_avatars[steamid]
+        if IsValid(oldAvatar) then oldAvatar:SetVisible(false) end
+        return nil
+    end
+
     if traitor_panel.assistant_avatars[steamid] and IsValid(traitor_panel.assistant_avatars[steamid]) then
+        traitor_panel.assistant_avatars[steamid]:SetPlayer(ply, traitor_panel.avatar_size)
         return traitor_panel.assistant_avatars[steamid]
     end
-    
 
     local avatar = vgui.Create("AvatarImage")
     avatar:SetSize(traitor_panel.avatar_size, traitor_panel.avatar_size)
     avatar:SetVisible(false) 
-    
-    local ply = player.GetBySteamID(steamid)
-    if IsValid(ply) then
-        avatar:SetPlayer(ply, traitor_panel.avatar_size)
-    end
+    avatar:SetPlayer(ply, traitor_panel.avatar_size)
     
     traitor_panel.assistant_avatars[steamid] = avatar
     return avatar
+end
+
+local function IsLocalTraitorInfo(ply, traitor_info)
+    if not IsValid(ply) or not traitor_info then return false end
+
+    local steamID = traitor_info[3] or ""
+    if steamID ~= "" and ply.SteamID and steamID == ply:SteamID() then return true end
+
+    return ply.CurAppearance and traitor_info[2] == ply.CurAppearance.AName
+end
+
+local function BuildTraitorPanelRows()
+    traitor_panel.assistant_rows = {}
+    traitor_panel.assistants_dirty = false
+
+    local ply = LocalPlayer()
+    if not IsValid(ply) or not ply.MainTraitor then return end
+
+    MODE.TraitorsLocal = MODE.TraitorsLocal or {}
+
+    for _, traitor_info in ipairs(MODE.TraitorsLocal) do
+        if not traitor_info or #traitor_info < 2 then continue end
+        if IsLocalTraitorInfo(ply, traitor_info) then continue end
+
+        local color = traitor_info[1]
+        local name = traitor_info[2] or ""
+        local steamID = traitor_info[3] or ""
+        local subRole = traitor_info[4] or ""
+        local roleName = MODE.SubRoles and MODE.SubRoles[subRole] and MODE.SubRoles[subRole].Name or "Traitor"
+
+        if name ~= "" then
+            traitor_panel.assistant_rows[#traitor_panel.assistant_rows + 1] = {
+                color = IsColor(color) and color or traitor_panel.colors.assistant,
+                name = name,
+                display_name = #name > 20 and (string.sub(name, 1, 18) .. "..") or name,
+                steamID = steamID,
+                roleName = roleName
+            }
+        end
+    end
+end
+
+local function RequestTraitorStatusNow()
+    local ply = LocalPlayer()
+    if not IsValid(ply) or not ply.isTraitor or not ply.MainTraitor then return end
+
+    traitor_panel.next_status_request = CurTime() + 5
+    net.Start("HMCD_RequestTraitorStatuses")
+    net.SendToServer()
 end
 
 
@@ -393,6 +546,10 @@ hook.Add("PlayerButtonDown", "TraitorPanelToggle", function(ply, btn)
     
     if traitor_panel.visible then
         surface.PlaySound("buttons/button14.wav")
+        traitor_panel.assistants_dirty = true
+        RequestTraitorStatusNow()
+    else
+        HideTraitorPanelAvatars()
     end
 end)
 
@@ -411,6 +568,8 @@ net.Receive("HMCD_UpdateTraitorAssistants", function()
         
         table.insert(MODE.TraitorsLocal, {color, name, steamID, subRole})
     end
+
+    traitor_panel.assistants_dirty = true
 end)
 
 
@@ -427,13 +586,7 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
     local ply = LocalPlayer()
     if not ply.isTraitor or not ply:Alive() then 
         traitor_panel.visible = false 
-        
-       
-        for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
-            if IsValid(avatar) then
-                avatar:SetVisible(false)
-            end
-        end
+        HideTraitorPanelAvatars()
         
         return 
     end
@@ -449,20 +602,12 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
     
 
     if traitor_panel.smooth_toggle > traitor_panel.width + 30 then 
-        for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
-            if IsValid(avatar) then
-                avatar:SetVisible(false)
-            end
-        end
+        HideTraitorPanelAvatars()
         return 
     end
     
 
-    draw.RoundedBox(6, x, y, traitor_panel.width, height, traitor_panel.colors.bg)
-    surface.SetDrawColor(traitor_panel.colors.border_inner)
-    surface.DrawOutlinedRect(x + 3, y + 3, traitor_panel.width - 6, height - 6, 1)
-    surface.SetDrawColor(traitor_panel.colors.border)
-    surface.DrawOutlinedRect(x, y, traitor_panel.width, height, 2)
+    DrawTraitorPanelShell(x, y, traitor_panel.width, height)
     
 
     local title = is_main and "MAIN TRAITOR" or "TRAITOR'S ASSISTANT"
@@ -470,80 +615,42 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
                     traitor_panel.colors.title, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     
 
-    surface.SetDrawColor(traitor_panel.colors.border)
-    surface.DrawLine(x + 15, y + 30, x + traitor_panel.width - 15, y + 30)
+    draw.SimpleText("Press F4 to toggle panel", "TraitorPanelText", x + traitor_panel.width/2, y + 34,
+                    traitor_panel.colors.text_soft, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     
-
-    draw.SimpleText("Press F4 to toggle panel", "TraitorPanelText", x + traitor_panel.width/2, y + 42, 
-                    Color(180, 180, 180, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    
-    local word_y = y + 65
+    local word_y = y + 70
     draw.SimpleText("Secret Words:", "TraitorPanelText", x + traitor_panel.width/2, word_y, 
-                    Color(220, 220, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                    traitor_panel.colors.text_soft, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     
     word_y = word_y + 25
     local word1 = MODE.TraitorWord or "???"
-    
-    draw.SimpleText(word1, "TraitorPanelWords", x + traitor_panel.width/2, word_y, 
-                    traitor_panel.colors.words, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    DrawTraitorWordBox(word1, x + traitor_panel.width * 0.5 - 78, word_y, 156)
     
     word_y = word_y + 30
     local word2 = MODE.TraitorWordSecond or "???"
-    
-    draw.SimpleText(word2, "TraitorPanelWords", x + traitor_panel.width/2, word_y, 
-                    traitor_panel.colors.words, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    DrawTraitorWordBox(word2, x + traitor_panel.width * 0.5 - 78, word_y, 156)
     
     if is_main then
-        for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
-            if IsValid(avatar) then
-                avatar:SetVisible(false)
-            end
+        if traitor_panel.assistants_dirty then
+            BuildTraitorPanelRows()
         end
         
-        local assist_y = y + 150     
-        local has_assistants = false
-        MODE.TraitorsLocal = MODE.TraitorsLocal or {}
-        
-        if #MODE.TraitorsLocal > (ply.MainTraitor and 1 or 0) then
-            has_assistants = true
-        end
+        local assist_y = y + 155
+        local has_assistants = #traitor_panel.assistant_rows > 0
         
         if has_assistants then
             draw.SimpleText("Your Assistants:", "TraitorPanelText", x + traitor_panel.width/2, assist_y, 
-                            Color(220, 220, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                            traitor_panel.colors.text_soft, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             
             assist_y = assist_y + 25   
             
-            for _, traitor_info in ipairs(MODE.TraitorsLocal) do
-                if not traitor_info or #traitor_info < 2 then continue end
-                
-                if ply.MainTraitor and ply.CurAppearance and traitor_info[2] == ply.CurAppearance.AName then
-                    continue
-                end
-                
-                local color = traitor_info[1]
-                local name = traitor_info[2]
-                local steamID = traitor_info[3] or ""
-                local subRole = traitor_info[4] or ""
-                
-                local player_found = nil
-                for _, v in player.Iterator() do
-                    if v.isTraitor and v.CurAppearance and v.CurAppearance.AName == name then
-                        player_found = v
-                        break
-                    end
-                end
-                
+            for _, row in ipairs(traitor_panel.assistant_rows) do
+                local name = row.name
                 local is_alive = true
                 if traitor_panel.assistant_status_cache[name] == false then
                     is_alive = false
                 end
-                
-                if player_found then
-                    is_alive = player_found:Alive() and (not player_found.organism or not player_found.organism.incapacitated)
-                    traitor_panel.assistant_status_cache[name] = is_alive
-                end
-                
+
                 if not is_alive then
                     traitor_panel.dead_anim[name] = traitor_panel.dead_anim[name] or 255
                     traitor_panel.dead_anim[name] = math.max(traitor_panel.dead_anim[name] - FrameTime() * 100 * traitor_panel.fade_speed, 0)
@@ -554,42 +661,45 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
                 end
                 
                 local alpha = traitor_panel.dead_anim[name] or 255
-                local display_color = is_alive and color or Color(150, 150, 150)
+                local display_color = is_alive and row.color or Color(150, 150, 150)
                 display_color = Color(display_color.r, display_color.g, display_color.b, alpha)
                 
                 local status = is_alive and "" or " [DEAD]"
+                local rowY = assist_y - 13
+                local rowFill = is_alive and traitor_panel.colors.row_bg or traitor_panel.colors.row_dead
+                local rowOutline = is_alive and Color(row.color.r, row.color.g, row.color.b, math.min(alpha, 130)) or Color(120, 120, 120, 80)
+                DrawTraitorCutBox(x + 13, rowY, traitor_panel.width - 26, 24, 6, rowFill, rowOutline, 1)
+                surface.SetDrawColor(is_alive and Color(row.color.r, row.color.g, row.color.b, math.min(alpha, 145)) or Color(120, 120, 120, 90))
+                surface.DrawRect(x + 18, rowY + 4, 3, 16)
 
+                if row.steamID and row.steamID ~= "" then
+                    local avatar = CreateAvatarPanel(row.steamID)
 
-                local display_name = name
-                if #name > 20 then
-                    display_name = string.sub(name, 1, 18) .. ".."
-                end
-                
+                    if avatar then
+                        avatar:SetPos(x + 15, assist_y - traitor_panel.avatar_size/2)
+                        avatar:SetAlpha(alpha)
+                        avatar:SetVisible(true)
+                        traitor_panel.avatars_visible = true
 
-                if steamID and steamID ~= "" then
-                    local avatar_player = player.GetBySteamID(steamID)
-                    
-                    if IsValid(avatar_player) then
-                        local avatar = CreateAvatarPanel(steamID)
-                        
-                        if avatar then
-                            avatar:SetPos(x + 15, assist_y - traitor_panel.avatar_size/2)
-                            avatar:SetSize(traitor_panel.avatar_size, traitor_panel.avatar_size)
-                            avatar:SetAlpha(alpha)
-                            avatar:SetVisible(true)
-                            
-                            surface.SetDrawColor(50, 50, 50, alpha)
-                            surface.DrawOutlinedRect(x + 15, assist_y - traitor_panel.avatar_size/2, 
-                                                     traitor_panel.avatar_size, traitor_panel.avatar_size, 1)
-                        end
+                        surface.SetDrawColor(50, 50, 50, alpha)
+                        surface.DrawOutlinedRect(x + 15, assist_y - traitor_panel.avatar_size/2,
+                                                 traitor_panel.avatar_size, traitor_panel.avatar_size, 1)
                     end
                 end
+
+                local roleTextW = 84
+                local roleX = x + traitor_panel.width - roleTextW - 13
+                local roleDisplay = row.roleName
+                if #roleDisplay > 11 then
+                    roleDisplay = string.sub(roleDisplay, 1, 10) .. "."
+                end
+                DrawTraitorCutBox(roleX, assist_y - 11, roleTextW, 19, 5,
+                    traitor_panel.colors.role_bg, Color(255, 70, 70, math.min(alpha, 145)), 1)
                 
-                local roleName = MODE.SubRoles and MODE.SubRoles[subRole] and MODE.SubRoles[subRole].Name or "Traitor"
-                draw.SimpleText(display_name..status, "TraitorPanelText", x + traitor_panel.left_padding, assist_y, 
-                                display_color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-                draw.SimpleText(roleName, "TraitorPanelText", x + traitor_panel.width - 18, assist_y,
-                                Color(255, 135, 135, alpha), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                draw.SimpleText(row.display_name..status, "TraitorPanelText", x + traitor_panel.width * 0.5, assist_y,
+                                display_color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                draw.SimpleText(roleDisplay, "TraitorPanelText", roleX + roleTextW * 0.5, assist_y,
+                                Color(255, 135, 135, alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
                 
                 assist_y = assist_y + 25   
                 
@@ -599,17 +709,14 @@ hook.Add("HUDPaint", "DrawTraitorPanel", function()
                 end
             end
         else
+            HideTraitorPanelAvatars()
 
             draw.SimpleText("No assistants available", "TraitorPanelText", x + traitor_panel.width/2, assist_y, 
                             Color(150, 150, 150), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     else
 
-        for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
-            if IsValid(avatar) then
-                avatar:SetVisible(false)
-            end
-        end
+        HideTraitorPanelAvatars()
     end
 end)
 
@@ -619,21 +726,18 @@ hook.Add("PostPlayerDeath", "ClearTraitorPanel", function(ply)
         traitor_panel.dead_anim = {}
         traitor_panel.smooth_toggle = 0
         traitor_panel.visible = false
-        
-        for steamid, avatar in pairs(traitor_panel.assistant_avatars) do
-            if IsValid(avatar) then
-                avatar:SetVisible(false)
-            end
-        end
+        traitor_panel.assistants_dirty = true
+        HideTraitorPanelAvatars()
     end
 end)
 
 
 hook.Add("Think", "UpdateTraitorAssistants", function()
 	if not LocalPlayer().isTraitor or not LocalPlayer().MainTraitor then return end
+    if not traitor_panel.visible then return end
 
 	if not traitor_panel.next_assistant_check or traitor_panel.next_assistant_check < CurTime() then
-		traitor_panel.next_assistant_check = CurTime() + 0.5
+		traitor_panel.next_assistant_check = CurTime() + 1.5
 		
 		for name, alpha in pairs(traitor_panel.dead_anim) do
 			local is_alive = false
@@ -654,9 +758,10 @@ end)
 
 hook.Add("Think", "RequestTraitorStatus", function()
 	if not LocalPlayer().isTraitor or not LocalPlayer().MainTraitor then return end
+    if not traitor_panel.visible then return end
 	
 	if not traitor_panel.next_status_request or traitor_panel.next_status_request < CurTime() then
-		traitor_panel.next_status_request = CurTime() + 2
+		traitor_panel.next_status_request = CurTime() + 5
 		
 		net.Start("HMCD_RequestTraitorStatuses")
 		net.SendToServer()
