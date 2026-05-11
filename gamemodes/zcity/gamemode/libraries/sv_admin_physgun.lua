@@ -12,7 +12,7 @@ local function canUseAdminPhysgun(ply)
 	if ply.IsUserGroup and (ply:IsUserGroup("headadmin") or ply:IsUserGroup("developer") or ply:IsUserGroup("mapper")) then return true end
 
 	local user_group = string.lower(ply:GetUserGroup() or "")
-	return user_group == "superadmin" or user_group == "headadmin" or user_group == "developer"
+	return user_group == "superadmin" or user_group == "headadmin" or user_group == "developer" or user_group == "mapper"
 end
 
 local function getPlayerFromEntity(ent)

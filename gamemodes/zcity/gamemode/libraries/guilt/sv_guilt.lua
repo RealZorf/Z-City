@@ -584,7 +584,12 @@ net.Receive("forgive_player", function(len, ply)
 end)
 
 hook.Add("Player Spawn", "GuiltKnown",function(ply)
+    if zb.ROUND_STATE ~= 1 then return end
     if ply.Karma then
+        local roundStamp = zb.ROUND_BEGIN or zb.ROUND_START or 0
+        if ply.GuiltKnownRoundStamp == roundStamp then return end
+
+        ply.GuiltKnownRoundStamp = roundStamp
         ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
     end
 end)
