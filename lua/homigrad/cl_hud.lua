@@ -420,6 +420,27 @@ local firstTime5 = true
 local firstTime6 = true
 
 -- first time?..
+local ZCTools_ULXGroups = {
+	admin = true,
+	headadmin = true,
+	developer = true,
+	superadmin = true,
+	mapper = true
+}
+
+local function ZCTools_HasULXAccess(ply)
+	if not IsValid(ply) then return false end
+
+	if ply:IsSuperAdmin() then return true end
+	if ply:IsAdmin() then return true end
+
+	if ply.GetUserGroup then
+		local group = string.lower(tostring(ply:GetUserGroup() or ""))
+		if ZCTools_ULXGroups[group] then return true end
+	end
+
+	return false
+end
 
 hook.Add("HG_OnOtrub", "resetshit", function(ply)
 	if ply == lply then
@@ -431,21 +452,21 @@ hook.Add("HG_OnOtrub", "resetshit", function(ply)
 	end
 end)
 
-hook.Add( "PlayerBindPress", "PlayerBindPressExample2huy", function( ply, bind, pressed )
-	if string.find(bind, "+menu") then
+hook.Add("PlayerBindPress", "PlayerBindPressExample2huy", function(ply, bind, pressed)
+	if string.find(bind, "+menu", 1, true) then
 
-		if (lply.organism and lply.organism.otrub) then
+		if lply.organism and lply.organism.otrub then
 			return (bind == "+menu") or nil
 		end
 
-		if (bind == "+menu") then
-			if pressed and !IsValid(MENUPANELHUYHUY) then
+		if bind == "+menu" then
+			if pressed and not IsValid(MENUPANELHUYHUY) then
 				CreateRadialMenu()
 			else
 				PressRadialMenu(1)
 			end
 		else
-			if lply:IsAdmin() then return end
+			if ZCTools_HasULXAccess(lply) then return end
 		end
 
 		return true
@@ -453,7 +474,7 @@ hook.Add( "PlayerBindPress", "PlayerBindPressExample2huy", function( ply, bind, 
 end)
 
 hook.Add("Think", "hg-radial-menu", function()
-	if (lply.organism and lply.organism.otrub) then
+	if lply.organism and lply.organism.otrub then
 
 		if IsValid(menuPanel) then
 			hook_Run("RadialMenuPressed")
