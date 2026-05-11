@@ -642,6 +642,19 @@ MODE.Professions = {
 			end
 		end,
 	},
+	["athlete"] = {
+		Name = "Athlete",
+		Objective = "You are the Athlete. Use your larger build, stamina and strength to outrun danger and win close fights.",
+		ModelScale = 1.15,
+		StaminaMultiplier = 2,
+		StaminaExhaustMultiplier = 0.7,
+		MeleeDamageMultiplier = 1.5,
+		LegStrengthMultiplier = 1.5,
+		JumpPowerMultiplier = 1.15,
+		SpawnFunction = function(ply)
+			--; It's a bad practice to give professions any weapons or tools
+		end,
+	},
 	["thug"] = {
 		Name = "Thug",
 		Objective = "You are the Thug. Use your bat and fentanyl to dominate close fights and stay alive.",
@@ -750,6 +763,9 @@ MODE.RoleChooseRoundTypes = {
 			["lucky_guy"] = {
 				Chance = 1,
 			},
+			["athlete"] = {
+				Chance = 1,
+			},
 			["thug"] = {
 				Chance = 1,
 			},
@@ -781,6 +797,9 @@ MODE.RoleChooseRoundTypes = {
 				Chance = 1,
 			},
 			["lucky_guy"] = {
+				Chance = 1,
+			},
+			["athlete"] = {
 				Chance = 1,
 			},
 			["huntsman"] = {
@@ -816,6 +835,9 @@ MODE.RoleChooseRoundTypes = {
 				Chance = 1,
 			},
 			["lucky_guy"] = {
+				Chance = 1,
+			},
+			["athlete"] = {
 				Chance = 1,
 			},
 			["thug"] = {

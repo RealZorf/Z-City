@@ -376,6 +376,10 @@ function MODE.ResetProfessionStats(ply)
 	local health_ratio = math.Clamp(current_health / old_max_health, 0, 1)
 
 	ply:SetMaxHealth(base_health)
+	ply:SetModelScale(1, 0)
+	ply.MeleeDamageMul = nil
+	ply.StaminaExhaustMul = nil
+	ply.JumpPowerMul = nil
 
 	if(ply:Alive())then
 		ply:SetHealth(math.Clamp(math.Round(base_health * health_ratio), 1, base_health))
@@ -390,6 +394,10 @@ function MODE.ResetProfessionStats(ply)
 		stamina.range = MODE.BaseProfessionStamina
 		stamina.max = MODE.BaseProfessionStamina
 		stamina[1] = math.Clamp(math.Round(MODE.BaseProfessionStamina * stamina_ratio), 0, stamina.max)
+	end
+
+	if(ply.organism)then
+		ply.organism.legstrength = 1
 	end
 end
 
@@ -426,6 +434,26 @@ function MODE.ApplyProfessionLoadout(ply)
 			stamina.range = stamina_max
 			stamina.max = stamina_max
 			stamina[1] = math.Clamp(math.Round(stamina_max * stamina_ratio), 0, stamina.max)
+		end
+
+		if(profession_info.ModelScale and profession_info.ModelScale != 1)then
+			ply:SetModelScale(profession_info.ModelScale, 0)
+		end
+
+		if(profession_info.MeleeDamageMultiplier and profession_info.MeleeDamageMultiplier != 1)then
+			ply.MeleeDamageMul = profession_info.MeleeDamageMultiplier
+		end
+
+		if(profession_info.StaminaExhaustMultiplier and profession_info.StaminaExhaustMultiplier != 1)then
+			ply.StaminaExhaustMul = profession_info.StaminaExhaustMultiplier
+		end
+
+		if(profession_info.JumpPowerMultiplier and profession_info.JumpPowerMultiplier != 1)then
+			ply.JumpPowerMul = profession_info.JumpPowerMultiplier
+		end
+
+		if(profession_info.LegStrengthMultiplier and profession_info.LegStrengthMultiplier != 1 and ply.organism)then
+			ply.organism.legstrength = profession_info.LegStrengthMultiplier
 		end
 	end
 

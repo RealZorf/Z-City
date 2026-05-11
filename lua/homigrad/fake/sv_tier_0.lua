@@ -123,6 +123,7 @@ function hg.Ragdoll_Create(ply)
 	ragdoll:SetAngles(ply:GetAngles())
 	--ragdoll:SetVelocity(ply:GetVelocity())
 	ragdoll:SetModel(ply:GetModel())
+	ragdoll:SetModelScale(ply:GetModelScale(), 0)
 	ragdoll.CurAppearance = table.Copy(ply.CurAppearance)
 
 	local bodygroups = ply:GetBodyGroups()
