@@ -15,7 +15,10 @@ HG_SANDBOX.AllowedCreationTabs = {
 HG_SANDBOX.BypassGroups = {
     ["superadmin"] = true,
     ["headadmin"] = true,
-    ["developer"] = true
+    ["developer"] = true,
+    ["admin"] = true,
+    ["mapper"] = true
+
 }
 
 HG_SANDBOX.BlockedWeaponClasses = {
