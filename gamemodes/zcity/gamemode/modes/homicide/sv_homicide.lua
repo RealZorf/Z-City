@@ -385,7 +385,7 @@ function MODE.ResetProfessionStats(ply)
 		ply:SetHealth(math.Clamp(math.Round(base_health * health_ratio), 1, base_health))
 	end
 
-	if(ply.organism and ply.organism.stamina)then
+	if(ply.organism and istable(ply.organism.stamina))then
 		local stamina = ply.organism.stamina
 		local old_stamina_range = math.max(stamina.range or MODE.BaseProfessionStamina, 1)
 		local current_stamina = math.max(stamina[1] or old_stamina_range, 0)
@@ -426,7 +426,7 @@ function MODE.ApplyProfessionLoadout(ply)
 			end
 		end
 
-		if(profession_info.StaminaMultiplier and profession_info.StaminaMultiplier != 1 and ply.organism and ply.organism.stamina)then
+		if(profession_info.StaminaMultiplier and profession_info.StaminaMultiplier != 1 and ply.organism and istable(ply.organism.stamina))then
 			local stamina = ply.organism.stamina
 			local stamina_ratio = math.Clamp((stamina[1] or MODE.BaseProfessionStamina) / MODE.BaseProfessionStamina, 0, 1)
 			local stamina_max = math.max(1, math.Round(MODE.BaseProfessionStamina * profession_info.StaminaMultiplier))
@@ -1136,7 +1136,9 @@ function MODE:Intermission()
 
 		ply:SetupTeam(0)
 
-		ply.organism.recoilmul = DefaultSkillIssue
+		if(ply.organism)then
+			ply.organism.recoilmul = DefaultSkillIssue
+		end
 		player_count = player_count + 1
 	end
 
