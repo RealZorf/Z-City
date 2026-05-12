@@ -1123,6 +1123,8 @@ function MODE:Intermission()
 
 	for k, ply in player.Iterator() do
 		if ply:Team() == TEAM_SPECTATOR then continue end
+		MODE.ClearProfessionLoadout(ply)
+		MODE.ResetProfessionStats(ply)
 		ply:KillSilent()
 
 		ply.isPolice = false
@@ -1630,6 +1632,13 @@ hook.Add("PlayerDeath", "HMCD_TraitorDeathTracking", function(ply, _)
     if ply.isTraitor then
         MODE:SendTraitorDeathState(ply, false)
     end
+
+	if ply.Profession then
+		MODE.ClearProfessionLoadout(ply)
+		ply.Profession = nil
+		MODE.ResetProfessionStats(ply)
+		MODE.SyncProfession(ply)
+	end
 end)
 
 
@@ -1767,6 +1776,8 @@ function MODE:EndRound()
 		ply.MainTraitor = false
 		ply.SubRole = nil
 		ply.Profession = nil
+		MODE.ClearProfessionLoadout(ply)
+		MODE.ResetProfessionStats(ply)
 	end
 	
 	if(not winner)then
@@ -2043,6 +2054,8 @@ function MODE.SpawnPlayers(spawn_with_subroles)
     for i, ply in player.Iterator() do
         if(ply:Team() != TEAM_SPECTATOR)then
             player_count = player_count + 1
+			MODE.ClearProfessionLoadout(ply)
+			MODE.ResetProfessionStats(ply)
 			ply.Profession = nil
         end
     end
@@ -2180,6 +2193,8 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             if(!current_ply:Alive())then
                 continue
             end
+
+			MODE.ResetProfessionStats(current_ply)
 
             current_ply:SetSuppressPickupNotices(true)
             current_ply.noSound = true
