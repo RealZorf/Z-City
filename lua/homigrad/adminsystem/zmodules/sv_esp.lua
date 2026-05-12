@@ -23,6 +23,21 @@ local function getSteamKey( ply )
 	return ply:SteamID64() or ply:SteamID()
 end
 
+local function ESP_Log(ply, msg)
+	if !IsValid(ply) then return end
+
+	local t = os.date("%H:%M:%S")
+	local alive = ply:Alive()
+
+	print(string.format(
+		"[ESP %s] %s | %s | alive=%s",
+		t,
+		ply:Nick(),
+		msg,
+		tostring(alive)
+	))
+end
+
 function ESP:Init()
 	util.AddNetworkString("AS_Sync")
 
@@ -233,7 +248,7 @@ function ESP:SetupCommands()
 		local msg = enabled and "ESP | Enabled" or "ESP | Disabled"
 
 		ply:ChatPrint(msg)
-		print("[INFO] " .. ply:Nick() .. " | " .. msg)
+		ESP_Log(ply, msg)
 	end)
 
 	concommand.Add("zb_allesp", function( ply, cmd, args )
