@@ -132,7 +132,17 @@ function ENT:PhysicsCollide(data, phys)
 			takeent = self.wep,
 		}
 
-		net.Start("organism_send")
+		local rf = RecipientFilter()
+		if IsValid(org.owner) then
+			rf:AddPVS(org.owner:GetPos())
+			if org.owner:IsPlayer() then
+				rf:AddPlayer(org.owner)
+			end
+		else
+			rf:AddAllPlayers()
+		end
+
+		net.Start("organism_send", true)
 
 		local tbl = {}
 		tbl.LodgedEntities = org.LodgedEntities
@@ -143,7 +153,7 @@ function ENT:PhysicsCollide(data, phys)
 		net.WriteBool(false)
 		net.WriteBool(false)
 		net.WriteBool(true)
-		net.Broadcast()
+		net.Send(rf)
 
 		self:Remove()
 		self.removed = true

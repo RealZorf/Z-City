@@ -8,6 +8,36 @@ ENT.ShrapnelDis = 500
 ENT.ShrapnelDamage = 65
 ENT.ConcussionDis = 1365
 ENT.ConcussionDamage = 30
+ENT.ShrapnelCount = 160
+ENT.ShrapnelSlice = 18
+ENT.SoundRadius = 6000
+
+local function get_recipients_in_radius(pos, radius)
+	local recipients = {}
+	local radius_sqr = radius * radius
+
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(pos) <= radius_sqr then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	return recipients
+end
+
+local function send_claymore_sound(ent, pos)
+	local recipients = get_recipients_in_radius(pos, ent.SoundRadius or 6000)
+	if #recipients == 0 then return end
+
+	net.Start("projectileFarSound", true)
+		net.WriteString(table.Random(ent.Sound) or "")
+		net.WriteString(table.Random(ent.SoundFar) or "")
+		net.WriteVector(pos)
+		net.WriteEntity(ent)
+		net.WriteBool(ent:WaterLevel() > 0)
+		net.WriteString(ent.SoundWater or "")
+	net.Send(recipients)
+end
 
 function ENT:Initialize()
 	self:SetModel(self.WorldModel)
@@ -51,13 +81,14 @@ function ENT:ActivateExplosive()
 	self.Exploded = true
 	local selfPos = self:GetPos()
 	local pos, ang = LocalToWorld(self.offsetPos, self.offsetAng, self:GetPos(), self:GetAngles())
-	local num = 700
+	local num = math.Clamp(tonumber(self.ShrapnelCount) or 160, 40, 240)
+	local slice = math.Clamp(tonumber(self.ShrapnelSlice) or 18, 4, 32)
 
 	local bullet = {}
 	bullet.Force = 2
-	bullet.Damage = 10
+	bullet.Damage = 16
 	bullet.AmmoType = "Metal Debris"
-	bullet.Attacker = self.owner
+	bullet.Attacker = IsValid(self.owner) and self.owner or self
 	bullet.Distance = 56756
 	bullet.Callback = hg.bulletHit
 	bullet.IgnoreEntity = self
@@ -66,12 +97,8 @@ function ENT:ActivateExplosive()
 	bullet.Filter = {self}
 
 	local co = coroutine.create(function()
-		local LastShrapnel = SysTime()
-
 		for i = 1, num do
-			LastShrapnel = SysTime()
-
-			local dir = (ang + Angle(math.Rand(-12, 2), math.Rand(-30, 30), 0)):Forward()
+			local dir = (ang + Angle(math.Rand(-10, 3), math.Rand(-28, 28), 0)):Forward()
 			dir:Normalize()
 
 			local tr = util.TraceLine({
@@ -88,9 +115,7 @@ function ENT:ActivateExplosive()
 			if not IsValid(self) then return end
 			self:FireLuaBullets(bullet,true)
 
-			LastShrapnel = SysTime() - LastShrapnel
-
-			if LastShrapnel > 0.001 then
+			if i % slice == 0 then
 				coroutine.yield()
 			end
 		end
@@ -102,28 +127,27 @@ function ENT:ActivateExplosive()
 
 	local index = self:EntIndex()
 
-	timer.Create("GrenadeCheck_" .. index, 0, 0, function()
+	timer.Create("GrenadeCheck_" .. index, 0.01, 0, function()
 		if !IsValid(self) then
 			timer.Remove("GrenadeCheck_" .. index)
+			return
 		end
 
-		coroutine.resume(co)
+		if coroutine.status(co) ~= "dead" then
+			local ok = coroutine.resume(co)
+			if not ok then
+				self.ShrapnelDone = true
+			end
+		end
 
-		if self.ShrapnelDone then
+		if self.ShrapnelDone or coroutine.status(co) == "dead" then
 			util.ScreenShake(selfPos, 20, 20, 1, self.ConcussionDis)
 			SafeRemoveEntity(self)
 			timer.Remove("GrenadeCheck_" .. index)
 		end
 	end)
 
-	net.Start("projectileFarSound")
-		net.WriteString(table.Random(self.Sound))
-		net.WriteString(table.Random(self.SoundFar))
-		net.WriteVector(selfPos)
-		net.WriteEntity(self)
-		net.WriteBool(self:WaterLevel() > 0)
-		net.WriteString(self.SoundWater)
-	net.Broadcast()
+	send_claymore_sound(self, selfPos)
 	local normal = self:GetAngles():Right()
 	local blastdist = self.BlastDis
 	timer.Simple(0.3,function()
@@ -148,6 +172,7 @@ function ENT:ActivateExplosive()
 end
 
 function ENT:OnTakeDamage(dmginfo)
+	if not dmginfo then return end
 	if dmginfo:GetInflictor() == self then return end
 	if dmginfo:IsDamageType(DMG_BLAST + DMG_BULLET + DMG_BUCKSHOT + DMG_BURN) then
 		self:ActivateExplosive()

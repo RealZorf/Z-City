@@ -93,7 +93,17 @@ if SERVER then
 				model = self:GetModel()
 			}
 
-			net.Start("organism_send")
+			local rf = RecipientFilter()
+			if IsValid(org.owner) then
+				rf:AddPVS(org.owner:GetPos())
+				if org.owner:IsPlayer() then
+					rf:AddPlayer(org.owner)
+				end
+			else
+				rf:AddAllPlayers()
+			end
+
+			net.Start("organism_send", true)
 	
 			local tbl = {}
 			tbl.LodgedEntities = org.LodgedEntities
@@ -104,7 +114,7 @@ if SERVER then
 			net.WriteBool(false)
 			net.WriteBool(false)
 			net.WriteBool(true)
-			net.Broadcast()
+			net.Send(rf)
 		end
 
 		if org then
@@ -244,7 +254,17 @@ if SERVER then
 			ply:EmitSound("weapons/bow_deerhunter/arrow_load_0"..math.random(3)..".wav", 55)	
 		end
 
-		net.Start("organism_send")
+		local rf = RecipientFilter()
+		if IsValid(org.owner) then
+			rf:AddPVS(org.owner:GetPos())
+			if org.owner:IsPlayer() then
+				rf:AddPlayer(org.owner)
+			end
+		else
+			rf:AddAllPlayers()
+		end
+
+		net.Start("organism_send", true)
 
 		local tbl = {}
 		tbl.LodgedEntities = org.LodgedEntities
@@ -255,7 +275,7 @@ if SERVER then
 		net.WriteBool(false)
 		net.WriteBool(false)
 		net.WriteBool(true)
-		net.Broadcast()
+		net.Send(rf)
 
 		ent:EmitSound("arrow_tear.wav")
 	end

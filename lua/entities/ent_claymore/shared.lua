@@ -17,14 +17,22 @@ ENT.offsetPos = Vector(0, 2, 11.5)
 ENT.offsetAng = Angle(1, 90, 0)
 
 function ENT:Think()
+    if (self.NextClaymoreTrace or 0) > CurTime() then
+        self:NextThink(CurTime() + 0.05)
+        return true
+    end
+
+    self.NextClaymoreTrace = CurTime() + 0.1
+
     local pos, ang = self:GetPos(), self:GetAngles()
     local pos, ang = LocalToWorld(self.offsetPos, self.offsetAng, pos, ang)
  
     local halfAngle = self.DetectionAngle / 2
-    local angleStep = self.DetectionAngle / (self.DetectionRays - 1)
+    local rays = math.max(tonumber(self.DetectionRays) or 1, 1)
+    local angleStep = rays > 1 and self.DetectionAngle / (rays - 1) or 0
     local triggered = false
 
-    for i = 0, self.DetectionRays - 1 do
+    for i = 0, rays - 1 do
         local rayAngle = Angle(ang.p, ang.y, ang.r)
         rayAngle:RotateAroundAxis(rayAngle:Up(), -halfAngle + i * angleStep)
 
@@ -40,7 +48,7 @@ function ENT:Think()
         --    debugoverlay.Line(pos, trace.HitPos, 1, color, true)
         --end
 
-        if SERVER and trace.Hit and (trace.Entity:IsPlayer() or trace.Entity:IsNPC() or (trace.Entity:IsRagdoll() and trace.Entity:GetVelocity():LengthSqr() > 1)) then
+        if SERVER and trace.Hit and IsValid(trace.Entity) and (trace.Entity:IsPlayer() or trace.Entity:IsNPC() or (trace.Entity:IsRagdoll() and trace.Entity:GetVelocity():LengthSqr() > 1)) then
             triggered = true
             break
         end
@@ -50,6 +58,6 @@ function ENT:Think()
         self:ActivateExplosive()
     end
 
-    self:NextThink(CurTime())
+    self:NextThink(CurTime() + 0.05)
     return true
 end

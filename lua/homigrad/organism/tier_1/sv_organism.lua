@@ -111,6 +111,22 @@ util.AddNetworkString("organism_sendply")
 local CurTime = CurTime
 local nullTbl = {}
 local hg_developer = ConVarExists("hg_developer") and GetConVar("hg_developer") or CreateConVar("hg_developer", 0, FCVAR_SERVER_CAN_EXECUTE, "Toggle developer mode (enables damage traces)", 0, 1)
+local function organism_recipient_filter(owner)
+	local rf = RecipientFilter()
+
+	if IsValid(owner) then
+		rf:AddPVS(owner:GetPos())
+
+		if owner:IsPlayer() then
+			rf:AddPlayer(owner)
+		end
+	else
+		rf:AddAllPlayers()
+	end
+
+	return rf
+end
+
 local function send_organism(org, ply)
 	if not IsValid(org.owner) then return end
 	local sendtable = {}
@@ -173,18 +189,20 @@ local function send_organism(org, ply)
 
 	sendtable.superfighter = org.superfighter
 
-	net.Start("organism_send", hg_unreliable_nets:GetBool())
-	net.WriteTable(not hg_developer:GetBool() and sendtable or org)
+	local direct = IsValid(ply) and ply:IsPlayer()
+
+	net.Start("organism_send", (not direct) or hg_unreliable_nets:GetBool())
+	net.WriteTable(sendtable)
 	net.WriteBool(org.owner.fullsend)
 	net.WriteBool(false)
 	net.WriteBool(true)
 	net.WriteBool(false)
-	if IsValid(ply) and ply:IsPlayer() then
+	if direct then
 		net.Send(ply)
 	else
-		net.Broadcast()
+		net.Send(organism_recipient_filter(org.owner))
 	end
-	if org.owner == ply or not IsValid(ply) or not ply:IsPlayer() then
+	if org.owner == ply or not direct then
 		org.owner.fullsend = nil
 	end
 end
@@ -229,8 +247,8 @@ local function send_bareinfo(org)
 	rf:AddPVS(org.owner:GetPos())
 	if org.owner:IsPlayer() then rf:RemovePlayer(org.owner) end
 
-	net.Start("organism_send", hg_unreliable_nets:GetBool())
-	net.WriteTable(not hg_developer:GetBool() and sendtable or org)
+	net.Start("organism_send", true)
+	net.WriteTable(sendtable)
 	net.WriteBool(org.owner.fullsend)
 	net.WriteBool(true)
 	net.WriteBool(false)

@@ -202,7 +202,17 @@ function hg.organism.AmputateLimb(org, limb)
 		org.shock = 100
 	end
 
-	net.Start("organism_send")
+	local rf = RecipientFilter()
+	if IsValid(org.owner) then
+		rf:AddPVS(org.owner:GetPos())
+		if org.owner:IsPlayer() then
+			rf:AddPlayer(org.owner)
+		end
+	else
+		rf:AddAllPlayers()
+	end
+
+	net.Start("organism_send", true)
 	local tbl = {}
 	tbl[limb.."amputated"] = true
 	tbl.owner = org.owner
@@ -211,7 +221,7 @@ function hg.organism.AmputateLimb(org, limb)
 	net.WriteBool(false)
 	net.WriteBool(false)
 	net.WriteBool(true) // вот эта шняга отвечает за то чтобы оно просто мерджнуло и всё
-	net.Broadcast()
+	net.Send(rf)
 end
 
 --hg.organism.AmputateLimb(Entity(2).organism, "rarm")
