@@ -5,7 +5,7 @@ local zb_voicechat_panel_groups
 if SERVER then
 	zb_voicechat_panel_groups = ConVarExists("zb_voicechat_panel_groups") and GetConVar("zb_voicechat_panel_groups") or CreateConVar(
 		"zb_voicechat_panel_groups",
-		"superadmin,admin,headadmin,developer,operator,mapper",
+		"superadmin,admin,headadmin,developer,moderator,mapper",
 		bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE, FCVAR_NOTIFY),
 		"Comma-separated ULX/ULib groups allowed to use admin voice panels."
 	)
