@@ -17,7 +17,7 @@ local PLAYER_KARMA_CAPS = {
     headadmin = 99999,
     developer = 99999,
     special = 500,
-    operator = 500,
+    moderator = 500,
     mapper = 500,
     booster = 250
 }
@@ -44,7 +44,7 @@ local IMMUNE_GROUPS = {
     "developer",
     "headadmin",
     "admin",
-    "operator",
+    "moderator",
     "mapper"
 }
 
