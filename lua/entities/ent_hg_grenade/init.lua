@@ -63,7 +63,7 @@ local function sendFarSound(self, nearSound, farSound, waterSound)
 
 	if #recipients == 0 then return end
 
-	net.Start("projectileFarSound")
+	net.Start("projectileFarSound", true)
 		net.WriteString(nearSound)
 		net.WriteString(farSound)
 		net.WriteVector(pos)

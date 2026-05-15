@@ -51,7 +51,7 @@ local function sendProjectileFarSound(self, pos)
 
 	if #recipients == 0 then return end
 
-	net.Start("projectileFarSound")
+	net.Start("projectileFarSound", true)
 		net.WriteString(self.Sound)
 		net.WriteString(self.SoundFar)
 		net.WriteVector(pos)
@@ -334,7 +334,7 @@ if SERVER then
 			end
 		end
 		local index = self:EntIndex()
-		timer.Create("GrenadeCheck_" .. index, 0, 0, function()
+		timer.Create("GrenadeCheck_" .. index, 0.01, 0, function()
 			if !IsValid(self) then
 				timer.Remove("GrenadeCheck_" .. index)
 			end

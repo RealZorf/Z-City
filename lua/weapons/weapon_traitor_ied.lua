@@ -174,7 +174,7 @@ if CLIENT then
 	end
 end
 
-function hg.ExplosionDisorientation(enta, tinnitus, disorientation)
+local function oldExplosionDisorientation(enta, tinnitus, disorientation)
 	enta.organism.owner:AddTinnitus(tinnitus)
 	enta.organism.disorientation = enta.organism.disorientation + (disorientation)
 
@@ -191,6 +191,30 @@ function hg.ExplosionDisorientation(enta, tinnitus, disorientation)
 	net.Send(enta.organism.owner)
 end
 
+function hg.ExplosionDisorientation(enta, tinnitus, disorientation)
+	if not IsValid(enta) or not enta.organism then return end
+
+	local owner = enta.organism.owner
+	if not IsValid(owner) or not owner:IsPlayer() then return end
+
+	if isfunction(owner.AddTinnitus) then
+		owner:AddTinnitus(tinnitus)
+	end
+	enta.organism.disorientation = (tonumber(enta.organism.disorientation) or 0) + (tonumber(disorientation) or 0)
+
+	net.Start("organism_send", true)
+	local tbl = {}
+	tbl.disorientation = enta.organism.disorientation
+	tbl.shock = enta.organism.shock or 0
+	tbl.owner = owner
+	net.WriteTable(tbl)
+	net.WriteBool(true)
+	net.WriteBool(false)
+	net.WriteBool(false)
+	net.WriteBool(true)
+	net.Send(owner)
+end
+
 function SWEP:CreateFake() end
 
 local function sendIEDFarSound(self, ent, pos)
@@ -204,7 +228,7 @@ local function sendIEDFarSound(self, ent, pos)
 
 	if #recipients == 0 then return end
 
-	net.Start("projectileFarSound")
+	net.Start("projectileFarSound", true)
 		net.WriteString(table.Random(self.Sound))
 		net.WriteString(table.Random(self.SoundFar))
 		net.WriteVector(pos)
@@ -391,7 +415,7 @@ local function ExplodeTheItem(self,ent)
 					self:Remove()
 				end
 
-				timer.Create("IEDCheck_" .. index, 0, 0, function()
+				timer.Create("IEDCheck_" .. index, 0.01, 0, function()
 					local ok, err = coroutine.resume(co)
 					if not ok then
 						ErrorNoHalt(string.format("[weapon_traitor_ied] shrapnel timer failed: %s\n", tostring(err)))

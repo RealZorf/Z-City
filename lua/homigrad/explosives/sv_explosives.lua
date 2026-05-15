@@ -37,7 +37,7 @@ local ExpTypes = {
 		--ParticleEffect("pcf_jack_incendiary_ground_sm2",SelfPos + vector_up * 1,vector_up:Angle())
 		hg.ExplosionEffect(SelfPos, Force / 0.2, 80)
 
-        net.Start("hg_booom")
+        net.Start("hg_booom", true)
             net.WriteVector(SelfPos)
             net.WriteString("Fire")
         net.Broadcast()
@@ -135,7 +135,7 @@ local ExpTypes = {
 
 		local index = Ent:EntIndex()
 
-		timer.Create("GrenadeCheck_" .. index, 0, 0, function()
+		timer.Create("GrenadeCheck_" .. index, 0.01, 0, function()
 			if !IsValid(Ent) then
 				timer.Remove("GrenadeCheck_" .. index)
 			end
@@ -158,7 +158,7 @@ local ExpTypes = {
         --ParticleEffect("pcf_jack_groundsplode_medium",SelfPos + vector_up * 1,vector_up:Angle())
 		hg.ExplosionEffect(SelfPos, Force / 0.2, 80)
 
-        net.Start("hg_booom")
+        net.Start("hg_booom", true)
             net.WriteVector(SelfPos)
             net.WriteString("Sharpnel")
         net.Broadcast()
@@ -243,7 +243,7 @@ local ExpTypes = {
 
 		local index = Ent:EntIndex()
 
-		timer.Create("GrenadeCheck_" .. index, 0, 0, function()
+		timer.Create("GrenadeCheck_" .. index, 0.01, 0, function()
 			if !IsValid(Ent) then
 				timer.Remove("GrenadeCheck_" .. index)
 			end
@@ -265,7 +265,7 @@ local ExpTypes = {
         --ParticleEffect("pcf_jack_groundsplode_small",SelfPos + vector_up * 1,vector_up:Angle())
 		hg.ExplosionEffect(SelfPos, Force / 0.2, 80)
 
-        net.Start("hg_booom")
+        net.Start("hg_booom", true)
             net.WriteVector(SelfPos)
             net.WriteString("Normal")
         net.Broadcast()

@@ -248,6 +248,17 @@ function zb.GetAvailableModes()
 
 	local newtbl = {}
 
+	if zb.ModeVoteSelect and zb.ModeVoteSelect.GetSelectorKeys then
+		for _, name in ipairs(zb.ModeVoteSelect.GetSelectorKeys()) do
+			local tbl = zb.modes[name]
+			if tbl and tbl.CanLaunch and tbl:CanLaunch() then
+				table.insert(newtbl, name)
+			end
+		end
+
+		if #newtbl > 0 then return newtbl end
+	end
+
 	for i, name in pairs(zb.GetModes()) do
 		local tbl = zb.modes[name]
 
@@ -410,6 +421,25 @@ function zb.RerollChances()
 
     local chances = zb.GetModesChances()
 
+	if zb.ModeVoteSelect and zb.ModeVoteSelect.GetSelectorKeys then
+		local selectorChances = {}
+
+		for _, name in ipairs(zb.ModeVoteSelect.GetSelectorKeys()) do
+			if chances[name] then
+				selectorChances[name] = chances[name]
+			end
+		end
+
+		if next(selectorChances) then
+			for i = 1, 20 do
+				zb.RoundList[i] = zb.WeightedChanceMode(selectorChances)
+			end
+
+			zb.nextround = table.remove(zb.RoundList, 1)
+			return
+		end
+	end
+
     local standardModes = {}
     local specialModes = {}
 
@@ -441,6 +471,24 @@ end
 function zb.GetModesInfo()
 	local modesInfo = {}
 
+	if zb.ModeVoteSelect and zb.ModeVoteSelect.GetSelectorKeys then
+		for _, name in ipairs(zb.ModeVoteSelect.GetSelectorKeys()) do
+			local mode = zb.modes[name]
+
+			if mode then
+				table.insert(modesInfo, {
+					key = name,
+					name = mode.PrintName or mode.name or name,
+					description = mode.Description or "",
+					forBigMaps = mode.ForBigMaps or false,
+					canlaunch = (mode.CanLaunch and mode:CanLaunch() and 1 or 0)
+				})
+			end
+		end
+
+		if #modesInfo > 0 then return modesInfo end
+	end
+
 	for name, mode in pairs(zb.modes) do
 		if mode.Types then
 			for name2, mode2 in pairs(mode.Types) do
@@ -469,6 +517,20 @@ end
 
 function zb.SetRoundList(newList)
 	local newLista = table.Copy(newList)
+
+	if zb.ModeVoteSelect and zb.ModeVoteSelect.ToSelector then
+		local selectorList = {}
+
+		for _, round in ipairs(newLista) do
+			local selector = zb.ModeVoteSelect.ToSelector(round)
+			if selector then
+				selectorList[#selectorList + 1] = selector
+			end
+		end
+
+		newLista = selectorList
+	end
+
 	if #newLista > 0 then
 		zb.nextround = table.remove(newLista, 1)
 		zb.RoundList = newLista

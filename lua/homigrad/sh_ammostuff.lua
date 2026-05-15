@@ -217,8 +217,12 @@ end
 
 --=\\Scheduled explosions
 APScheduledExplosions = APScheduledExplosions or {}
+APScheduledExplosionsNext = APScheduledExplosionsNext or 0
 
 hook.Add("Think", "APScheduledExplosions", function()	--; AimPoint Mr.Point
+	if APScheduledExplosionsNext > CurTime() then return end
+	APScheduledExplosionsNext = CurTime() + 0.01
+
 	for id, coroutine_example in pairs(APScheduledExplosions) do
 		if(!coroutine.resume(coroutine_example))then
 			APScheduledExplosions[id] = nil
@@ -263,14 +267,24 @@ local function onstopped_explosive(self, last_unsure_penetration_pos, reason, tr
 				ParticleEffect("pcf_jack_airsplode_small3",pos + vector_up * 1,-vector_up:Angle())
 			end)
 
-			net.Start("projectileFarSound")
-				net.WriteString("m67/m67_detonate_01.wav")
-				net.WriteString("m67/m67_detonate_far_dist_03.wav")
-				net.WriteVector(pos)
-				net.WriteEntity(Entity(0))
-				net.WriteBool(false)
-				net.WriteString("")
-			net.Broadcast()
+			local recipients = {}
+			local soundRadiusSqr = 6000 * 6000
+			for _, ply in ipairs(player.GetHumans()) do
+				if IsValid(ply) and ply:GetPos():DistToSqr(pos) <= soundRadiusSqr then
+					recipients[#recipients + 1] = ply
+				end
+			end
+
+			if #recipients > 0 then
+				net.Start("projectileFarSound", true)
+					net.WriteString("m67/m67_detonate_01.wav")
+					net.WriteString("m67/m67_detonate_far_dist_03.wav")
+					net.WriteVector(pos)
+					net.WriteEntity(Entity(0))
+					net.WriteBool(false)
+					net.WriteString("")
+				net.Send(recipients)
+			end
 			
 			util.BlastDamage(Entity(0), IsValid(attacker) and attacker or Entity(0), self.Pos, 100, 50)
 			hg.ExplosionEffect(self.Pos, 1500 / 0.01905, 250)

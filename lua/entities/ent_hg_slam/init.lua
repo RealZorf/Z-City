@@ -92,7 +92,7 @@ function ENT:ActivateExplosive()
 
 	coroutine.resume(co)
 	local index = self:EntIndex()
-	timer.Create("GrenadeCheck_" .. index, 0, 0, function()
+	timer.Create("GrenadeCheck_" .. index, 0.01, 0, function()
 		if !IsValid(self) then
 			timer.Remove("GrenadeCheck_" .. index)
 		end
@@ -106,14 +106,24 @@ function ENT:ActivateExplosive()
 		end
 	end)
 
-	net.Start("projectileFarSound")
-		net.WriteString(table.Random(self.Sound))
-		net.WriteString(table.Random(self.SoundFar))
-		net.WriteVector(selfPos)
-		net.WriteEntity(self)
-		net.WriteBool(self:WaterLevel() > 0)
-		net.WriteString(self.SoundWater)
-	net.Broadcast()
+	local recipients = {}
+	local soundRadiusSqr = 6000 * 6000
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(selfPos) <= soundRadiusSqr then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	if #recipients > 0 then
+		net.Start("projectileFarSound", true)
+			net.WriteString(table.Random(self.Sound))
+			net.WriteString(table.Random(self.SoundFar))
+			net.WriteVector(selfPos)
+			net.WriteEntity(self)
+			net.WriteBool(self:WaterLevel() > 0)
+			net.WriteString(self.SoundWater)
+		net.Send(recipients)
+	end
 
 	timer.Simple(0.1,function()
 		ParticleEffect("pcf_jack_airsplode_small",selfPos+vector_up*-5,vector_up:Angle())

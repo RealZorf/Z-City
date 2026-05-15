@@ -92,14 +92,24 @@ function ENT:Detonate()
 	self.Exploded = true
 	local SelfPos, Owner = self:LocalToWorld(self:OBBCenter()), self
 
-	net.Start("projectileFarSound")
-		net.WriteString(self.Sound)
-		net.WriteString(self.SoundFar)
-		net.WriteVector(SelfPos)
-		net.WriteEntity(self)
-		net.WriteBool(self:WaterLevel() > 0)
-		net.WriteString(self.SoundWater)
-	net.Broadcast()
+	local recipients = {}
+	local soundRadiusSqr = 6000 * 6000
+	for _, ply in ipairs(player.GetHumans()) do
+		if IsValid(ply) and ply:GetPos():DistToSqr(SelfPos) <= soundRadiusSqr then
+			recipients[#recipients + 1] = ply
+		end
+	end
+
+	if #recipients > 0 then
+		net.Start("projectileFarSound", true)
+			net.WriteString(self.Sound)
+			net.WriteString(self.SoundFar)
+			net.WriteVector(SelfPos)
+			net.WriteEntity(self)
+			net.WriteBool(self:WaterLevel() > 0)
+			net.WriteString(self.SoundWater)
+		net.Send(recipients)
+	end
 
 	--[[local boom = DamageInfo()
 	boom:SetDamage(self.BlastDamage)
