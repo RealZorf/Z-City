@@ -401,8 +401,14 @@ function zb.CheckChances()
 	end
 end
 
+local STANDARD_MODES = {
+    soe = true,
+    standard = true,
+    gunfreezone = true
+}
+
 function zb.IsStandardMode(mode)
-    return mode == "soe" or mode == "standard"
+    return STANDARD_MODES[mode] == true
 end
 
 function zb.RerollChances()
@@ -410,26 +416,25 @@ function zb.RerollChances()
 
     local chances = zb.GetModesChances()
 
-    local standardModes = {}
-    local specialModes = {}
+    local standardPool = {}
+    local specialPool = {}
 
     for name, chance in pairs(chances) do
         if zb.IsStandardMode(name) then
-            standardModes[name] = chance
+            standardPool[name] = chance
         else
-            specialModes[name] = chance
+            specialPool[name] = chance
         end
     end
 
     for i = 1, 20 do
+        local cyclePos = (i - 1) % 4
         local round
 
-        local cyclePos = (i - 1) % 4
-
         if cyclePos < 3 then
-            round = zb.WeightedChanceMode(standardModes)
+            round = zb.WeightedChanceMode(standardPool)
         else
-            round = zb.WeightedChanceMode(specialModes)
+            round = zb.WeightedChanceMode(specialPool)
         end
 
         zb.RoundList[i] = round
