@@ -21,8 +21,6 @@ function MODE:CanLaunch()
     return (#points > 0) and (#points2 > 0)]] -- can work without them
 end
 
-MODE.ForBigMaps = true
-
 util.AddNetworkString("tdm_start")
 function MODE:Intermission()
 	game.CleanUpMap()

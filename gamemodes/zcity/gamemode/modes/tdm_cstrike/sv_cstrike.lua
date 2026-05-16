@@ -4,13 +4,11 @@ MODE.KillMoney = 1000
 MODE.StartMoney = 1000
 MODE.start_time = 20
 
-MODE.Rounds = 5
+MODE.Rounds = 3
 
 MODE.ROUND_TIME = 240
 
-MODE.ForBigMaps = false -- if it can launch, then it doesn't really matter
-
-MODE.CooldownRounds = 5 -- 5 rounds of cs, 5 rounds without cs (at least 5)
+MODE.CooldownRounds = 3 -- 3 rounds of cs, 3 rounds without cs (at least 3)
 
 MODE.TeamNames = MODE.TeamNames or {
     [0] = "Terrorists",

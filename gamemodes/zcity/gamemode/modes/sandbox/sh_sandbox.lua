@@ -12,7 +12,6 @@ MODE.LootSpawn = false
 MODE.GuiltDisabled = true
 MODE.randomSpawns = false
 MODE.OverrideSpawn = false
-MODE.ForBigMaps = false
 MODE.Chance = 0
 
 MODE.IntroTitle = "Sandbox"

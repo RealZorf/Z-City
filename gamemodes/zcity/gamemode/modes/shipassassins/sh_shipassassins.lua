@@ -16,7 +16,6 @@ MODE.OverrideSpawn = true
 MODE.LootSpawn = true
 MODE.LootOnTime = true
 MODE.LootDivTime = 500
-MODE.ForBigMaps = true
 MODE.GuiltDisabled = true
 MODE.ContractDuration = 240
 MODE.ContractGraceDuration = 30
