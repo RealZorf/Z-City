@@ -1,7 +1,6 @@
 MODE.name = "criresp"
 MODE.PrintName = "Crisis Response"
 
-MODE.ForBigMaps = false
 MODE.ROUND_TIME = 480
 
 MODE.Chance = 0.05

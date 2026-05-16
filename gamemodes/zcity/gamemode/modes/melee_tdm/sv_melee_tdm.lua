@@ -4,7 +4,6 @@ MODE.name = "melee_tdm"
 MODE.start_time = 20
 MODE.ROUND_TIME = 240
 MODE.Chance = 0.04
-MODE.ForBigMaps = true
 MODE.buymenu = false
 
 local meleeWeapons = {

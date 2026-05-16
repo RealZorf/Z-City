@@ -2,7 +2,6 @@ MODE = MODE or {}
 MODE.name = "activeshooter"
 MODE.PrintName = "Active Shooter"
 
-MODE.ForBigMaps = false
 MODE.ROUND_TIME = 480
 MODE.LootSpawn = true
 

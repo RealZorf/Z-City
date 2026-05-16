@@ -141,8 +141,6 @@ hook.Add("EntityTakeDamage","dontfuckingdamagethem",function(ent,dmginfo)
     end
 end)
 
-MODE.ForBigMaps = true
-
 MODE.Chance = 1
 
 util.AddNetworkString("coop_start")

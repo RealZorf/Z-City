@@ -7,7 +7,6 @@ MODE.ROUND_TIME = 300
 
 MODE.OverrideSpawn = false
 MODE.LootSpawn = false
-MODE.ForBigMaps = true
 MODE.Chance = 0.05
 
 MODE.randomSpawns = true

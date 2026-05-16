@@ -5,8 +5,6 @@ MODE.Chance = 0.05
 
 MODE.LootSpawn = false
 
-MODE.ForBigMaps = true
-
 function MODE:ClearPlayerRoles() -- Щпасибо деке!!
     for _, ply in player.Iterator() do
         ply:SetNWString("PlayerRole", "")

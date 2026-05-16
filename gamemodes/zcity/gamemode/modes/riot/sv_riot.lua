@@ -3,7 +3,6 @@ MODE.PrintName = "Riot"
 
 MODE.OverideSpawnPos = true
 MODE.LootSpawn = false
-MODE.ForBigMaps = false
 MODE.Chance = 0.03
 
 local riotWeapons = {

@@ -9,7 +9,6 @@ MODE.LootSpawn = false
 MODE.GuiltDisabled = true
 MODE.randomSpawns = true
 
-MODE.ForBigMaps = false
 MODE.Chance = 0.04
 
 local radius = nil

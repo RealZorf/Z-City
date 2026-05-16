@@ -6,7 +6,6 @@ MODE.LootSpawn = false
 MODE.GuiltDisabled = true
 MODE.randomSpawns = true
 
-MODE.ForBigMaps = true
 MODE.Chance = 0
 
 MODE.EndLogicType = 2 
