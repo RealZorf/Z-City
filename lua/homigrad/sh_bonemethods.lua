@@ -164,7 +164,7 @@ function hg.HomigradBones(ply, dtime)
 	local drawdistance = CLIENT and hg_anims_draw_distance:GetInt() or 0
 	local time = CurTime()
 	
-	if CLIENT and (!ply.shouldTransmit or ply.NotSeen) then return end
+	if CLIENT and ply ~= LocalPlayer() and GetViewEntity() ~= ply and (!ply.shouldTransmit or ply.NotSeen) then return end
 
 	local dtime2 = SysTime() - (ply.timeFrameasd or (SysTime() - 1))
 	local fps = CLIENT and (hg_anim_fps:GetInt() != 0 and hg_anim_fps:GetInt() or 99999) or 15

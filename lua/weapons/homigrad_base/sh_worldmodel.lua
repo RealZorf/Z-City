@@ -343,7 +343,7 @@ local function DrawWorldModel(self, force)
 	if not IsValid(self) or not self.WorldModel_Transform then return end
 	local owner = self:GetOwner()
 	
-	if IsValid(owner) and (owner != lply) and not owner.shouldTransmit or owner.NotSeen then
+	if IsValid(owner) and owner != lply and (not owner.shouldTransmit or owner.NotSeen) then
 		return
 	end
 

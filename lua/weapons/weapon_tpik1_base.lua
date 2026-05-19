@@ -81,7 +81,8 @@ function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 
     if not IsValid(ply) or not IsValid(self:GetWeaponEntity()) then return end
-    if not ply.shouldTransmit or ply.NotSeen then return end
+    local localOwner = CLIENT and (ply == LocalPlayer() or GetViewEntity() == ply)
+    if not localOwner and (not ply.shouldTransmit or ply.NotSeen) then return end
 
 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 	if ent ~= ply and not (ply:KeyDown(IN_USE) or (ply:GetNetVar("lastFake",0) - CurTime() + 5 > 0)) then return end
@@ -168,7 +169,8 @@ function SWEP:DrawWorldModel()
 	local owner = self:GetOwner()
 	if not IsValid(WorldModel) then return end
 
-	if (not IsValid(owner)) or owner.NotSeen or (not owner.shouldTransmit) then
+	local localOwner = CLIENT and IsValid(owner) and (owner == LocalPlayer() or GetViewEntity() == owner)
+	if (not IsValid(owner)) or (not localOwner and (owner.NotSeen or not owner.shouldTransmit)) then
 		WorldModel:SetPos(self:GetPos())
 		WorldModel:SetAngles(self:GetAngles())
 		WorldModel:SetRenderOrigin(self:GetPos())

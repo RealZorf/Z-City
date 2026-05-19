@@ -229,7 +229,8 @@ if CLIENT then
         
         self.worldModel:SetNoDraw(true)
         
-        if IsValid(owner) and (not owner.shouldTransmit or owner.NotSeen) then return end
+        local localOwner = CLIENT and IsValid(owner) and (owner == LocalPlayer() or GetViewEntity() == owner)
+        if IsValid(owner) and not localOwner and (not owner.shouldTransmit or owner.NotSeen) then return end
         if not IsValid(owner) and (not self.shouldTransmit or self.NotSeen) then return end
 
 		local WorldModel = self.worldModel
@@ -581,7 +582,8 @@ function SWEP:SetHandPos(noset)
 	self.lhandik = false
     
     if not IsValid(ply) or not IsValid(self.worldModel) then return end
-    if not ply.shouldTransmit or ply.NotSeen then return end
+    local localOwner = CLIENT and (ply == LocalPlayer() or GetViewEntity() == ply)
+    if not localOwner and (not ply.shouldTransmit or ply.NotSeen) then return end
 
     local ent = hg.GetCurrentCharacter(ply)
 
@@ -719,6 +721,9 @@ function SWEP:OnRemove()
 end
 SWEP.Initialzed = false
 function SWEP:Deploy()
+    if CLIENT and hg.ResetTPIKState and IsValid(self:GetOwner()) then
+        hg.ResetTPIKState(self:GetOwner())
+    end
     if SERVER and self.Initialzed and not self:GetOwner().noSound then self:GetOwner():EmitSound(self.DeploySnd,65) end
     self.Initialzed = true
     self:PlayAnim("deploy", 1, false, nil, false)
@@ -728,6 +733,9 @@ function SWEP:Deploy()
 end
 
 function SWEP:Holster(wep)
+    if CLIENT and hg.ResetTPIKState and IsValid(self:GetOwner()) then
+        hg.ResetTPIKState(self:GetOwner())
+    end
     self:SetInAttack(false)
     return true
 end

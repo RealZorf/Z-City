@@ -407,7 +407,8 @@ function SWEP:SetHandPos(noset)
 	local wm = self:GetWM()
 	if not IsValid(wm) then return end
 
-	if IsValid(ply) and (not ply.shouldTransmit or ply.NotSeen) then return end
+	local localOwner = CLIENT and (ply == LocalPlayer() or GetViewEntity() == ply)
+	if IsValid(ply) and not localOwner and (not ply.shouldTransmit or ply.NotSeen) then return end
 	-- ply:SetupBones()
 
 	local ent = self:GetNWEntity("carryent")

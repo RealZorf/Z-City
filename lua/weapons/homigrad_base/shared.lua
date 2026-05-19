@@ -989,9 +989,9 @@ if CLIENT then
 
 			if not IsValid(wep) or not wep.Step or (not IsValid(wep:GetOwner()) and wep:GetVelocity():LengthSqr() < 5) then continue end
 			--hook_Run("SWEPStep", wep)
-			if wep.NotSeen or not wep.shouldTransmit then continue end
 			//if (wep.lasttimetick or 0) > CurTime() then continue end
 			local owner = wep:GetOwner()
+			if (not IsValid(owner) or owner ~= LocalPlayer() or GetViewEntity() ~= owner) and (wep.NotSeen or not wep.shouldTransmit) then continue end
 			//wep.lasttimetick = CurTime() + (IsValid(owner) and owner:IsPlayer() and (owner == LocalPlayer() or owner == LocalPlayer():GetNWEntity("spect")) and 0 or 0.1)
 			if IsValid(owner) and owner:IsPlayer() then
 				wep:Step_HolsterDeploy(CurTime())
@@ -2093,7 +2093,8 @@ function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 
     if not IsValid(ply) or not IsValid(self.worldModel) then return end
-    if not ply.shouldTransmit or ply.NotSeen then return end
+    local localOwner = CLIENT and (ply == LocalPlayer() or GetViewEntity() == ply)
+    if not localOwner and (not ply.shouldTransmit or ply.NotSeen) then return end
 
 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
 	local inuse = self:InUse()

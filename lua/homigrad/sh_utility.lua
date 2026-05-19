@@ -638,7 +638,9 @@ local IsValid = IsValid
 		if bit.band(flags, STUDIO_RENDER) != STUDIO_RENDER then return end
 		--if self == lply and !selfdraw then return end
 		--debug.Trace()
-		if !self.shouldTransmit then return end
+		local forceLocalDraw = CLIENT and IsValid(lply) and (self == lply or lply:GetNWEntity("spect") == self or GetViewEntity() == self)
+		if !self.shouldTransmit and !forceLocalDraw then return end
+		if CLIENT and forceLocalDraw then self.ZC_LastLocalRenderFrame = FrameNumber() end
 
 		ent = IsValid(ent) and ent or self
 		if ent:GetMaterial() == "NULL" then ent:DrawShadow( false ) return end
@@ -665,6 +667,18 @@ local IsValid = IsValid
 		end
 
 		hook_Run("PostDrawAppearance", ent, self)
+	end
+
+	if CLIENT then
+		hook.Add("PostDrawOpaqueRenderables", "ZC_ForceFirstPersonBodyRender", function(depth, skybox)
+			if skybox then return end
+			if not IsValid(lply) or not lply:Alive() then return end
+			if GetViewEntity() != lply then return end
+			if lply.ZC_LastLocalRenderFrame == FrameNumber() then return end
+			if IsValid(lply.FakeRagdoll) then return end
+
+			hg.renderOverride(lply, lply, STUDIO_RENDER)
+		end)
 	end
 --//
 

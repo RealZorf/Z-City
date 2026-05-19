@@ -384,7 +384,7 @@ function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 
 	if not IsValid(ply) or not IsValid(self.worldModel) then return end
-	if IsValid(ply) and (not ply.shouldTransmit or ply.NotSeen) then return end
+	if IsValid(ply) and ply ~= LocalPlayer() and GetViewEntity() ~= ply and (not ply.shouldTransmit or ply.NotSeen) then return end
 	-- ply:SetupBones()
 
 	self.rhandik = (self:GetFists()) or (IsValid(ent) and twohands)

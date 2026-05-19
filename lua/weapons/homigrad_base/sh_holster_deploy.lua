@@ -31,6 +31,9 @@ function SWEP:Holster(wep)
 	--if self.holster ~= nil then return false end
 
 	if not IsFirstTimePredicted() then return end
+	if hg.ResetTPIKState and IsValid(self:GetOwner()) then
+		hg.ResetTPIKState(self:GetOwner())
+	end
 
 	if self.deploy then
 		self:SetDeploy(0)
@@ -75,6 +78,9 @@ end
 function SWEP:Deploy()
 	--if not IsFirstTimePredicted() then return end
 	local time = CurTime()
+	if hg.ResetTPIKState and IsValid(self:GetOwner()) then
+		hg.ResetTPIKState(self:GetOwner())
+	end
 
 	if self.MagIndex and IsValid(self:GetWM()) then
 		self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin)

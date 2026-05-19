@@ -61,6 +61,9 @@ local function ResetClassVisualState(ply)
 	ply.unmanipulated = {}
 	ply.manipulate = {}
 	ply.matrixes = {}
+	if hg.ResetTPIKState then
+		hg.ResetTPIKState(ply)
+	end
 
 	local boneCount = ply.GetBoneCount and ply:GetBoneCount() or 0
 	if ply.ManipulateBonePosition and ply.ManipulateBoneAngles and ply.ManipulateBoneScale then

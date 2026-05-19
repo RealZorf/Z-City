@@ -654,6 +654,75 @@ local blackmans = {
 local hg, LocalToWorld = hg, LocalToWorld
 local durachok = "models/epangelmatikes/e3_elite_suit.mdl"
 
+function hg.ResetTPIKState(ply)
+    if not IsValid(ply) then return end
+
+    ply.lhold = nil
+    ply.rhold = nil
+    ply.last_lh = nil
+    ply.last_rh = nil
+    ply.last_lh_pos = nil
+    ply.last_lh_pos2 = nil
+    ply.last_rh_pos = nil
+    ply.last_rh_pos2 = nil
+    ply.segmentsl = nil
+    ply.segmentsr = nil
+    ply.lerp_lh = 0
+    ply.lerp_rh = 0
+    ply.lerpedsegmenthit = nil
+    ply.oldhitnormal = nil
+    ply.leftClicking = nil
+    ply.ZCTPIKLastWeapon = nil
+    ply.ZCTPIKLastModel = nil
+    ply.ZCTPIKLastEnt = nil
+    ply.nextrebuild = 0
+end
+
+local function shouldResetTPIKState(ply, ent, wpn)
+    if not IsValid(ply) or not IsValid(ent) then return false end
+
+    local model = ent:GetModel()
+    if ply.ZCTPIKLastWeapon ~= wpn or ply.ZCTPIKLastModel ~= model or ply.ZCTPIKLastEnt ~= ent then
+        ply.ZCTPIKLastWeapon = wpn
+        ply.ZCTPIKLastModel = model
+        ply.ZCTPIKLastEnt = ent
+        return true
+    end
+
+    return false
+end
+
+local function validSegment(segment, origin)
+    if not segment or not isvector(segment.Pos) then return false end
+    if segment.Pos.x ~= segment.Pos.x or segment.Pos.y ~= segment.Pos.y or segment.Pos.z ~= segment.Pos.z then return false end
+    return segment.Pos:DistToSqr(origin) < 250000
+end
+
+local function validSegmentPos(segment)
+    return segment and isvector(segment.Pos) and segment.Pos.x == segment.Pos.x and segment.Pos.y == segment.Pos.y and segment.Pos.z == segment.Pos.z
+end
+
+local function validSegmentChain(segments)
+    if not segments then return true end
+    if not validSegmentPos(segments[1]) or not validSegmentPos(segments[2]) or not validSegmentPos(segments[3]) then return false end
+
+    return segments[1].Pos:DistToSqr(segments[2].Pos) < 14400 and segments[2].Pos:DistToSqr(segments[3].Pos) < 14400
+end
+
+local function hasBadArmSegments(ply, origin)
+    local segmentsr = ply.segmentsr
+    if segmentsr and (not validSegmentChain(segmentsr) or not validSegment(segmentsr[1], origin) or not validSegment(segmentsr[2], origin) or not validSegment(segmentsr[3], origin)) then
+        return true
+    end
+
+    local segmentsl = ply.segmentsl
+    if segmentsl and (not validSegmentChain(segmentsl) or not validSegment(segmentsl[1], origin) or not validSegment(segmentsl[2], origin) or not validSegment(segmentsl[3], origin)) then
+        return true
+    end
+
+    return false
+end
+
 --hook.Add("PostDrawPlayerRagdoll", "!!!!!!!zcity_PostDrawPlayerRagdollmain", function(ent, ply)
 local ang_head1, ang_head2 = Angle(-90, 0, 220), Angle(-90, 0, -30)
 function hg.MainTPIKFunction(ent, ply, wpn)
@@ -662,6 +731,13 @@ function hg.MainTPIKFunction(ent, ply, wpn)
     if not ply.InVehicle then return end
     
     //local systime = SysTime()
+    if shouldResetTPIKState(ply, ent, wpn) then
+        hg.ResetTPIKState(ply)
+        ply.ZCTPIKLastWeapon = wpn
+        ply.ZCTPIKLastModel = ent:GetModel()
+        ply.ZCTPIKLastEnt = ent
+    end
+
     local should = hg.ShouldTPIK(ply)
     //print("shouldtpik func: ", SysTime() - systime)
 
@@ -1009,6 +1085,13 @@ function hg.DoTPIK(ply, ent)
     if not ply_l_upperarm_matrix or not ply_l_forearm_matrix or not ply_l_hand_matrix then return end
 
 	local self = ply:GetActiveWeapon()
+
+    if hasBadArmSegments(ply, ent:GetPos()) then
+        hg.ResetTPIKState(ply)
+        ply.ZCTPIKLastWeapon = self
+        ply.ZCTPIKLastModel = ent:GetModel()
+        ply.ZCTPIKLastEnt = ent
+    end
 
     local lhik2 = ((IsValid(self) and self.lhandik) or ply:InVehicle()) and hg.CanUseLeftHand(ply)
     local rhik2 = ((IsValid(self) and self.rhandik) or ply:InVehicle()) and hg.CanUseRightHand(ply)
