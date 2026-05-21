@@ -260,6 +260,17 @@ local function GetSpectateEye(ent)
 
 			if boneMatrix then return boneMatrix:GetTranslation(), boneAng, true, true end
 		else
+			if ent:IsPlayer() then
+				local attachmentID = ent.LookupAttachment and ent:LookupAttachment("eyes") or 0
+				local attachment = attachmentID and attachmentID > 0 and ent:GetAttachment(attachmentID) or nil
+				local eyeAng = ent:EyeAngles()
+				local eyePos = attachment and hg and hg.eye and hg.eye(ent, 10, ent, attachment.Ang, attachment.Pos) or ent:EyePos()
+
+				if eyePos and eyePos ~= vector_origin then
+					return eyePos, eyeAng, true
+				end
+			end
+
 			local attachmentID = ent.LookupAttachment and ent:LookupAttachment("eyes") or 0
 			if attachmentID and attachmentID > 0 then
 				local attachment = ent:GetAttachment(attachmentID)
@@ -298,6 +309,7 @@ end)
 hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 	if not lply:Alive() then
 		local preserveRoll = false
+		local firstPersonSpectate = false
 
 		if IsValid(lply:GetNWEntity("spect", NULL)) or lply:GetNWInt("viewmode", viewmode) == 3 then
 			RestoreSpectatorAudio()
@@ -376,6 +388,8 @@ hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 				pos = tr.HitPos + eyeAng:Forward() * 8
 				ang = eyeAng
 			elseif viewmode == 1 then
+				firstPersonSpectate = true
+
 				if ent ~= spect and IsValid(ent) then
 					if not usedEyeAttachment and IsValid(spect) then
 						ang = spect:EyeAngles()
@@ -396,7 +410,16 @@ hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 		
 		local view
 		local hg_newspectate = GetConVar("hg_newspectate")
-		if hg_newspectate and hg_newspectate:GetBool() then
+		if firstPersonSpectate then
+			lply.spectLastPos = pos
+			lply.spectLastAng = ang
+
+			view = {
+				origin = pos,
+				angles = ang,
+				fov = fov,
+			}
+		elseif hg_newspectate and hg_newspectate:GetBool() then
 			if not lply.spectLastPos then
 				lply.spectLastPos = pos
 				lply.spectLastAng = ang

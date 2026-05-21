@@ -131,14 +131,15 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		--local current = ent:GetManipulateBoneScale(lkp)
 		local fountains = GetNetVar("fountains") or {}
-		local wawanted = (GetViewEntity() != ply) and !fountains[ent] and (!(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1) and !(hg_firstperson_death:GetBool() and follow == ent)) and vector_full or vector_small
+		local spectatorFirstPerson = !lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1
+		local wawanted = (GetViewEntity() != ply) and !fountains[ent] and (!spectatorFirstPerson and !(hg_firstperson_death:GetBool() and follow == ent)) and vector_full or vector_small
 		--print(ent, wawanted, GetViewEntity(), ply, (GetViewEntity() != ply), !fountains[ent], !(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1))
 		--if !current:IsEqualTol(wawanted, 0.01) then
 			--ent:ManipulateBoneScale(lkp, wawanted)
 			if fullPoseRender then
 				local mat = ent:GetBoneMatrix(lkp)
 				if mat then
-					if (!hg_thirdperson:GetBool() and !hg_gopro:GetBool() and (ent == ply or (!hg_ragdollcombat:GetBool() or hg_firstperson_ragdoll:GetBool()))) or (hg_firstperson_death:GetBool() and follow == ent) then
+					if (!hg_thirdperson:GetBool() and !hg_gopro:GetBool() and (ent == ply or spectatorFirstPerson or (!hg_ragdollcombat:GetBool() or hg_firstperson_ragdoll:GetBool()))) or (hg_firstperson_death:GetBool() and follow == ent) then
 						mat:SetScale(wawanted)
 					end
 					--angfuck[3] = -GetViewPunchAngles2()[2] - GetViewPunchAngles3()[2]
