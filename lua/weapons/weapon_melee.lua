@@ -240,7 +240,7 @@ if CLIENT then
 
         local inuse = self:InUse()
 
-        if IsValid(owner) then
+		if IsValid(owner) then
             if not self.cycling then
                 local dtime = SysTime() - (self.lasthuyhuy or SysTime())
                 self.lasthuyhuy = SysTime()
@@ -269,6 +269,19 @@ if CLIENT then
             end
 
             local pos, ang = self:ModelAnim(WorldModel)
+            if not isvector(pos) or not isangle(ang) or pos.x ~= pos.x or pos.y ~= pos.y or pos.z ~= pos.z then
+                local fallbackEnt = IsValid(ent) and ent or owner
+                local handBone = IsValid(fallbackEnt) and fallbackEnt.LookupBone and fallbackEnt:LookupBone("ValveBiped.Bip01_R_Hand")
+                local handMatrix = handBone and fallbackEnt:GetBoneMatrix(handBone)
+
+                if handMatrix then
+                    pos, ang = handMatrix:GetTranslation(), handMatrix:GetAngles()
+                else
+                    pos, ang = owner:EyePos(), owner:EyeAngles()
+                end
+            end
+
+            if not isvector(pos) or not isangle(ang) then return end
 
             WorldModel:SetRenderOrigin(pos)
 			WorldModel:SetRenderAngles(ang)

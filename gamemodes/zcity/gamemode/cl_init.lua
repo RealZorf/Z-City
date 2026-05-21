@@ -16,6 +16,25 @@ local vecZero = Vector(0.2, 0.2, 0.2)
 local vecFull = Vector(1, 1, 1)
 spect,prevspect,viewmode,spectRagdoll = nil,nil,1,nil
 local hullscale = Vector(0,0,0)
+local nextSpectatorAudioRestore = 0
+local spectatorAudioRestoreUntil = 0
+
+local function RestoreSpectatorAudio(force)
+	local ply = LocalPlayer()
+	if not IsValid(ply) then return end
+	if not force and spectatorAudioRestoreUntil <= CurTime() then return end
+	if not force and nextSpectatorAudioRestore > CurTime() then return end
+	nextSpectatorAudioRestore = CurTime() + 1
+
+	ply:SetDSP(0, false)
+	ply:ConCommand("soundfade 0 0.1")
+end
+
+local function QueueSpectatorAudioRestore(duration)
+	spectatorAudioRestoreUntil = math.max(spectatorAudioRestoreUntil, CurTime() + (duration or 2))
+	RestoreSpectatorAudio(true)
+end
+
 net.Receive("ZB_SpectatePlayer", function(len)
 	spect = net.ReadEntity()
 	prevspect = net.ReadEntity()
@@ -23,6 +42,17 @@ net.Receive("ZB_SpectatePlayer", function(len)
 	spectRagdoll = net.ReadEntity()
 	LocalPlayer().spectLastPos = nil
 	LocalPlayer().spectLastAng = nil
+
+	if not LocalPlayer():Alive() then
+		fakeTimer = nil
+		if hg and hg.ClearLocalFakeFollow then
+			hg.ClearLocalFakeFollow()
+		end
+
+		QueueSpectatorAudioRestore(2)
+		timer.Simple(0, function() RestoreSpectatorAudio(true) end)
+		timer.Simple(0.25, function() RestoreSpectatorAudio(true) end)
+	end
 
 	timer.Simple(0.1,function()
 		-- LocalPlayer():BoneScaleChange()
@@ -33,6 +63,20 @@ net.Receive("ZB_SpectatePlayer", function(len)
 			LocalPlayer():SetMoveType(MOVETYPE_NOCLIP)
 			LocalPlayer():SetObserverMode(OBS_MODE_ROAMING)
 		end
+	end)
+end)
+
+hook.Add("Player_Death", "ZC_ClearDeathSoundFadeForSpectator", function(ply)
+	if ply ~= LocalPlayer() then return end
+
+	timer.Simple(0.15, function()
+		if not IsValid(LocalPlayer()) or LocalPlayer():Alive() then return end
+		QueueSpectatorAudioRestore(2)
+	end)
+
+	timer.Simple(0.6, function()
+		if not IsValid(LocalPlayer()) or LocalPlayer():Alive() then return end
+		RestoreSpectatorAudio(true)
 	end)
 end)
 
@@ -107,8 +151,30 @@ local keydownattack2
 local keydownreload
 local spectateRagdollCache = {}
 
+local function FindLiveFakeRagdoll(ply)
+	if not IsValid(ply) then return end
+
+	local ragdoll = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or nil
+	if not IsValid(ragdoll) and ply.GetNWEntity then
+		ragdoll = ply:GetNWEntity("FakeRagdoll", NULL)
+	end
+
+	return IsValid(ragdoll) and ragdoll or nil
+end
+
 local function FindSpectateRagdoll(ply)
 	if not IsValid(ply) then return end
+
+	local liveFake = FindLiveFakeRagdoll(ply)
+	if IsValid(liveFake) then
+		spectateRagdollCache[ply] = {ragdoll = liveFake, expires = CurTime() + 0.5}
+		return liveFake
+	end
+
+	if ply:Alive() then
+		spectateRagdollCache[ply] = nil
+		return
+	end
 
 	if ply == spect and IsValid(spectRagdoll) then
 		spectateRagdollCache[ply] = {ragdoll = spectRagdoll, expires = CurTime() + 1}
@@ -126,11 +192,7 @@ local function FindSpectateRagdoll(ply)
 		return IsValid(cached.ragdoll) and cached.ragdoll or nil
 	end
 
-	local ragdoll = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or nil
-	if not IsValid(ragdoll) and ply.GetNWEntity then
-		ragdoll = ply:GetNWEntity("FakeRagdoll", NULL)
-	end
-
+	local ragdoll
 	if not IsValid(ragdoll) and ply.GetNWEntity then
 		ragdoll = ply:GetNWEntity("RagdollDeath", NULL)
 	end
@@ -160,6 +222,11 @@ local function FindSpectateRagdoll(ply)
 end
 
 local function GetSpectateCharacter(ply)
+	if ply:Alive() then
+		local ragdoll = FindSpectateRagdoll(ply)
+		return IsValid(ragdoll) and ragdoll or ply
+	end
+
 	local ent = hg.GetCurrentCharacter and hg.GetCurrentCharacter(ply) or ply
 	if ent == ply then
 		local ragdoll = FindSpectateRagdoll(ply)
@@ -170,21 +237,37 @@ local function GetSpectateCharacter(ply)
 end
 
 local function GetSpectateEye(ent)
-	local attachmentID = ent.LookupAttachment and ent:LookupAttachment("eyes") or 0
-	if attachmentID and attachmentID > 0 then
-		local attachment = ent:GetAttachment(attachmentID)
-		if attachment then return attachment.Pos, attachment.Ang, true end
-	end
+	local isRagdoll = ent.IsRagdoll and ent:IsRagdoll()
+	if isRagdoll and ent.SetupBones then ent:SetupBones() end
 
 	if ent.LookupBone and ent.GetBoneMatrix then
 		local headBone = ent:LookupBone("ValveBiped.Bip01_Head1") or ent:LookupBone("ValveBiped.Bip01_Spine1") or 1
-		local boneMatrix = ent:GetBoneMatrix(headBone)
-		if boneMatrix then return boneMatrix:GetTranslation(), boneMatrix:GetAngles(), false end
+		if isRagdoll then
+			local attachmentID = ent.LookupAttachment and ent:LookupAttachment("eyes") or 0
+			if attachmentID and attachmentID > 0 then
+				local attachment = ent:GetAttachment(attachmentID)
+				if attachment then return attachment.Pos, attachment.Ang, true, true end
+			end
 
-		if ent.TranslateBoneToPhysBone and ent.GetPhysicsObjectNum then
-			local physBone = ent:TranslateBoneToPhysBone(headBone)
-			local phys = physBone and physBone >= 0 and ent:GetPhysicsObjectNum(physBone)
-			if IsValid(phys) then return phys:GetPos(), phys:GetAngles(), false end
+			local boneMatrix = headBone and ent:GetBoneMatrix(headBone)
+			local boneAng = boneMatrix and boneMatrix:GetAngles()
+
+			if ent.TranslateBoneToPhysBone and ent.GetPhysicsObjectNum then
+				local physBone = headBone and ent:TranslateBoneToPhysBone(headBone)
+				local phys = physBone and physBone >= 0 and ent:GetPhysicsObjectNum(physBone)
+				if IsValid(phys) then return phys:GetPos(), boneAng or phys:GetAngles(), true, true end
+			end
+
+			if boneMatrix then return boneMatrix:GetTranslation(), boneAng, true, true end
+		else
+			local attachmentID = ent.LookupAttachment and ent:LookupAttachment("eyes") or 0
+			if attachmentID and attachmentID > 0 then
+				local attachment = ent:GetAttachment(attachmentID)
+				if attachment then return attachment.Pos, attachment.Ang, true end
+			end
+
+			local boneMatrix = headBone and ent:GetBoneMatrix(headBone)
+			if boneMatrix then return boneMatrix:GetTranslation(), boneMatrix:GetAngles(), false end
 		end
 	end
 
@@ -214,6 +297,12 @@ end)
 
 hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 	if not lply:Alive() then
+		local preserveRoll = false
+
+		if IsValid(lply:GetNWEntity("spect", NULL)) or lply:GetNWInt("viewmode", viewmode) == 3 then
+			RestoreSpectatorAudio()
+		end
+
 		if lply:KeyDown(IN_ATTACK) then
 			if not keydownattack then
 				keydownattack = true
@@ -271,7 +360,7 @@ hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 			lply:SetPos(ent:GetPos())
 
 			local usedEyeAttachment
-			pos, ang, usedEyeAttachment = GetSpectateEye(ent)
+			pos, ang, usedEyeAttachment, preserveRoll = GetSpectateEye(ent)
 
 			local eyePos, eyeAng = lply:EyePos(), lply:EyeAngles()
 
@@ -301,7 +390,9 @@ hook.Add("HG_CalcView", "zzzzzzzUwU", function(ply, pos, angles, fov)
 			end
 		end
 		
-		ang[3] = 0
+		if not preserveRoll then
+			ang[3] = 0
+		end
 		
 		local view
 		local hg_newspectate = GetConVar("hg_newspectate")

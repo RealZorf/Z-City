@@ -670,7 +670,12 @@ function hg.ResetTPIKState(ply)
     ply.lerp_lh = 0
     ply.lerp_rh = 0
     ply.lerpedsegmenthit = nil
+    ply.lerpedsegmenthit2 = nil
     ply.oldhitnormal = nil
+    ply.oldhitnormal2 = nil
+    ply.oldposlh = nil
+    ply.oldposrh = nil
+    ply.BonesLength = nil
     ply.leftClicking = nil
     ply.ZCTPIKLastWeapon = nil
     ply.ZCTPIKLastModel = nil
@@ -706,7 +711,9 @@ local function validSegmentChain(segments)
     if not segments then return true end
     if not validSegmentPos(segments[1]) or not validSegmentPos(segments[2]) or not validSegmentPos(segments[3]) then return false end
 
-    return segments[1].Pos:DistToSqr(segments[2].Pos) < 14400 and segments[2].Pos:DistToSqr(segments[3].Pos) < 14400
+    local upperToForearm = segments[1].Pos:DistToSqr(segments[2].Pos)
+    local forearmToHand = segments[2].Pos:DistToSqr(segments[3].Pos)
+    return upperToForearm > 0.01 and forearmToHand > 0.01 and upperToForearm < 14400 and forearmToHand < 14400
 end
 
 local function hasBadArmSegments(ply, origin)
@@ -721,6 +728,19 @@ local function hasBadArmSegments(ply, origin)
     end
 
     return false
+end
+
+local function validMatrix(mat, origin, maxDistSqr)
+    if not mat then return false end
+
+    local pos = mat:GetTranslation()
+    if not isvector(pos) then return false end
+    if pos.x ~= pos.x or pos.y ~= pos.y or pos.z ~= pos.z then return false end
+
+    if origin and maxDistSqr and pos:DistToSqr(origin) > maxDistSqr then return false end
+
+    local ang = mat:GetAngles()
+    return ang.p == ang.p and ang.y == ang.y and ang.r == ang.r
 end
 
 --hook.Add("PostDrawPlayerRagdoll", "!!!!!!!zcity_PostDrawPlayerRagdollmain", function(ent, ply)
@@ -1055,6 +1075,7 @@ function hg.DoTPIK(ply, ent)
     local eyepos, eyeang = ply:EyePos(), ply:EyeAngles() + (IsValid(ply:GetVehicle()) and hg.IsLocal(ply) and ply:GetVehicle():GetAngles() or angle_zero)//ply:GetAimVector():Angle()
     local headpos = ply_head_matrix:GetTranslation()
 
+    local origin = ent:GetPos()
     local ply_r_upperarm_matrix = ent:GetBoneMatrix(ply_r_upperarm_index)
     local ply_r_forearm_matrix = ent:GetBoneMatrix(ply_r_forearm_index)
     local ply_r_hand_matrix = ent:GetBoneMatrix(ply_r_hand_index)
@@ -1084,13 +1105,20 @@ function hg.DoTPIK(ply, ent)
     if not ply_r_upperarm_matrix or not ply_r_forearm_matrix or not ply_r_hand_matrix then return end
     if not ply_l_upperarm_matrix or not ply_l_forearm_matrix or not ply_l_hand_matrix then return end
 
+    if not validMatrix(ply_r_upperarm_matrix, origin, 250000) or not validMatrix(ply_r_forearm_matrix, origin, 250000) or not validMatrix(ply_r_hand_matrix, origin, 250000) or
+        not validMatrix(ply_l_upperarm_matrix, origin, 250000) or not validMatrix(ply_l_forearm_matrix, origin, 250000) or not validMatrix(ply_l_hand_matrix, origin, 250000) then
+        hg.ResetTPIKState(ply)
+        return
+    end
+
 	local self = ply:GetActiveWeapon()
 
-    if hasBadArmSegments(ply, ent:GetPos()) then
+    if hasBadArmSegments(ply, origin) then
         hg.ResetTPIKState(ply)
         ply.ZCTPIKLastWeapon = self
         ply.ZCTPIKLastModel = ent:GetModel()
         ply.ZCTPIKLastEnt = ent
+        return
     end
 
     local lhik2 = ((IsValid(self) and self.lhandik) or ply:InVehicle()) and hg.CanUseLeftHand(ply)
@@ -1186,7 +1214,7 @@ function hg.DoTPIK(ply, ent)
             if ply.lerpedsegmenthit > 0.01 and ply.oldhitnormal then
                 local hitnormal = ply.oldhitnormal:Forward()
                 local dist = 20--ply.segmentsl[2].Pos:Distance(ply.segmentsl[1].Pos)
-                local new = hitnormal * dist * ply.lerpedsegmenthit * (math.sin(math.acos(hitnormal:Dot(tr.Normal)))) + segments[2].Pos
+                local new = hitnormal * dist * ply.lerpedsegmenthit * (math.sin(math.acos(math.Clamp(hitnormal:Dot(tr.Normal), -1, 1)))) + segments[2].Pos
 
                 segments[2].Pos = new
             end
@@ -1323,7 +1351,7 @@ function hg.DoTPIK(ply, ent)
             if ply.lerpedsegmenthit2 > 0.01 and ply.oldhitnormal2 then
                 local hitnormal = ply.oldhitnormal2:Forward()
                 local dist = 20--segments[2].Pos:Distance(segments[1].Pos)
-                local new = hitnormal * dist * ply.lerpedsegmenthit2 * (math.sin(math.acos(hitnormal:Dot(tr.Normal)))) + segments[2].Pos
+                local new = hitnormal * dist * ply.lerpedsegmenthit2 * (math.sin(math.acos(math.Clamp(hitnormal:Dot(tr.Normal), -1, 1)))) + segments[2].Pos
 
                 segments[2].Pos = new
             end
@@ -1441,6 +1469,9 @@ hg.IKSolve = solve
 
 function hg.Solve2PartIK(start_p, end_p, length0, length1, mat0, mat1, sign, torsomat, angs, ang)
     local length2 = (start_p - end_p):Length()
+    if length2 < 0.001 or length0 < 0.001 or length1 < 0.001 then
+        return start_p, end_p, mat0:GetAngles(), mat1:GetAngles()
+    end
 
     if length0 + length1 < length2 then
         local add = length2 - length1 - length0
@@ -1472,7 +1503,7 @@ function hg.Solve2PartIK(start_p, end_p, length0, length1, mat0, mat1, sign, tor
 
     local Joint0 = Angle(angle0 + angle2, angle3, 0)
 
-    local asdot = -vector_up:Dot(torsoang:Up())
+    local asdot = math_Clamp(-vector_up:Dot(torsoang:Up()), -1, 1)
     local diffa = math.deg(math.acos(asdot)) + (sign < 0 and -0 or 0)
     local diffa2 = 90 + (sign > 0 and -30 or 30)--math.deg(math.acos(asdot))
     

@@ -130,6 +130,8 @@ local hg_newfakecam = ConVarExists("hg_newfakecam") and GetConVar("hg_newfakecam
 local rollang = 0
 local ctime
 local vecUpX, vecUpY, vecUpZ = Vector(1, 0, 0), Vector(0, 1, 0), Vector(0, 0, 1)
+local deathlerp = 0
+local lerpasad = 0
 local function getCachedHeadBone(ent)
 	if not IsValid(ent) then return end
 	local bone = ent.ZCHeadBoneFakeCam
@@ -148,6 +150,42 @@ local function setHeadScaleIfNeeded(ent, wantedScale)
 	if current and current:IsEqualTol(wantedScale, 0.001) then return end
 	ent:ManipulateBoneScale(bone, wantedScale)
 end
+
+local function getLocalFakeRagdoll()
+	local ply = LocalPlayer()
+	if not IsValid(ply) then return end
+
+	local ragdoll = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or nil
+	if not IsValid(ragdoll) and ply.GetNWEntity then
+		ragdoll = ply:GetNWEntity("FakeRagdoll", NULL)
+	end
+
+	return IsValid(ragdoll) and ragdoll or nil
+end
+
+local function isLocalSpectatorFreecam()
+	local ply = LocalPlayer()
+	if not IsValid(ply) or ply:Alive() then return false end
+
+	return ply:GetNWInt("viewmode", viewmode or 1) == 3
+end
+
+local function clearLocalFollow()
+	if IsValid(follow) then
+		setHeadScaleIfNeeded(follow, vecFull)
+	end
+
+	follow = nil
+	fakeTimer = nil
+	deathlerp = 0
+	lerpasad = 0
+
+	local ply = LocalPlayer()
+	if IsValid(ply) then
+		ply.bGetUp = nil
+	end
+end
+hg.ClearLocalFakeFollow = clearLocalFollow
 
 hook.Add("HG.InputMouseApply", "fakeCameraAngles2", function(tbl)
 	if IsValid(follow) and ctime != CurTime() then
@@ -265,15 +303,22 @@ local wepPosLerp = Vector(0,0,0)
 local CalcView
 local angleZero = Angle(0,0,0)
 
-local deathlerp = 0
 local tblfollow = {}
-local lerpasad = 0
 CalcView = function(ply, origin, angles, fov, znear, zfar)
 	if GetViewEntity() ~= (ply or LocalPlayer()) then return end
 	local oldorigin = -(-origin)
 	local oldangles = -(-angles)
 	fov = hg_fov:GetInt()
 	lerpfovadd2 = LerpFT(0.1, lerpfovadd2, zooming and -25 or 0)
+
+	local localFake = getLocalFakeRagdoll()
+	if lply:Alive() and IsValid(follow) and follow ~= localFake and not IsValid(lply.OldRagdoll) then
+		clearLocalFollow()
+	end
+
+	if not lply:Alive() and IsValid(follow) and (isLocalSpectatorFreecam() or IsValid(lply:GetNWEntity("spect", NULL))) then
+		clearLocalFollow()
+	end
 	
 	if not lply:Alive() then
 		fakeTimer = fakeTimer or CurTime() + 30
@@ -525,6 +570,23 @@ hook.Add("RagdollEntityCreated", "RagdollFinder", function(ply, ent, key)
 	--print(ply)
 	local oldrag = ply.FakeRagdoll
 	ply.bGetUp = false
+
+	if key == "RagdollDeath" and not IsValid(ent) and not IsValid(ply:GetNWEntity("FakeRagdoll", NULL)) then
+		timer.Simple(0, function()
+			if not IsValid(ply) or IsValid(ply:GetNWEntity("FakeRagdoll", NULL)) then return end
+
+			if IsValid(ply.FakeRagdoll) then
+				ply.FakeRagdoll.ply = nil
+			end
+
+			ply.FakeRagdoll = nil
+
+			if ply == lply then
+				clearLocalFollow()
+			end
+		end)
+		return
+	end
 	
 	if IsValid(ent) then
 		ent.RenderOverride = function(self, flags)
@@ -556,16 +618,20 @@ hook.Add("RagdollEntityCreated", "RagdollFinder", function(ply, ent, key)
 	ragdoll = IsValid(ragdoll) and ragdoll
 	
 	if ply == lply then
-		follow = ragdoll
+		if isLocalSpectatorFreecam() then
+			clearLocalFollow()
+		else
+			follow = ragdoll
 
-		if follow and hg.IsChanged(follow,1,tblfollow) then
-			if IsValid(tblfollow[1]) then
-				//tblfollow[1]:ManipulateBoneScale(tblfollow[1]:LookupBone("ValveBiped.Bip01_Head1"),vecFull)
-			elseif IsValid(follow) and not follow:GetManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1")):IsEqualTol(vecZero,0.001) then
-				//follow:ManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1"),vecPochtiZero)
+			if follow and hg.IsChanged(follow,1,tblfollow) then
+				if IsValid(tblfollow[1]) then
+					//tblfollow[1]:ManipulateBoneScale(tblfollow[1]:LookupBone("ValveBiped.Bip01_Head1"),vecFull)
+				elseif IsValid(follow) and not follow:GetManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1")):IsEqualTol(vecZero,0.001) then
+					//follow:ManipulateBoneScale(follow:LookupBone("ValveBiped.Bip01_Head1"),vecPochtiZero)
+				end
+
+				tblfollow[1] = follow
 			end
-
-			tblfollow[1] = follow
 		end
 	end
 
@@ -589,10 +655,16 @@ hook.Add("RagdollEntityCreated", "RagdollFinder", function(ply, ent, key)
 			ply.fakecd = CurTime() + 2
 		end
 
+		if ply == lply then
+			clearLocalFollow()
+		end
+
 		if IsValid(ply) then ply:SetNoDraw(false) end
 		ply:SetRenderMode(RENDERMODE_NORMAL)
 		
-		oldrag.ply = nil
+		if IsValid(oldrag) then
+			oldrag.ply = nil
+		end
 		//ply.FakeRagdollOld = oldrag
 
 		ply.FakeRagdoll = nil
@@ -718,6 +790,10 @@ function hg.GetCurrentCharacter(ply)
 	if not IsValid(ply) then return end
 
 	local ragdoll = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or IsValid(ply:GetNWEntity("FakeRagdoll", NULL)) and ply:GetNWEntity("FakeRagdoll", NULL)
+	if ply:Alive() then
+		return (IsValid(ragdoll) and ragdoll) or ply
+	end
+
 	ragdoll = IsValid(ragdoll) and ragdoll or IsValid(ply:GetNWEntity("RagdollDeath", NULL)) and ply:GetNWEntity("RagdollDeath", NULL)
 	return (IsValid(ragdoll) and ragdoll) or ply
 end
@@ -736,8 +812,7 @@ hook.Add("Player Spawn", "fuckingremoveragdoll", function(ply)
 	end
 	
 	if ply == lply then
-		fakeTimer = nil
-		follow = nil
+		clearLocalFollow()
 	end
 
 	ply:SetNWEntity("FakeRagdoll", NULL)

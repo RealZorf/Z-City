@@ -294,6 +294,16 @@ function GM:PlayerSpawn(ply)
     if OverrideSpawn then return end
 
     ply.viewmode = 3
+	ply.chosenSpectEntity = nil
+	ply.chosenspect = nil
+	ply.lastSpectTarget = nil
+	ply.lastSpectViewEntity = nil
+	ply.spectDeathPos = nil
+	ply.spectDeathAng = nil
+	ply.spectFreecamPlaced = nil
+	ply:SetNWEntity("spect", NULL)
+	ply:SetNWEntity("spect_ragdoll", NULL)
+	ply:SetNWInt("viewmode", 3)
     ply:UnSpectate()
     ply:SetMoveType(MOVETYPE_WALK)
 
@@ -340,12 +350,48 @@ end
 
 local GetSpectateViewEntity
 
+local function GetDeathFreecamPosition(ply)
+	if not IsValid(ply) then return end
+
+	local ragdoll = ply:GetNWEntity("RagdollDeath", NULL)
+	local basePos = IsValid(ragdoll) and ragdoll:GetPos() or ply.spectDeathPos or ply:GetPos()
+	local startPos = basePos + Vector(0, 0, 16)
+	local wantedPos = basePos + Vector(0, 0, 56)
+
+	local tr = util.TraceHull({
+		start = startPos,
+		endpos = wantedPos,
+		filter = {ply, ragdoll},
+		mins = Vector(-8, -8, -8),
+		maxs = Vector(8, 8, 8),
+		mask = MASK_PLAYERSOLID,
+	})
+
+	return tr.Hit and tr.HitPos or wantedPos
+end
+
+local function PlaceSpectatorFreecamAtDeath(ply)
+	if not IsValid(ply) or ply.spectFreecamPlaced then return end
+
+	local pos = GetDeathFreecamPosition(ply)
+	if not pos then return end
+
+	ply:SetPos(pos)
+	if ply.spectDeathAng then
+		ply:SetEyeAngles(ply.spectDeathAng)
+	end
+
+	ply.spectFreecamPlaced = true
+end
+
 local function SendSpectateState(ply, target, prevTarget)
 	if not IsValid(ply) then return end
 
 	local viewmode = ply.viewmode or 1
 	local viewEntity = viewmode ~= 3 and GetSpectateViewEntity and GetSpectateViewEntity(target) or nil
 	if viewmode == 3 then
+		PlaceSpectatorFreecamAtDeath(ply)
+
 		ply.chosenSpectEntity = nil
 		ply:SetNWEntity("spect", NULL)
 		ply:SetNWEntity("spect_ragdoll", NULL)
@@ -368,6 +414,15 @@ end
 
 function GetSpectateViewEntity(target)
 	if not IsValid(target) then return end
+
+	if target:Alive() then
+		local fakeRagdoll = target:GetNWEntity("FakeRagdoll", NULL)
+		if IsValid(fakeRagdoll) then return fakeRagdoll end
+
+		if IsValid(target.FakeRagdoll) then return target.FakeRagdoll end
+
+		return target
+	end
 
 	local ent = hg.GetCurrentCharacter and hg.GetCurrentCharacter(target) or target
 	if IsValid(ent) and ent ~= target then return ent end
@@ -447,6 +502,8 @@ hook.Add("PlayerDeathThink", "spectNetwork", function(ply)
 	ply.viewmode = ply.viewmode or 1
 
 	if ply.viewmode == 3 then
+		PlaceSpectatorFreecamAtDeath(ply)
+
 		ply.chosenSpectEntity = nil
 		ply:SetNWEntity("spect", NULL)
 		ply:SetNWEntity("spect_ragdoll", NULL)
@@ -529,6 +586,9 @@ end
 function GM:PlayerDeath(ply)
 	ply.lastSpectTarget = nil
 	ply.chosenSpectEntity = nil
+	ply.spectDeathPos = ply:GetPos()
+	ply.spectDeathAng = ply:EyeAngles()
+	ply.spectFreecamPlaced = false
 	
 	ply:Spectate(OBS_MODE_ROAMING)
 	ply:SetHull(-hullscale,hullscale)
