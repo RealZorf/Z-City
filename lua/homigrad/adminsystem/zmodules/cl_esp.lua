@@ -12,9 +12,12 @@ ESP.NextToggle = 0
 local ESPEye = CreateClientConVar("zb_espeye", "0", true, false, "Show admin ESP eye trace line")
 local liveESPUserGroups = {
 	["superadmin"] = true,
-	["developer"] = true,
+	["owner"] = true,
+	["servermanager"] = true,
+	["headdeveloper"] = true,
 	["headadmin"] = true,
-	["admin"] = true
+	["developer"] = true,
+	["admin"] = true,
 }
 
 local col_default = Color(255, 0, 0)

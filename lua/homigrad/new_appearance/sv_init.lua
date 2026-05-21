@@ -13,8 +13,12 @@ local PERMAMODEL_PDATA_KEY = "zcity_permamodel_enabled"
 local PERMAMODEL_DEFAULT_MODEL = "models/player/kleiner.mdl"
 local PERMAMODEL_ALLOWED_GROUPS = {
     superadmin = true,
+    owner = true,
+    servermanager = true,
+    headdeveloper = true,
+    headadmin = true,
     developer = true,
-    headadmin = true
+    admin = true,
 }
 
 local function CanUsePermamodel(ply)

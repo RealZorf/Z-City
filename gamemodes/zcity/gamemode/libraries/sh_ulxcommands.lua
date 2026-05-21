@@ -329,12 +329,16 @@ hmcdtraitor:defaultAccess(ULib.ACCESS_SUPERADMIN)
 hmcdtraitor:help("Makes the target player the main traitor in the current Homicide round.")
 
 if SERVER then
-    ULib.ucl.registerAccess("ulx hmcdtraitor", {"superadmin", "headadmin", "developer"}, "Grants access to the ulx hmcdtraitor command", "Command")
+    ULib.ucl.registerAccess("ulx hmcdtraitor", {"superadmin", "owner", "servermanager", "headdeveloper", "headadmin", "developer", "admin"}, "Grants access to the ulx hmcdtraitor command", "Command")
     timer.Simple(0, function()
         if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
 
+        ULib.ucl.groupAllow("owner", "ulx hmcdtraitor")
+        ULib.ucl.groupAllow("servermanager", "ulx hmcdtraitor")
+        ULib.ucl.groupAllow("headdeveloper", "ulx hmcdtraitor")
         ULib.ucl.groupAllow("headadmin", "ulx hmcdtraitor")
         ULib.ucl.groupAllow("developer", "ulx hmcdtraitor")
+        ULib.ucl.groupAllow("admin", "ulx hmcdtraitor")
     end)
 end
 
@@ -398,14 +402,18 @@ permamodel:defaultAccess(ULib.ACCESS_SUPERADMIN)
 permamodel:help("Toggles persistent spawning with the selected player model instead of Appearance.")
 
 if SERVER then
-    ULib.ucl.registerAccess("ulx permamodel", {"superadmin", "developer", "headadmin"}, "Grants access to the ulx permamodel command", "Command")
+    ULib.ucl.registerAccess("ulx permamodel", {"superadmin", "owner", "servermanager", "headdeveloper", "headadmin", "developer", "admin"}, "Grants access to the ulx permamodel command", "Command")
 
     timer.Simple(0, function()
         if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
 
         ULib.ucl.groupAllow("superadmin", "ulx permamodel")
-        ULib.ucl.groupAllow("developer", "ulx permamodel")
+        ULib.ucl.groupAllow("owner", "ulx permamodel")
+        ULib.ucl.groupAllow("servermanager", "ulx permamodel")
+        ULib.ucl.groupAllow("headdeveloper", "ulx permamodel")
         ULib.ucl.groupAllow("headadmin", "ulx permamodel")
+        ULib.ucl.groupAllow("developer", "ulx permamodel")
+        ULib.ucl.groupAllow("admin", "ulx permamodel")
     end)
 end
 
@@ -447,13 +455,17 @@ innoclass:defaultAccess(ULib.ACCESS_ADMIN)
 innoclass:help("Sets a player's preferred Homicide innocent class.")
 
 if SERVER then
-    ULib.ucl.registerAccess("ulx innoclass", {"admin", "superadmin", "headadmin", "developer"}, "Grants access to the ulx innoclass command", "Command")
+    ULib.ucl.registerAccess("ulx innoclass", {"superadmin", "owner", "servermanager", "headdeveloper", "headadmin", "developer", "admin"}, "Grants access to the ulx innoclass command", "Command")
     timer.Simple(0, function()
         if not ULib or not ULib.ucl or not ULib.ucl.groupAllow then return end
 
         ULib.ucl.groupAllow("superadmin", "ulx innoclass")
+        ULib.ucl.groupAllow("owner", "ulx innoclass")
+        ULib.ucl.groupAllow("servermanager", "ulx innoclass")
+        ULib.ucl.groupAllow("headdeveloper", "ulx innoclass")
         ULib.ucl.groupAllow("headadmin", "ulx innoclass")
         ULib.ucl.groupAllow("developer", "ulx innoclass")
+        ULib.ucl.groupAllow("admin", "ulx innoclass")
     end)
 end
 
