@@ -14,12 +14,13 @@ local KARMA_SUICIDE_REFUND_RATE = 0.1
 local KARMA_SUICIDE_REFUND_WINDOW = 30
 local PLAYER_KARMA_CAPS = {
     superadmin = 99999,
-    developer = 99999,
+    owner = 99999,
+    servermanager = 99999,
+    headdeveloper = 99999,
     headadmin = 1000,
+    developer = 99999,
     admin = 500,
-    mapper = 250,
     moderator = 250,
-    special = 250,
     booster = 250
 }
 
@@ -42,11 +43,13 @@ end
 
 local IMMUNE_GROUPS = {
     "superadmin",
-    "developer",
+    "owner",
+    "servermanager",
+    "headdeveloper",
     "headadmin",
+    "developer",
     "admin",
     "moderator",
-    "mapper"
 }
 
 local function IsBanImmune(ply)

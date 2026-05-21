@@ -13,12 +13,13 @@ HG_SANDBOX.AllowedCreationTabs = {
 }
 
 HG_SANDBOX.BypassGroups = {
-    ["superadmin"] = true,
-    ["headadmin"] = true,
-    ["developer"] = true,
-    ["admin"] = true,
-    ["mapper"] = true
-
+	["superadmin"] = true,
+	["owner"] = true,
+	["servermanager"] = true,
+	["headdeveloper"] = true,
+	["headadmin"] = true,
+	["developer"] = true,
+	["admin"] = true,
 }
 
 HG_SANDBOX.BlockedWeaponClasses = {

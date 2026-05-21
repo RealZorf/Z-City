@@ -67,11 +67,13 @@ end )
 
 if CLIENT then
 	local ZCTools_ULXGroups = {
-		admin = true,
+		superadmin = true,
+		owner = true,
+		servermanager = true,
+		headdeveloper = true,
 		headadmin = true,
 		developer = true,
-		superadmin = true,
-		mapper = true
+		admin = true
 	}
 
 	local function ZCTools_HasULXAccess(ply)

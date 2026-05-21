@@ -6,13 +6,24 @@ local HELD_MODE_PHYSGUN = "physgun"
 local HELD_MODE_GRAVGUN_NATIVE = "gravgun_native"
 local HELD_MODE_GRAVGUN_MANUAL = "gravgun_manual"
 
-local function canUseAdminPhysgun(ply)
-	if not IsValid(ply) or not ply:IsPlayer() then return false end
-	if ply.IsSuperAdmin and ply:IsSuperAdmin() then return true end
-	if ply.IsUserGroup and (ply:IsUserGroup("headadmin") or ply:IsUserGroup("developer") or ply:IsUserGroup("mapper")) then return true end
+local adminPhysgunGroups = {
+	["superadmin"] = true,
+	["owner"] = true,
+	["servermanager"] = true,
+	["headdeveloper"] = true,
+	["headadmin"] = true,
+	["developer"] = true,
+	["admin"] = true,
+}
 
-	local user_group = string.lower(ply:GetUserGroup() or "")
-	return user_group == "superadmin" or user_group == "headadmin" or user_group == "developer" or user_group == "mapper"
+local function canUseAdminPhysgun(ply)
+	if not IsValid(ply) or not ply:IsPlayer() then
+		return false
+	end
+
+	local userGroup = string.lower(ply:GetUserGroup() or "")
+
+	return adminPhysgunGroups[userGroup] == true
 end
 
 local function getPlayerFromEntity(ent)
