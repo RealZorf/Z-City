@@ -14,7 +14,9 @@ DB.TraitorRewardState = DB.TraitorRewardState or nil
 DB.TraitorWeekKey = DB.TraitorWeekKey or nil
 DB.TraitorWeeklyDirty = DB.TraitorWeeklyDirty or false
 DB.TraitorRewardDirty = DB.TraitorRewardDirty or false
+DB.TraitorDirtySteamIds = DB.TraitorDirtySteamIds or {}
 DB.GlobalSaveLock = DB.GlobalSaveLock or false
+DB.ShuttingDown = DB.ShuttingDown or false
 
 local SAVE_DEBOUNCE = 2
 local FLUSH_TIMER_PREFIX = "ZCITY_DB_Flush_"
@@ -255,6 +257,77 @@ function DB.FlushPlayer(steamId64, force)
 	DB.PendingFlush[steamId64] = nil
 end
 
+function DB.IsShuttingDown()
+	return DB.ShuttingDown == true
+end
+
+function DB.BeginShutdown()
+	DB.ShuttingDown = true
+end
+
+local function markTraitorPlayerDirty(steamId64)
+	if not isValidSteamId64(steamId64) then return end
+	DB.TraitorDirtySteamIds[steamId64] = true
+	DB.TraitorWeeklyDirty = true
+end
+
+local function upsertTraitorWeeklyRow(steamId64, entry)
+	if not DB.IsReady() or not isValidSteamId64(steamId64) or not istable(entry) then return end
+
+	local week = DB.TraitorWeekKey or DB.GetTraitorWeekKey()
+	local q = string.format([[
+		INSERT INTO `zcity_traitor_weekly`
+			(`steamid`, `week_key`, `steam_name`, `traitor_kills`, `traitor_wins`, `traitors_killed`, `updated_at`)
+		VALUES ('%s', '%s', '%s', %d, %d, %d, %d)
+		ON DUPLICATE KEY UPDATE
+			`steam_name` = VALUES(`steam_name`),
+			`traitor_kills` = VALUES(`traitor_kills`),
+			`traitor_wins` = VALUES(`traitor_wins`),
+			`traitors_killed` = VALUES(`traitors_killed`),
+			`updated_at` = VALUES(`updated_at`);
+	]],
+		escape(steamId64),
+		escape(week),
+		escape(entry.name or "Unknown"),
+		math.max(0, math.floor(tonumber(entry.traitorKills) or 0)),
+		math.max(0, math.floor(tonumber(entry.traitorWins) or 0)),
+		math.max(0, math.floor(tonumber(entry.traitorsKilled) or 0)),
+		os.time()
+	)
+	runQuery(q)
+end
+
+local function upsertTraitorAlltimeRow(steamId64, entry)
+	if not DB.IsReady() or not isValidSteamId64(steamId64) or not istable(entry) then return end
+
+	local q = string.format([[
+		INSERT INTO `zcity_traitor_alltime`
+			(`steamid`, `steam_name`, `traitor_kills`, `traitor_wins`, `traitors_killed`, `updated_at`)
+		VALUES ('%s', '%s', %d, %d, %d, %d)
+		ON DUPLICATE KEY UPDATE
+			`steam_name` = VALUES(`steam_name`),
+			`traitor_kills` = VALUES(`traitor_kills`),
+			`traitor_wins` = VALUES(`traitor_wins`),
+			`traitors_killed` = VALUES(`traitors_killed`),
+			`updated_at` = VALUES(`updated_at`);
+	]],
+		escape(steamId64),
+		escape(entry.name or "Unknown"),
+		math.max(0, math.floor(tonumber(entry.traitorKills) or 0)),
+		math.max(0, math.floor(tonumber(entry.traitorWins) or 0)),
+		math.max(0, math.floor(tonumber(entry.traitorsKilled) or 0)),
+		os.time()
+	)
+	runQuery(q)
+end
+
+local function getTraitorCacheEntry(steamId64)
+	local key = "steamid64:" .. steamId64
+	local weekly = DB.TraitorWeeklyCache and DB.TraitorWeeklyCache.players and DB.TraitorWeeklyCache.players[key]
+	local alltime = DB.TraitorAllTimeCache and DB.TraitorAllTimeCache.players and DB.TraitorAllTimeCache.players[key]
+	return weekly, alltime
+end
+
 function DB.FlushAllPlayers()
 	for _, ply in player.Iterator() do
 		if IsValid(ply) and ply:IsPlayer() and not ply:IsBot() then
@@ -268,11 +341,15 @@ function DB.FlushAllPlayers()
 				DB.PlayerCache[steamId64].store = ply.ZCStoreData
 				DB.PlayerCache[steamId64].dirty.store = true
 			end
+			if ply.PATSB_PlaytimeSeconds ~= nil then
+				DB.PlayerCache[steamId64].playtime_seconds = ply.PATSB_PlaytimeSeconds
+				DB.PlayerCache[steamId64].dirty.playtime = true
+			end
 			DB.FlushPlayer(steamId64, true)
 		end
 	end
 
-	DB.SaveTraitorWeekly(true)
+	DB.SaveTraitorWeekly(false)
 end
 
 function DB.GetStoreData(steamId64, fallbackNormalizeFn, defaultDataFn)
@@ -578,7 +655,17 @@ function DB.UpdateTraitorWeeklyPlayer(steamId64, plyName, stats)
 		traitorsKilled = math.max(0, math.floor(tonumber(stats.traitorsKilled) or (DB.TraitorAllTimeCache.players[key] and DB.TraitorAllTimeCache.players[key].traitorsKilled) or 0)),
 	}
 
-	DB.TraitorWeeklyDirty = true
+	markTraitorPlayerDirty(steamId64)
+
+	local weeklyEntry = DB.TraitorWeeklyCache.players[key]
+	local alltimeEntry = DB.TraitorAllTimeCache.players[key]
+	if weeklyEntry then
+		upsertTraitorWeeklyRow(steamId64, weeklyEntry)
+	end
+	if alltimeEntry then
+		upsertTraitorAlltimeRow(steamId64, alltimeEntry)
+	end
+
 	if timer.Exists("ZCITY_DB_TraitorWeeklySave") then return end
 	timer.Create("ZCITY_DB_TraitorWeeklySave", SAVE_DEBOUNCE, 1, function()
 		DB.SaveTraitorWeekly(false)
@@ -610,60 +697,17 @@ function DB.SaveTraitorWeekly(force)
 	end
 
 	if DB.TraitorWeeklyDirty or force then
-		local players = (DB.TraitorWeeklyCache and DB.TraitorWeeklyCache.players) or {}
-		for id, entry in pairs(players) do
-			local sid = entry.steamID64 or string.match(tostring(id), "^steamid64:(%d+)$")
-			if not isValidSteamId64(sid) then continue end
-
-			local q = string.format([[
-				INSERT INTO `zcity_traitor_weekly`
-					(`steamid`, `week_key`, `steam_name`, `traitor_kills`, `traitor_wins`, `traitors_killed`, `updated_at`)
-				VALUES ('%s', '%s', '%s', %d, %d, %d, %d)
-				ON DUPLICATE KEY UPDATE
-					`steam_name` = VALUES(`steam_name`),
-					`traitor_kills` = VALUES(`traitor_kills`),
-					`traitor_wins` = VALUES(`traitor_wins`),
-					`traitors_killed` = VALUES(`traitors_killed`),
-					`updated_at` = VALUES(`updated_at`);
-			]],
-				escape(sid),
-				escape(week),
-				escape(entry.name or "Unknown"),
-				math.max(0, math.floor(tonumber(entry.traitorKills) or 0)),
-				math.max(0, math.floor(tonumber(entry.traitorWins) or 0)),
-				math.max(0, math.floor(tonumber(entry.traitorsKilled) or 0)),
-				os.time()
-			)
-			runQuery(q)
+		for steamId64, _ in pairs(DB.TraitorDirtySteamIds) do
+			local weeklyEntry, alltimeEntry = getTraitorCacheEntry(steamId64)
+			if weeklyEntry then
+				upsertTraitorWeeklyRow(steamId64, weeklyEntry)
+			end
+			if alltimeEntry then
+				upsertTraitorAlltimeRow(steamId64, alltimeEntry)
+			end
 		end
+		DB.TraitorDirtySteamIds = {}
 		DB.TraitorWeeklyDirty = false
-	end
-
-	if force and DB.TraitorAllTimeCache and istable(DB.TraitorAllTimeCache.players) then
-		for id, entry in pairs(DB.TraitorAllTimeCache.players) do
-			local sid = entry.steamID64 or string.match(tostring(id), "^steamid64:(%d+)$")
-			if not isValidSteamId64(sid) then continue end
-
-			local q = string.format([[
-				INSERT INTO `zcity_traitor_alltime`
-					(`steamid`, `steam_name`, `traitor_kills`, `traitor_wins`, `traitors_killed`, `updated_at`)
-				VALUES ('%s', '%s', %d, %d, %d, %d)
-				ON DUPLICATE KEY UPDATE
-					`steam_name` = VALUES(`steam_name`),
-					`traitor_kills` = VALUES(`traitor_kills`),
-					`traitor_wins` = VALUES(`traitor_wins`),
-					`traitors_killed` = VALUES(`traitors_killed`),
-					`updated_at` = VALUES(`updated_at`);
-			]],
-				escape(sid),
-				escape(entry.name or "Unknown"),
-				math.max(0, math.floor(tonumber(entry.traitorKills) or 0)),
-				math.max(0, math.floor(tonumber(entry.traitorWins) or 0)),
-				math.max(0, math.floor(tonumber(entry.traitorsKilled) or 0)),
-				os.time()
-			)
-			runQuery(q)
-		end
 	end
 
 	timer.Simple(0, function()
@@ -795,6 +839,7 @@ hook.Add("PlayerInitialSpawn", "ZCITY_DB_PlaytimeLoad", function(ply)
 end)
 
 hook.Add("PlayerDisconnected", "ZCITY_DB_FlushOnDisconnect", function(ply)
+	if DB.IsShuttingDown() then return end
 	if not IsValid(ply) or ply:IsBot() then return end
 
 	local steamId64 = ply:SteamID64()
@@ -819,6 +864,7 @@ hook.Add("PlayerDisconnected", "ZCITY_DB_FlushOnDisconnect", function(ply)
 end)
 
 hook.Add("ShutDown", "ZCITY_DB_FlushShutdown", function()
+	DB.BeginShutdown()
 	DB.FlushAllPlayers()
 end)
 
