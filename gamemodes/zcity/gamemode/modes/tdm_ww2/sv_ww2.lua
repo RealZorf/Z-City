@@ -164,7 +164,7 @@ end)
 function MODE:GiveEquipment()
     timer.Simple(0.1, function()
         for _, ply in player.Iterator() do
-            if not IsValid(ply) or not ply:Alive() then continue end
+            if not IsValid(ply) or not zb:CanActivelyParticipate(ply) then continue end
 
             ply.ZB_AssignedModel = nil
 

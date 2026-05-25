@@ -70,7 +70,7 @@ end
 function MODE:GiveEquipment()
     timer.Simple(0.1, function()
         for _, ply in player.Iterator() do
-            if not ply:Alive() then continue end
+            if not zb:CanActivelyParticipate(ply) then continue end
 
             local inv = ply:GetNetVar("Inventory") or {}
             inv["Weapons"] = inv["Weapons"] or {}

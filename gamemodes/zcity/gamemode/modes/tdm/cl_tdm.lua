@@ -281,7 +281,7 @@ CreateEndMenu = function()
 		but:SetText("")
 		but.Paint = function(self,w,h)
 			local validPly = IsValid(ply)
-			local isAlive = validPly and ply:Alive()
+			local isAlive = validPly and zb:CanActivelyParticipate(ply)
             local col1 = (isAlive and colRed) or colGray
             local col2 = (isAlive and colRedUp) or colSpect1
 			surface.SetDrawColor(col1.r,col1.g,col1.b,col1.a)

@@ -55,6 +55,10 @@ function MODE:OverrideBalance()--return true to keep alive players
     return zb.RoundsLeft and (zb.RoundsLeft != self.Rounds)
 end
 
+function MODE:CheckAlivePlayers()
+	return zb:CheckAliveTeams(true)
+end
+
 function MODE:RoundStartPost()
     if zb.RoundsLeft and zb.RoundsLeft > 1 then
         NextRound(self.name)
@@ -194,7 +198,7 @@ function MODE:EndRound()
 
     local winner = 3
 
-	local tbl = zb:CheckAliveTeams(true)
+	local tbl = self:CheckAlivePlayers()
 
     if zb.rtype == "bomb" then
         if not IsValid(zb.bomb) then
@@ -358,7 +362,7 @@ end
 function MODE:ShouldRoundEnd()
     if zb.ROUND_START + 5 > CurTime() then return false end
 
-	local tbl = zb:CheckAliveTeams(true)
+	local tbl = self:CheckAlivePlayers()
     
     if zb.rtype == "bomb" then
         if zb.bombexploded then
@@ -397,6 +401,8 @@ function MODE:ShouldRoundEnd()
             return true
         end
     end
+
+    return false
 end
 
 function MODE:RoundThink()

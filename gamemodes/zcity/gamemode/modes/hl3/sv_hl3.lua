@@ -726,7 +726,7 @@ function MODE:GiveEquipment()
 		local snipersC = 1
 		local snipersR = 1
 
-		local playersAlive = zb:CheckPlaying()
+		local playersAlive = zb:CheckPlaying(true)
 		local leader = false
 
 		for _, ply in RandomPairs(playersAlive) do

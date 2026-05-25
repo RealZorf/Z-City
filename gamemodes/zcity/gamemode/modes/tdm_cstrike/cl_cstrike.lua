@@ -13,7 +13,7 @@ function MODE:AddHudPaint()
     local siteInsideText = self.SiteInsideText or "You're on site!"
     local hostageZoneLabel = self.HostageZoneLabel or "HOSTAGE DELIVERY ZONE"
     
-    if !ply:Alive() then return end
+    if not zb:CanActivelyParticipate(ply) then return end
     if zb.rtype == "bomb" then
 
         local pts = zb.ClPoints["BOMB_ZONE_A"]

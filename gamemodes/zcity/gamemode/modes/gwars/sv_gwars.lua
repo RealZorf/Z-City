@@ -122,7 +122,7 @@ function MODE:GiveEquipment()
 		local teamArmorCount = { [0] = 0, [1] = 0 } 
 
 		for _, ply in player.Iterator() do
-			if not ply:Alive() then continue end
+			if not zb:CanActivelyParticipate(ply) then continue end
 			ply:SetSuppressPickupNotices(true)
 			ply.noSound = true
 

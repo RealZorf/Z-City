@@ -164,12 +164,13 @@ function zb:CheckAlive(incapacitatedcheck)
 	return tbl
 end
 
-function zb:CheckPlaying()
+function zb:CheckPlaying(incapacitatedcheck)
 	local tbl = {}
 	for _, ply in player.Iterator() do
 		if ply:Team() == TEAM_SPECTATOR then continue end
 		if not ply:Alive() then continue end
-		
+		if incapacitatedcheck and not zb:CanActivelyParticipate(ply) then continue end
+
 		tbl[#tbl + 1] = ply
 	end
 	return tbl

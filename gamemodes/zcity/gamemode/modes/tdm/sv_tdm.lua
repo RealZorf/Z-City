@@ -87,7 +87,7 @@ function MODE:GiveEquipment()
 		local mrand = math.random(#tblweps[0])
 
 		for _, ply in player.Iterator() do
-			if not ply:Alive() then continue end
+			if not zb:CanActivelyParticipate(ply) then continue end
 			
 			local inv = ply:GetNetVar("Inventory")
 			inv["Weapons"]["hg_sling"] = true
@@ -174,7 +174,7 @@ function MODE:PlayerDeath(ply)
 end
 util.AddNetworkString( "tdm_open_buymenu" )
 function MODE:ShowSpare1(ply ) -- OpenMenu
-	if not ply:Alive() then return end
+	if not zb:CanActivelyParticipate(ply) then return end
 	net.Start( "tdm_open_buymenu" )
 	net.Send( ply )
 end
@@ -185,6 +185,7 @@ local AttachmentPrice = 50
 net.Receive("tdm_buyitem",function(len,ply)
 	local round = CurrentRound()
 	if !round.buymenu then return end
+	if not zb:CanActivelyParticipate(ply) then return end
 	if ((zb.ROUND_START or 0) + 40 < CurTime()) then ply:ChatPrint("Time's up!") return end
 	local tItem = net.ReadTable()
 	if not istable(tItem) then return end

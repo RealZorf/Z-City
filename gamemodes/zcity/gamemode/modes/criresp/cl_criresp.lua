@@ -164,8 +164,9 @@ CreateEndMenu = function(whowin)
 		but:DockMargin(8, 6, 8, -1)
 		but:SetText("")
 		but.Paint = function(self, w, h)
-	local col1 = (ply:Alive() and colRed) or colGray
-	local col2 = (ply:Alive() and colRedUp) or colSpect1
+	local isAlive = zb:CanActivelyParticipate(ply)
+	local col1 = (isAlive and colRed) or colGray
+	local col2 = (isAlive and colRedUp) or colSpect1
 	surface.SetDrawColor(col1.r, col1.g, col1.b, col1.a)
 	surface.DrawRect(0, 0, w, h)
 	surface.SetDrawColor(col2.r, col2.g, col2.b, col2.a)
@@ -184,7 +185,7 @@ CreateEndMenu = function(whowin)
 	surface.SetTextColor(col.r, col.g, col.b, col.a)
 	local lengthX, lengthY = surface.GetTextSize(ply:GetPlayerName() or "He quited...")
 	surface.SetTextPos(15, h / 2 - lengthY / 2)
-	surface.DrawText(ply:Name() .. (ply:GetNetVar("handcuffed", false) and " - neutralized" or (not ply:Alive() and " - dead") or ""))
+	surface.DrawText(ply:Name() .. (ply:GetNetVar("handcuffed", false) and " - neutralized" or (not isAlive and " - dead") or ""))
 	surface.SetFont("ZB_InterfaceMediumLarge")
 	surface.SetTextColor(col.r, col.g, col.b, col.a)
 	local lengthX, lengthY = surface.GetTextSize(ply:Frags() or "He quited...")

@@ -52,7 +52,7 @@ function MODE:GiveEquipment()
 		local snipersC = 1
 		local snipersR = 1
 
-		local players_alive = zb:CheckPlaying()
+		local players_alive = zb:CheckPlaying(true)
 		local leader = false
 		for _, ply in RandomPairs(players_alive) do
 			ply:SetSuppressPickupNotices(true)
