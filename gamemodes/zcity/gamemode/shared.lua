@@ -126,6 +126,15 @@ function zb:CheckTeams()
 	return tbl
 end
 
+function zb:CanActivelyParticipate(ply)
+	if not IsValid(ply) or not ply:Alive() then return false end
+
+	local org = ply.organism
+	if not org then return true end
+
+	return not org.incapacitated and org.canmove
+end
+
 function zb:CheckAliveTeams(incapacitatedcheck)
 	local tbl = {}
 
@@ -136,7 +145,7 @@ function zb:CheckAliveTeams(incapacitatedcheck)
 
 	for _, ply in player.Iterator() do
 		if not ply:Alive() then continue end
-		if incapacitatedcheck and ply.organism and ply.organism.incapacitated then continue end
+		if incapacitatedcheck and not zb:CanActivelyParticipate(ply) then continue end
 
 		tbl[ply:Team() or 0] = tbl[ply:Team() or 0] or {}
 		tbl[ply:Team()][(#tbl[ply:Team() or 0] or 0) + 1] = ply
@@ -149,7 +158,7 @@ function zb:CheckAlive(incapacitatedcheck)
 	local tbl = {}
 	for _, ply in player.Iterator() do
 		if not ply:Alive() then continue end
-		if incapacitatedcheck and ply.organism and ply.organism.incapacitated then continue end
+		if incapacitatedcheck and not zb:CanActivelyParticipate(ply) then continue end
 		tbl[#tbl + 1] = ply
 	end
 	return tbl

@@ -1345,11 +1345,7 @@ function MODE:CheckAlivePlayers()
 	}
 	
 	for _, ply in player.Iterator() do
-		if(not ply:Alive())then
-			continue
-		end
-		
-		if((not ply.isTraitor)and ply.organism and ply.organism.incapacitated)then
+		if not zb:CanActivelyParticipate(ply) then
 			continue
 		end
 		

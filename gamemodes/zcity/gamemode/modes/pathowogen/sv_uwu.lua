@@ -600,7 +600,7 @@ function MODE:ShouldRoundEnd()
 	MODE.humans = {}
 
 	for _, v in player.Iterator() do
-		if v:Team() == TEAM_SPECTATOR or !v:Alive() then
+		if v:Team() == TEAM_SPECTATOR or not zb:CanActivelyParticipate(v) then
 			continue
 		end
 

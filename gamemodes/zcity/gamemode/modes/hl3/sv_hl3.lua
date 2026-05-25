@@ -413,9 +413,8 @@ end
 local function isLiveVort(ply)
 	return IsValid(ply)
 		and ply:IsPlayer()
-		and ply:Alive()
 		and ply:Team() == VORT_TEAM
-		and not (ply.organism and ply.organism.incapacitated)
+		and zb:CanActivelyParticipate(ply)
 end
 
 local function isActiveHL3Round()

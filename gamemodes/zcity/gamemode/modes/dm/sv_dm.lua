@@ -67,8 +67,7 @@ function MODE:CheckAlivePlayers()
 	local AlivePlyTbl = {
 	}
 	for _, ply in player.Iterator() do
-		if not ply:Alive() then continue end
-		if ply.organism and ply.organism.incapacitated then continue end
+		if not zb:CanActivelyParticipate(ply) then continue end
 		AlivePlyTbl[#AlivePlyTbl + 1] = ply
 	end
 	return AlivePlyTbl

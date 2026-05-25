@@ -232,7 +232,7 @@ function MODE:Intermission()
 end
 
 function MODE:ShouldRoundEnd()
-	return #zb:CheckAlive() == 0
+	return #zb:CheckAlive(true) == 0
 end
 
 function MODE:EndRound()

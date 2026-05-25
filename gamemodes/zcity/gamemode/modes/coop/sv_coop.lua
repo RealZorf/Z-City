@@ -208,7 +208,7 @@ function MODE:ShouldRoundEnd()
     local lives = 0
 
     for _,ply in player.Iterator() do
-        if not ply:Alive() then continue end
+        if not zb:CanActivelyParticipate(ply) then continue end
         if ply.PlayerClassName == "Combine" or ply.PlayerClassName == "Metrocop" or ply.PlayerClassName == "headcrabzombie" then continue end
         lives = lives + 1
     end

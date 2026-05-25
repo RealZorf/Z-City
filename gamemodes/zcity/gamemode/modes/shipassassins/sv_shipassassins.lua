@@ -13,8 +13,7 @@ local function isActiveAssassin(ply)
 	return IsValid(ply)
 		and ply:IsPlayer()
 		and ply:Team() ~= TEAM_SPECTATOR
-		and ply:Alive()
-		and not (ply.organism and ply.organism.incapacitated)
+		and zb:CanActivelyParticipate(ply)
 end
 
 local ILLEGAL_HARM_SLAY_THRESHOLD = 15

@@ -83,19 +83,19 @@ function MODE:CheckAlivePlayers()
     local shooterPlayers = {}
 
     for _, ply in ipairs(team.GetPlayers(0)) do
-        if ply:Alive() and not ply:GetNetVar("handcuffed", false) then
+        if zb:CanActivelyParticipate(ply) and not ply:GetNetVar("handcuffed", false) then
             table.insert(swatPlayers, ply)
         end
     end
 
     for _, ply in ipairs(team.GetPlayers(1)) do
-        if ply:Alive() and not ply:GetNetVar("handcuffed", false) then
+        if zb:CanActivelyParticipate(ply) and not ply:GetNetVar("handcuffed", false) then
             table.insert(victimPlayers, ply)
         end
     end
 
     for _, ply in ipairs(team.GetPlayers(2)) do
-        if ply:Alive() and not ply:GetNetVar("handcuffed", false) then
+        if zb:CanActivelyParticipate(ply) and not ply:GetNetVar("handcuffed", false) then
             table.insert(shooterPlayers, ply)
         end
     end
