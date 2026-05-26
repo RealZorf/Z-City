@@ -20,6 +20,12 @@ local liveESPUserGroups = {
 }
 
 local ESP_PDATA_KEY = "zcity_live_esp_enabled"
+local ROLE_SYNC_TRAITOR_KEY = "AS_ESP_IsTraitor"
+local ROLE_SYNC_GUNNER_KEY = "AS_ESP_IsGunner"
+local roleEspModes = {
+	["hmcd"] = true,
+	["fear"] = true,
+}
 
 local function getSteamKey( ply )
 	return ply:SteamID64() or ply:SteamID()
@@ -38,6 +44,12 @@ local function ESP_Log(ply, msg)
 		msg,
 		tostring(alive)
 	))
+end
+
+local function IsRoleESPMode()
+	if !AS or !AS.GetCurrentMode then return false end
+	local mode = AS:GetCurrentMode()
+	return mode and roleEspModes[mode] == true or false
 end
 
 function ESP:Init()
@@ -62,6 +74,22 @@ function ESP:Init()
 			end
 
 			syncQueue[steamId] = nil
+		end
+	end)
+
+	timer.Create("AS_ESP_RoleSync", 0.5, 0, function()
+		local useRoleSync = IsRoleESPMode()
+
+		for _, target in player.Iterator() do
+			if !IsValid(target) then continue end
+
+			if useRoleSync then
+				target:SetNWBool(ROLE_SYNC_TRAITOR_KEY, target.isTraitor == true)
+				target:SetNWBool(ROLE_SYNC_GUNNER_KEY, target.isGunner == true)
+			else
+				target:SetNWBool(ROLE_SYNC_TRAITOR_KEY, false)
+				target:SetNWBool(ROLE_SYNC_GUNNER_KEY, false)
+			end
 		end
 	end)
 end

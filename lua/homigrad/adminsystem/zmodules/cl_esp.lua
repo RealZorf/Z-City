@@ -25,6 +25,9 @@ local col_white = Color(255, 255, 255)
 local col_gray = Color(180, 180, 180)
 local col_weapon = Color(255, 200, 100)
 local col_box_outline = Color(0, 0, 0, 200)
+local col_role_traitor = Color(255, 60, 60)
+local col_role_innocent = Color(70, 220, 70)
+local col_role_gunner = Color(70, 140, 255)
 local SHOW_TARGET_OUTLINE = true
 local SHOW_TARGET_BOX = false
 
@@ -75,6 +78,60 @@ end
 local function GetPlayerTeamColor(target)
 	if !IsValid(target) then return col_default end
 	return GetESPTeamColor(target:Team())
+end
+
+local roleEspModes = {
+	["hmcd"] = true,
+	["fear"] = true,
+}
+
+local roleColors = {
+	traitor = col_role_traitor,
+	innocent = col_role_innocent,
+	gunner = col_role_gunner,
+}
+
+local roleLabels = {
+	traitor = "Traitor",
+	innocent = "Innocent",
+	gunner = "Gunner",
+}
+local ROLE_SYNC_TRAITOR_KEY = "AS_ESP_IsTraitor"
+local ROLE_SYNC_GUNNER_KEY = "AS_ESP_IsGunner"
+
+local function IsRoleESPMode()
+	if !AS or !AS.GetCurrentMode then return false end
+	local mode = AS:GetCurrentMode()
+	return mode and roleEspModes[mode] == true or false
+end
+
+local function GetPlayerRoleKey(target)
+	if !IsValid(target) then return nil end
+	if target.isTraitor == true then return "traitor" end
+	if target.isGunner == true then return "gunner" end
+
+	if target:GetNWBool(ROLE_SYNC_TRAITOR_KEY, false) then return "traitor" end
+	if target:GetNWBool(ROLE_SYNC_GUNNER_KEY, false) then return "gunner" end
+
+	if target.isTraitor == nil and target.isGunner == nil then return nil end
+	return "innocent"
+end
+
+local function GetPlayerESPColor(target, useRoleMode)
+	if useRoleMode then
+		local roleKey = GetPlayerRoleKey(target)
+		if roleKey and roleColors[roleKey] then
+			return roleColors[roleKey]
+		end
+	end
+
+	return GetPlayerTeamColor(target)
+end
+
+local function GetPlayerRoleLabel(target, useRoleMode)
+	if !useRoleMode then return nil end
+	local roleKey = GetPlayerRoleKey(target)
+	return roleKey and roleLabels[roleKey] or nil
 end
 
 local UpVector = Vector(0, 0, 80)
@@ -236,23 +293,33 @@ function ESP:SetupHooks()
 
 		local ply = LocalPlayer()
 		if !CanRenderESP( ply ) then return end
+		local useRoleMode = IsRoleESPMode()
 
 		local teamTargets = {}
 		for _, target in player.Iterator() do
 			if ShouldShowPlayer(ply, target) then
-				local tm = target:Team()
-				teamTargets[tm] = teamTargets[tm] or {}
+				local groupKey = target:Team()
+				if useRoleMode then
+					groupKey = GetPlayerRoleKey(target) or groupKey
+				end
+
+				teamTargets[groupKey] = teamTargets[groupKey] or {}
 				local renderTarget = GetPlayerRenderEntity(target)
 				if IsValid(renderTarget) then
-					table.insert(teamTargets[tm], renderTarget)
+					table.insert(teamTargets[groupKey], {ent = renderTarget, ply = target})
 				end
 			end
 		end
 
-		for tm, targets in pairs(teamTargets) do
+		for _, targets in pairs(teamTargets) do
 			if #targets > 0 then
-				local col = GetESPTeamColor(tm)
-				Add(targets, col, OUTLINE_MODE_BOTH)
+				local first = targets[1]
+				local col = first and GetPlayerESPColor(first.ply, useRoleMode) or col_default
+				local out = {}
+				for i = 1, #targets do
+					out[i] = targets[i].ent
+				end
+				Add(out, col, OUTLINE_MODE_BOTH)
 			end
 		end
 	end)
@@ -262,11 +329,12 @@ function ESP:SetupHooks()
 
 		local ply = LocalPlayer()
 		if !CanRenderESP( ply ) then return end
+		local useRoleMode = IsRoleESPMode()
 
 		for _, target in player.Iterator() do
 			if !ShouldShowPlayer(ply, target) then continue end
 
-			local col = GetPlayerTeamColor(target)
+			local col = GetPlayerESPColor(target, useRoleMode)
 			local eyePos = target:EyePos()
 			local eyeDir = target:EyeAngles():Forward()
 			local endPos = eyePos + eyeDir * 10000
@@ -280,13 +348,15 @@ function ESP:SetupHooks()
 	hook.Add("HUDPaint", "AS_ESP_Draw", function()
 		local ply = LocalPlayer()
 		if !CanRenderESP( ply ) then return end
+		local useRoleMode = IsRoleESPMode()
 
 		local myPos = ply:GetPos()
 
 		for _, target in player.Iterator() do
 			if !ShouldShowPlayer(ply, target) then continue end
 
-			local col = GetPlayerTeamColor(target)
+			local col = GetPlayerESPColor(target, useRoleMode)
+			local roleLabel = GetPlayerRoleLabel(target, useRoleMode)
 			local renderTarget = GetPlayerRenderEntity(target)
 			if !IsValid(renderTarget) then continue end
 
@@ -305,6 +375,10 @@ function ESP:SetupHooks()
 
 			local sx, sy = screenPos.x, screenPos.y
 			local dist = math.floor(myPos:Distance(renderTarget:GetPos()) / 52.49)
+
+			if roleLabel then
+				draw.SimpleTextOutlined(roleLabel, "TargetIDSmall", sx, sy - 22, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+			end
 
 			draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", sx, sy - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 
