@@ -804,8 +804,9 @@ MODE.Types.wildwest = {
 		ply:Give("weapon_sogknife")
 		ply:Give("weapon_hg_type59_tpik")
 		ply:Give("weapon_adrenaline")
-		local revolver = ply:Give(math.random(2) == 2 and "weapon_winchester" or "weapon_revolver2")
+		local revolver = ply:Give(math.random(2) == 2 and "weapon_winchester" or "weapon_yellowboy")
 		ply:GiveAmmo(revolver:GetMaxClip1() * 1,revolver:GetPrimaryAmmoType(),true)
+		ply:Give("weapon_revolversw686")
 		ply:Give("weapon_traitor_ied")
 		ply:Give("weapon_hg_molotov_tpik")
 		ply:Give("weapon_hg_smokenade_tpik")
@@ -861,20 +862,25 @@ MODE.Types.wildwest = {
 			end)
 			if v.isTraitor then continue end
 			if v.isGunner then
-				v:Give("weapon_winchester")
-				v:Give("weapon_revolver357")
+				local shotgun = v:Give("weapon_ithaca37")
+				v:GiveAmmo(shotgun:GetMaxClip1() * 5, shotgun:GetPrimaryAmmoType(), true)
+				v:Give("weapon_revolvermodel29")
 				v:Give("weapon_handcuffs")
 				v:Give("weapon_handcuffs_key")
 			else
 				local guns = {
-					"weapon_winchester",
-					"weapon_revolver2",
 					"weapon_doublebarrel",
-					"weapon_doublebarrel_short"
+					"weapon_winchester",
+					"weapon_yellowboy",
+					"weapon_revolversw686"
 				}
 
 				local weapon = v:Give(guns[math.random(#guns)], true)
 				weapon:SetClip1(weapon:GetMaxClip1())
+				
+				if IsValid(weapon) and weapon:GetClass() == "weapon_doublebarrel" then
+    				v:GiveAmmo(2, weapon:GetPrimaryAmmoType(), true)
+				end
 			end
 
 			v:SetNetVar("CurPluv", "pluvfancy")
