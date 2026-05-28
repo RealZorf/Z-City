@@ -15,7 +15,7 @@ hook.Add( "PostRender", "wOS.DynaBase.PreventDataAccess", function()
 	local val = wOS.DynaBase.DataCachePass
 	wOS.DynaBase.DataCachePass = 0
 	if not val or val < WOS_DYNABASE.MAXCACHE then
-		chat.AddText( Color( 255, 0, 0 ), "[wOS-Dynabase] Can not apply animation selection due to conflicting addons. Please let us know on the Workshop Page or Discord!" )
+		print("Can not apply animation selection due to conflicting addons. Please let us know on the Workshop Page or Discord!")
 		return
 	end
 	RunConsoleCommand( "r_flushlod" )
