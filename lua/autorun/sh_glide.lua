@@ -316,7 +316,7 @@ function Glide.IncludeDir( dirPath, doInclude, doTransfer )
 end
 
 if SERVER then
-    resource.AddWorkshop( "3389728250" )
+    --resource.AddWorkshop( "3389728250" )
 
     -- Shared files
     Glide.IncludeDir( "glide/", true, true )

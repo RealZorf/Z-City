@@ -5,9 +5,9 @@ if CLIENT then
     } )
 end
 
-if SERVER then
+--[[if SERVER then
     resource.AddWorkshop( 3389795738 )
-end
+end]]
 
 hook.Add( "InitPostEntity", "GTAVHelicopters.GlideCheck", function()
     if Glide then
