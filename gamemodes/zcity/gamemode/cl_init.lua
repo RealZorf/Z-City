@@ -562,6 +562,99 @@ surface.CreateFont("ZB_InterfaceHumongous", {
     antialias = true
 })
 
+local spectatorESPEnabled = ConVarExists("zb_spectator_esp") and GetConVar("zb_spectator_esp") or CreateClientConVar("zb_spectator_esp", "1", true, false, "Show player ESP while dead or spectating", 0, 1)
+
+local spectatorESPTextColor = Color(235, 235, 235)
+local spectatorESPFallbackColor = zb.TeamESP and zb.TeamESP.DefaultColor or Color(35, 225, 110)
+
+local function IsSpectatorESPAllowed()
+	if spectatorESPEnabled and not spectatorESPEnabled:GetBool() then return false end
+
+	local ply = LocalPlayer()
+	if not IsValid(ply) then return false end
+
+	if (not ply:Alive() or ply:Team() == TEAM_SPECTATOR) and ESP and ESP.Enabled then return false end
+	if ply:Alive() and ply:Team() ~= TEAM_SPECTATOR then return false end
+
+	local round = CurrentRound and CurrentRound()
+	if not round or round.name == "coop" then return false end
+
+	return true
+end
+
+local function GetSpectatorESPColor(ply)
+	if zb.TeamESP and zb.TeamESP.GetPlayerColor then
+		return zb.TeamESP.GetPlayerColor(ply, spectatorESPFallbackColor)
+	end
+
+	return spectatorESPFallbackColor
+end
+
+local function GetSpectatorESPEntity(ply)
+	if not IsValid(ply) then return NULL end
+
+	local ent = hg.GetCurrentCharacter and hg.GetCurrentCharacter(ply) or ply
+
+	return IsValid(ent) and ent or ply
+end
+
+local function ShouldDrawSpectatorESPFor(localPly, target)
+	if not IsValid(target) then return false end
+	if target == localPly then return false end
+	if target:Team() == TEAM_SPECTATOR then return false end
+	if not target:Alive() then return false end
+
+	if localPly:GetNWInt("viewmode", 0) == 1 and localPly:GetNWEntity("spect") == target then
+		return false
+	end
+
+	return IsValid(GetSpectatorESPEntity(target))
+end
+
+local function GetSpectatorESPLabelPos(ent)
+	local maxs = ent:OBBMaxs()
+
+	return ent:GetPos() + Vector(0, 0, maxs.z + 14)
+end
+
+hook.Add("SetupOutlines", "ZB_SpectatorESP_Outlines", function(outline_Add)
+	if not IsSpectatorESPAllowed() then return end
+
+	local ply = LocalPlayer()
+
+	for _, target in player.Iterator() do
+		if not ShouldDrawSpectatorESPFor(ply, target) then continue end
+
+		outline_Add(GetSpectatorESPEntity(target), GetSpectatorESPColor(target), OUTLINE_MODE_BOTH)
+	end
+end)
+
+
+hook.Add("HUDPaint", "ZB_SpectatorESP_HUD", function()
+	if not IsSpectatorESPAllowed() then return end
+
+	local ply = LocalPlayer()
+	local origin = EyePos()
+
+	for _, target in player.Iterator() do
+		if not ShouldDrawSpectatorESPFor(ply, target) then continue end
+
+		local ent = GetSpectatorESPEntity(target)
+		local col = GetSpectatorESPColor(target)
+
+		local screen = GetSpectatorESPLabelPos(ent):ToScreen()
+
+		if not screen.visible then continue end
+
+
+		local distance = math.floor(origin:Distance(ent:WorldSpaceCenter()) / 52.49)
+
+		draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", screen.x, screen.y - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+
+		draw.SimpleTextOutlined(distance .. " m", "TargetIDSmall", screen.x, screen.y + 5, spectatorESPTextColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+	end
+end)
+
 hg.playerInfo = hg.playerInfo or {}
 
 local function addToPlayerInfo(ply, muted, volume)

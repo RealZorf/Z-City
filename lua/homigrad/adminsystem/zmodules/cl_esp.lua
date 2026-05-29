@@ -1,16 +1,18 @@
-if !hg or !hg.AdminSystem then return end
+if not hg or not hg.AdminSystem then return end
 
 local AS = hg.AdminSystem
-local ESP = {}
+ESP = ESP or {}
 
 ESP.Enabled = false
 ESP.InAdminMode = false
 ESP.AllESP = false
-ESP.ToggleKeyDown = false
 ESP.NextToggle = 0
 
-local ESPEye = CreateClientConVar("zb_espeye", "0", true, false, "Show admin ESP eye trace line")
-local liveESPUserGroups = {
+local adminESPEye = ConVarExists("zb_espeye") and GetConVar("zb_espeye") or CreateClientConVar("zb_espeye", "0", true, false, "Show admin ESP eye trace line")
+local adminESPTextColor = Color(235, 235, 235)
+local adminESPWeaponColor = Color(255, 200, 100)
+
+local adminESPUserGroups = {
 	["superadmin"] = true,
 	["owner"] = true,
 	["servermanager"] = true,
@@ -20,241 +22,115 @@ local liveESPUserGroups = {
 	["admin"] = true,
 }
 
-local col_default = Color(255, 0, 0)
-local col_white = Color(255, 255, 255)
-local col_gray = Color(180, 180, 180)
-local col_weapon = Color(255, 200, 100)
-local col_box_outline = Color(0, 0, 0, 200)
-local col_role_traitor = Color(255, 60, 60)
-local col_role_innocent = Color(70, 220, 70)
-local col_role_gunner = Color(70, 140, 255)
-local SHOW_TARGET_OUTLINE = true
-local SHOW_TARGET_BOX = false
-
-local teamColors = {
-	[0] = Color(200, 200, 200),
-	[1] = Color(255, 100, 100),
-	[2] = Color(100, 150, 255),
-	[3] = Color(100, 255, 100),
-	[4] = Color(255, 255, 100),
-	[1001] = Color(150, 150, 150),
+local adminESPDefaultColor = Color(255, 0, 0)
+local adminESPRoleColors = {
+	traitor = Color(255, 60, 60),
+	innocent = Color(70, 220, 70),
+	gunner = Color(70, 140, 255),
 }
-
-local function CanUseLiveESPClient( ply )
-	if !IsValid( ply ) then return false end
-	return liveESPUserGroups[string.lower( ply:GetUserGroup() or "" )] == true
-end
-
-local function CanUseESPClient( ply )
-	if !IsValid( ply ) then return false end
-	return CanUseLiveESPClient( ply )
-end
-
-local function CanRenderESP( ply )
-	return IsValid( ply ) and ESP.Enabled
-end
-
-local function GetESPTeamColor(tm)
-	local teamCol = team.GetColor(tm)
-	if teamCol and (teamCol.r != 255 or teamCol.g != 255 or teamCol.b != 255) then
-		return Color(teamCol.r, teamCol.g, teamCol.b, 255)
-	end
-
-	if zb and zb.Points then
-		for pointName, pointData in pairs(zb.Points) do
-			if pointData.Color and pointData.Team == tm then
-				return Color(pointData.Color.r, pointData.Color.g, pointData.Color.b, 255)
-			end
-		end
-	end
-
-	if teamColors[tm] then
-		return teamColors[tm]
-	end
-
-	return col_default
-end
-
-local function GetPlayerTeamColor(target)
-	if !IsValid(target) then return col_default end
-	return GetESPTeamColor(target:Team())
-end
-
-local roleEspModes = {
-	["hmcd"] = true,
-	["fear"] = true,
-}
-
-local roleColors = {
-	traitor = col_role_traitor,
-	innocent = col_role_innocent,
-	gunner = col_role_gunner,
-}
-
-local roleLabels = {
+local adminESPRoleLabels = {
 	traitor = "Traitor",
 	innocent = "Innocent",
 	gunner = "Gunner",
 }
+local adminESPRoleModes = {
+	["hmcd"] = true,
+	["fear"] = true,
+}
 local ROLE_SYNC_TRAITOR_KEY = "AS_ESP_IsTraitor"
 local ROLE_SYNC_GUNNER_KEY = "AS_ESP_IsGunner"
 
-local function IsRoleESPMode()
-	if !AS or !AS.GetCurrentMode then return false end
-	local mode = AS:GetCurrentMode()
-	return mode and roleEspModes[mode] == true or false
+local function CanUseAdminESP(ply)
+	if not IsValid(ply) then return false end
+	return adminESPUserGroups[string.lower(ply:GetUserGroup() or "")] == true
 end
 
-local function GetPlayerRoleKey(target)
-	if !IsValid(target) then return nil end
-	if target.isTraitor == true then return "traitor" end
-	if target.isGunner == true then return "gunner" end
+local function IsAdminESPActive()
+	return IsValid(LocalPlayer()) and ESP.Enabled
+end
 
-	if target:GetNWBool(ROLE_SYNC_TRAITOR_KEY, false) then return "traitor" end
-	if target:GetNWBool(ROLE_SYNC_GUNNER_KEY, false) then return "gunner" end
+local function IsAdminESPRoleMode()
+	if not AS or not AS.GetCurrentMode then return false end
+	local mode = AS:GetCurrentMode()
+	return mode and adminESPRoleModes[mode] == true or false
+end
 
-	if target.isTraitor == nil and target.isGunner == nil then return nil end
+local function GetAdminESPEntity(ply)
+	if not IsValid(ply) then return NULL end
+
+	local ent = hg.GetCurrentCharacter and hg.GetCurrentCharacter(ply) or ply
+
+	return IsValid(ent) and ent or ply
+end
+
+local function GetAdminESPTeamColor(ply)
+	if not IsValid(ply) then return adminESPDefaultColor end
+
+	if zb.TeamESP and zb.TeamESP.IsTeamRound and zb.TeamESP.IsTeamRound() then
+		local teamCol = zb.TeamESP.GetTeamColor(ply)
+		if teamCol then return teamCol end
+	end
+
+	local teamColor = team.GetColor(ply:Team())
+	if teamColor and (teamColor.r ~= 255 or teamColor.g ~= 255 or teamColor.b ~= 255) then
+		return Color(teamColor.r, teamColor.g, teamColor.b, 255)
+	end
+
+	return adminESPDefaultColor
+end
+
+local function GetAdminESPRoleKey(ply)
+	if not IsValid(ply) then return nil end
+	if ply.isTraitor == true then return "traitor" end
+	if ply.isGunner == true then return "gunner" end
+	if ply:GetNWBool(ROLE_SYNC_TRAITOR_KEY, false) then return "traitor" end
+	if ply:GetNWBool(ROLE_SYNC_GUNNER_KEY, false) then return "gunner" end
+	if ply.isTraitor == nil and ply.isGunner == nil then return nil end
 	return "innocent"
 end
 
-local function GetPlayerESPColor(target, useRoleMode)
+local function GetAdminESPColor(ply, useRoleMode)
 	if useRoleMode then
-		local roleKey = GetPlayerRoleKey(target)
-		if roleKey and roleColors[roleKey] then
-			return roleColors[roleKey]
+		local roleKey = GetAdminESPRoleKey(ply)
+		if roleKey and adminESPRoleColors[roleKey] then
+			return adminESPRoleColors[roleKey]
 		end
 	end
 
-	return GetPlayerTeamColor(target)
+	return GetAdminESPTeamColor(ply)
 end
 
-local function GetPlayerRoleLabel(target, useRoleMode)
-	if !useRoleMode then return nil end
-	local roleKey = GetPlayerRoleKey(target)
-	return roleKey and roleLabels[roleKey] or nil
+local function GetAdminESPRoleLabel(ply, useRoleMode)
+	if not useRoleMode then return nil end
+	local roleKey = GetAdminESPRoleKey(ply)
+	return roleKey and adminESPRoleLabels[roleKey] or nil
 end
 
-local UpVector = Vector(0, 0, 80)
+local function GetAdminESPWeaponLabel(wep)
+	if not IsValid(wep) then return "none" end
 
-local weaponClasses = {
-	["weapon_pistol"] = "Pistol",
-	["weapon_357"] = "Revolver",
-	["weapon_smg1"] = "SMG",
-	["weapon_ar2"] = "Rifle",
-	["weapon_shotgun"] = "Shotgun",
-	["weapon_crossbow"] = "Crossbow",
-	["weapon_rpg"] = "RPG",
-	["weapon_frag"] = "Grenade",
-	["weapon_crowbar"] = "Melee",
-	["weapon_stunstick"] = "Melee",
-	["weapon_physcannon"] = "Tool",
-	["weapon_physgun"] = "Tool",
-	["gmod_tool"] = "Tool",
-	["gmod_camera"] = "Camera",
-}
-
-local function GetWeaponClass(wep)
-	if !IsValid(wep) then return "None" end
-
-	local class = wep:GetClass()
-
-	if weaponClasses[class] then
-		return weaponClasses[class]
-	end
-
-	local lclass = string.lower(class)
-
-	if string.find(lclass, "pistol") or string.find(lclass, "glock") or string.find(lclass, "deagle") or string.find(lclass, "usp") then
-		return "Pistol"
-	elseif string.find(lclass, "smg") or string.find(lclass, "mp5") or string.find(lclass, "mac10") or string.find(lclass, "p90") then
-		return "SMG"
-	elseif string.find(lclass, "rifle") or string.find(lclass, "ak") or string.find(lclass, "m4") or string.find(lclass, "ar15") or string.find(lclass, "galil") then
-		return "Rifle"
-	elseif string.find(lclass, "sniper") or string.find(lclass, "awp") or string.find(lclass, "scout") then
-		return "Sniper"
-	elseif string.find(lclass, "shotgun") or string.find(lclass, "spas") or string.find(lclass, "nova") or string.find(lclass, "xm1014") then
-		return "Shotgun"
-	elseif string.find(lclass, "knife") or string.find(lclass, "melee") or string.find(lclass, "crowbar") or string.find(lclass, "axe") then
-		return "Melee"
-	elseif string.find(lclass, "grenade") or string.find(lclass, "flash") or string.find(lclass, "smoke") or string.find(lclass, "molotov") then
-		return "Grenade"
-	elseif string.find(lclass, "rpg") or string.find(lclass, "rocket") then
-		return "Heavy"
-	elseif string.find(lclass, "lmg") or string.find(lclass, "m249") or string.find(lclass, "negev") then
-		return "LMG"
-	end
-
-	local printName = wep:GetPrintName()
-	if printName and printName != "" then
-		return printName
-	end
-
-	return "Unknown"
+	return wep:GetClass()
 end
 
-local function ShouldShowPlayer(ply, target)
-	if target == ply then return false end
-	if !IsValid(target) or !target:Alive() then return false end
+local function ShouldDrawAdminESPFor(localPly, target)
+	if not IsValid(target) then return false end
+	if target == localPly then return false end
 	if target:Team() == TEAM_SPECTATOR then return false end
+	if not target:Alive() then return false end
 
-	if ESP.AllESP then
-		return true
-	end
-
-	return true
+	return IsValid(GetAdminESPEntity(target))
 end
 
-local function GetPlayerRenderEntity(target)
-	if !IsValid(target) then return nil end
-
-	local ragdoll = target.FakeRagdoll
-	if IsValid(ragdoll) then
-		return ragdoll
-	end
-
-	ragdoll = target:GetNWEntity("FakeRagdoll", NULL)
-	if IsValid(ragdoll) then
-		return ragdoll
-	end
-
-	return target
-end
-
-local function Get2DBox(ent)
-	if !IsValid(ent) then return nil end
-
-	local mins = ent:OBBMins()
+local function GetAdminESPLabelTopPos(ent)
 	local maxs = ent:OBBMaxs()
-	local pos = ent:GetPos()
-	local ang = Angle(0, ent:GetAngles().y, 0)
 
-	local corners = {
-		Vector(mins.x, mins.y, mins.z),
-		Vector(mins.x, maxs.y, mins.z),
-		Vector(maxs.x, maxs.y, mins.z),
-		Vector(maxs.x, mins.y, mins.z),
-		Vector(mins.x, mins.y, maxs.z),
-		Vector(mins.x, maxs.y, maxs.z),
-		Vector(maxs.x, maxs.y, maxs.z),
-		Vector(maxs.x, mins.y, maxs.z)
-	}
+	return ent:GetPos() + Vector(0, 0, maxs.z + 14)
+end
 
-	local minX, minY = ScrW(), ScrH()
-	local maxX, maxY = 0, 0
+local function GetAdminESPLabelBottomPos(ent)
+	local mins = ent:OBBMins()
 
-	for _, corner in ipairs(corners) do
-		local worldPos = LocalToWorld(corner, Angle(0, 0, 0), pos, ang)
-		local screen = worldPos:ToScreen()
-
-		if !screen.visible then return nil end
-
-		minX = math.min(minX, screen.x)
-		minY = math.min(minY, screen.y)
-		maxX = math.max(maxX, screen.x)
-		maxY = math.max(maxY, screen.y)
-	end
-
-	return minX, minY, maxX - minX, maxY - minY
+	return ent:GetPos() + Vector(0, 0, mins.z - 14)
 end
 
 function ESP:Init()
@@ -271,73 +147,67 @@ function ESP:SetupNetworking()
 end
 
 function ESP:SetupHooks()
-	hook.Remove("Think", "AS_ESP_ToggleKey")
-	hook.Remove("PlayerButtonDown", "AS_ESP_ToggleKey")
-	hook.Remove("SetupOutlines", "AS_ESP_Outlines")
-	hook.Remove("PreDrawHUD", "AS_ESP_EyeTrace")
-	hook.Remove("HUDPaint", "AS_ESP_Draw")
+	hook.Remove("PlayerButtonDown", "ZB_AdminESP_ToggleKey")
+	hook.Remove("SetupOutlines", "ZB_AdminESP_Outlines")
+	hook.Remove("PreDrawHUD", "ZB_AdminESP_EyeTrace")
+	hook.Remove("HUDPaint", "ZB_AdminESP_HUD")
 
-	hook.Add("PlayerButtonDown", "AS_ESP_ToggleKey", function(ply, button)
-		if ply != LocalPlayer() then return end
-		if button != KEY_O then return end
+	hook.Add("PlayerButtonDown", "ZB_AdminESP_ToggleKey", function(ply, button)
+		if ply ~= LocalPlayer() then return end
+		if button ~= KEY_O then return end
 		if gui.IsGameUIVisible() or vgui.GetKeyboardFocus() then return end
 		if RealTime() < ESP.NextToggle then return end
 
 		ESP.NextToggle = RealTime() + 0.3
-
 		RunConsoleCommand("zb_admesp")
 	end)
 
-	hook.Add("SetupOutlines", "AS_ESP_Outlines", function(Add)
-		if !SHOW_TARGET_OUTLINE then return end
+	hook.Add("SetupOutlines", "ZB_AdminESP_Outlines", function(outline_Add)
+		if not IsAdminESPActive() then return end
+		if not CanUseAdminESP(LocalPlayer()) then return end
 
 		local ply = LocalPlayer()
-		if !CanRenderESP( ply ) then return end
-		local useRoleMode = IsRoleESPMode()
+		local useRoleMode = IsAdminESPRoleMode()
+		local grouped = {}
 
-		local teamTargets = {}
 		for _, target in player.Iterator() do
-			if ShouldShowPlayer(ply, target) then
-				local groupKey = target:Team()
-				if useRoleMode then
-					groupKey = GetPlayerRoleKey(target) or groupKey
-				end
+			if not ShouldDrawAdminESPFor(ply, target) then continue end
 
-				teamTargets[groupKey] = teamTargets[groupKey] or {}
-				local renderTarget = GetPlayerRenderEntity(target)
-				if IsValid(renderTarget) then
-					table.insert(teamTargets[groupKey], {ent = renderTarget, ply = target})
-				end
-			end
+			local ent = GetAdminESPEntity(target)
+			local groupKey = useRoleMode and (GetAdminESPRoleKey(target) or target:Team()) or target:Team()
+
+			grouped[groupKey] = grouped[groupKey] or {}
+			table.insert(grouped[groupKey], {ent = ent, ply = target})
 		end
 
-		for _, targets in pairs(teamTargets) do
-			if #targets > 0 then
-				local first = targets[1]
-				local col = first and GetPlayerESPColor(first.ply, useRoleMode) or col_default
-				local out = {}
-				for i = 1, #targets do
-					out[i] = targets[i].ent
-				end
-				Add(out, col, OUTLINE_MODE_BOTH)
+		for _, targets in pairs(grouped) do
+			if #targets == 0 then continue end
+
+			local col = GetAdminESPColor(targets[1].ply, useRoleMode)
+			local ents = {}
+
+			for i = 1, #targets do
+				ents[i] = targets[i].ent
 			end
+
+			outline_Add(ents, col, OUTLINE_MODE_BOTH)
 		end
 	end)
 
-	hook.Add("PreDrawHUD", "AS_ESP_EyeTrace", function()
-		if !ESPEye:GetBool() then return end
+	hook.Add("PreDrawHUD", "ZB_AdminESP_EyeTrace", function()
+		if not adminESPEye:GetBool() then return end
+		if not IsAdminESPActive() then return end
+		if not CanUseAdminESP(LocalPlayer()) then return end
 
 		local ply = LocalPlayer()
-		if !CanRenderESP( ply ) then return end
-		local useRoleMode = IsRoleESPMode()
+		local useRoleMode = IsAdminESPRoleMode()
 
 		for _, target in player.Iterator() do
-			if !ShouldShowPlayer(ply, target) then continue end
+			if not ShouldDrawAdminESPFor(ply, target) then continue end
 
-			local col = GetPlayerESPColor(target, useRoleMode)
+			local col = GetAdminESPColor(target, useRoleMode)
 			local eyePos = target:EyePos()
-			local eyeDir = target:EyeAngles():Forward()
-			local endPos = eyePos + eyeDir * 10000
+			local endPos = eyePos + target:EyeAngles():Forward() * 10000
 
 			cam.Start3D()
 				render.DrawLine(eyePos, endPos, col, true)
@@ -345,49 +215,37 @@ function ESP:SetupHooks()
 		end
 	end)
 
-	hook.Add("HUDPaint", "AS_ESP_Draw", function()
-		local ply = LocalPlayer()
-		if !CanRenderESP( ply ) then return end
-		local useRoleMode = IsRoleESPMode()
+	hook.Add("HUDPaint", "ZB_AdminESP_HUD", function()
+		if not IsAdminESPActive() then return end
+		if not CanUseAdminESP(LocalPlayer()) then return end
 
-		local myPos = ply:GetPos()
+		local ply = LocalPlayer()
+		local origin = EyePos()
+		local useRoleMode = IsAdminESPRoleMode()
 
 		for _, target in player.Iterator() do
-			if !ShouldShowPlayer(ply, target) then continue end
+			if not ShouldDrawAdminESPFor(ply, target) then continue end
 
-			local col = GetPlayerESPColor(target, useRoleMode)
-			local roleLabel = GetPlayerRoleLabel(target, useRoleMode)
-			local renderTarget = GetPlayerRenderEntity(target)
-			if !IsValid(renderTarget) then continue end
+			local ent = GetAdminESPEntity(target)
+			local col = GetAdminESPColor(target, useRoleMode)
+			local roleLabel = GetAdminESPRoleLabel(target, useRoleMode)
 
-			local x, y, w, h = Get2DBox(renderTarget)
-			if SHOW_TARGET_BOX and x then
-				surface.SetDrawColor(col_box_outline)
-				surface.DrawOutlinedRect(x - 1, y - 1, w + 2, h + 2, 1)
-				surface.DrawOutlinedRect(x + 1, y + 1, w - 2, h - 2, 1)
+			local topScreen = GetAdminESPLabelTopPos(ent):ToScreen()
+			if not topScreen.visible then continue end
 
-				surface.SetDrawColor(col)
-				surface.DrawOutlinedRect(x, y, w, h, 2)
-			end
+			local distance = math.floor(origin:Distance(ent:WorldSpaceCenter()) / 52.49)
 
-			local screenPos = (renderTarget:WorldSpaceCenter() + UpVector * 0.25):ToScreen()
-			if !screenPos.visible then continue end
+			draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", topScreen.x, topScreen.y - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+			draw.SimpleTextOutlined(distance .. " m", "TargetIDSmall", topScreen.x, topScreen.y + 5, adminESPTextColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 
-			local sx, sy = screenPos.x, screenPos.y
-			local dist = math.floor(myPos:Distance(renderTarget:GetPos()) / 52.49)
+			local bottomScreen = GetAdminESPLabelBottomPos(ent):ToScreen()
+			if not bottomScreen.visible then continue end
 
 			if roleLabel then
-				draw.SimpleTextOutlined(roleLabel, "TargetIDSmall", sx, sy - 22, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+				draw.SimpleTextOutlined(roleLabel, "TargetIDSmall", bottomScreen.x, bottomScreen.y - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 			end
 
-			draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", sx, sy - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
-
-			local bottomY = y and (y + h + 5) or (sy + 50)
-			draw.SimpleTextOutlined(dist .. " m.", "TargetIDSmall", sx, bottomY, col_gray, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, color_black)
-
-			local wep = target:GetActiveWeapon()
-			local weaponClass = GetWeaponClass(wep)
-			draw.SimpleTextOutlined(weaponClass, "TargetIDSmall", sx, bottomY + 14, col_weapon, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, color_black)
+			draw.SimpleTextOutlined(GetAdminESPWeaponLabel(target:GetActiveWeapon()), "TargetIDSmall", bottomScreen.x, bottomScreen.y + 5, adminESPWeaponColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 		end
 	end)
 end
