@@ -271,36 +271,41 @@ CreateEndMenu = function()
 		but:DockMargin(8, 6, 8, -1)
 		but:SetText("")
 		but.Paint = function(self, w, h)
-			local col1 = (ply:Alive() and colRed) or colGray
-			local col2 = (ply:Alive() and colRedUp) or colSpect1
+			local validPly = IsValid(ply)
+			local isAlive = validPly and ply:Alive()
+			local col1 = (isAlive and colRed) or colGray
+			local col2 = (isAlive and colRedUp) or colSpect1
 			surface.SetDrawColor(col1.r, col1.g, col1.b, col1.a)
 			surface.DrawRect(0, 0, w, h)
 			surface.SetDrawColor(col2.r, col2.g, col2.b, col2.a)
 			surface.DrawRect(0, h / 2, w, h / 2)
 
-			local pcol = ply:GetPlayerColor():ToColor()
+			local pcol = validPly and ply:GetPlayerColor():ToColor() or color_white
 			surface.SetFont("ZB_InterfaceMediumLarge")
-			local _, lengthY = surface.GetTextSize(ply:GetPlayerName() or "He quited...")
+			local displayName = validPly and (ply:GetPlayerName() or ply:Name()) or "He quited..."
+			local _, lengthY = surface.GetTextSize(displayName)
 
 			surface.SetTextColor(0, 0, 0, 255)
 			surface.SetTextPos(w / 2 + 1, h / 2 - lengthY / 2 + 1)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(displayName)
 
 			surface.SetTextColor(pcol.r, pcol.g, pcol.b, pcol.a)
 			surface.SetTextPos(w / 2, h / 2 - lengthY / 2)
-			surface.DrawText(ply:GetPlayerName() or "He quited...")
+			surface.DrawText(displayName)
 
 			surface.SetTextColor(colSpect2.r, colSpect2.g, colSpect2.b, colSpect2.a)
 			surface.SetTextPos(15, h / 2 - lengthY / 2)
-			surface.DrawText((ply:Name() .. (not ply:Alive() and " - died" or "")) or "He quited...")
+			local leftText = validPly and (ply:Name() .. (not isAlive and " - died" or "")) or "He quited..."
+			surface.DrawText(leftText)
 
-			local fragText = tostring(ply:Frags() or 0)
+			local fragText = validPly and tostring(ply:Frags() or 0) or "0"
 			local fragWidth = surface.GetTextSize(fragText)
 			surface.SetTextPos(w - fragWidth - 15, h / 2 - lengthY / 2)
 			surface.DrawText(fragText)
 		end
 
 		function but:DoClick()
+			if not IsValid(ply) then return end
 			if ply:IsBot() then
 				chat.AddText(Color(255, 0, 0), "no, you can't")
 				return

@@ -19,6 +19,7 @@ local adminESPRoleModes = {
 local ESP_PDATA_KEY = "zcity_live_esp_enabled"
 local ROLE_SYNC_TRAITOR_KEY = "AS_ESP_IsTraitor"
 local ROLE_SYNC_GUNNER_KEY = "AS_ESP_IsGunner"
+local ROLE_SYNC_KNOWN_KEY = "AS_ESP_RoleKnown"
 
 local adminMode = {}
 local espPlayers = {}
@@ -79,15 +80,37 @@ function ESP:Init()
 	end)
 
 	timer.Create("ZB_AdminESP_RoleSync", 0.5, 0, function()
-		local useRoleSync = IsAdminESPRoleMode()
-
-		for _, target in player.Iterator() do
-			if not IsValid(target) then continue end
-
-			target:SetNWBool(ROLE_SYNC_TRAITOR_KEY, useRoleSync and target.isTraitor == true or false)
-			target:SetNWBool(ROLE_SYNC_GUNNER_KEY, useRoleSync and target.isGunner == true or false)
-		end
+		ESP:SyncRoles()
 	end)
+end
+
+local function IsRoleSyncTarget(target)
+	if not IsValid(target) then return false end
+	if not target:Alive() then return false end
+	if target:Team() == TEAM_SPECTATOR then return false end
+
+	return true
+end
+
+function ESP:SyncRoles()
+	local useRoleSync = IsAdminESPRoleMode()
+	local roundActive = zb and zb.ROUND_STATE == 1
+
+	for _, target in player.Iterator() do
+		if not IsValid(target) then continue end
+
+		local known = useRoleSync and roundActive and IsRoleSyncTarget(target)
+
+		target:SetNWBool(ROLE_SYNC_KNOWN_KEY, known)
+
+		if known then
+			target:SetNWBool(ROLE_SYNC_TRAITOR_KEY, target.isTraitor == true)
+			target:SetNWBool(ROLE_SYNC_GUNNER_KEY, target.isGunner == true)
+		else
+			target:SetNWBool(ROLE_SYNC_TRAITOR_KEY, false)
+			target:SetNWBool(ROLE_SYNC_GUNNER_KEY, false)
+		end
+	end
 end
 
 function ESP:CanUsePersistentLiveESP(ply)
@@ -145,6 +168,7 @@ function ESP:ToggleESP(ply)
 
 	espPlayers[steamId] = true
 	self:SavePreference(ply, true)
+	self:SyncRoles()
 	self:QueueSync(ply)
 	return true
 end
@@ -214,6 +238,11 @@ function ESP:SetupHooks()
 
 			local steamId = getSteamKey(ply)
 			espPlayers[steamId] = ESP:LoadPreference(ply) and true or nil
+
+			if espPlayers[steamId] then
+				ESP:SyncRoles()
+			end
+
 			ESP:QueueSync(ply)
 		end)
 	end)

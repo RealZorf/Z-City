@@ -585,8 +585,8 @@ end
 local function GetSpectatorESPColor(ply)
 	if not zb.TeamESP then return spectatorESPFallbackColor end
 
-	if zb.TeamESP.IsTeamRound and zb.TeamESP.IsTeamRound() and zb.TeamESP.GetPlayerColor then
-		return zb.TeamESP.GetPlayerColor(ply, spectatorESPFallbackColor)
+	if zb.TeamESP.GetSpectatorColor then
+		return zb.TeamESP.GetSpectatorColor(ply, spectatorESPFallbackColor)
 	end
 
 	if zb.TeamESP.GetDistinctPlayerColor then

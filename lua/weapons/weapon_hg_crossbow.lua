@@ -54,7 +54,10 @@ SWEP.MagModel = "models/weapons/zcity/w_glockmag.mdl"
 
 if CLIENT then
 	SWEP.FakeReloadEvents = {
-		[0.84] = function(self) self:GetWM():SetSkin(1) end
+		[0.84] = function(self)
+			local wm = self:GetWM()
+			if IsValid(wm) then wm:SetSkin(1) end
+		end
 	}
 end
 
@@ -198,7 +201,8 @@ function SWEP:Shoot(override)
 	self:EmitShoot()
 	self:PrimarySpread()
 	self:TakePrimaryAmmo(1)
-	self:GetWM():SetSkin(0)
+	local wm = self:GetWM()
+	if IsValid(wm) then wm:SetSkin(0) end
 	self:PlayAnim("fire",1,false,nil,false,false,true)
 end
 SWEP.dort = true

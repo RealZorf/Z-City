@@ -266,9 +266,13 @@ function hg.DoZManip(ent, ply)
     end
 
 	local lh = ent:LookupBone("ValveBiped.Bip01_L_Hand")
+	if not lh then return end
 	local lhmat = ent:GetBoneMatrix(lh)
+	if not lhmat then return end
 	local wmlh = WorldModel:LookupBone("ValveBiped.Bip01_L_Hand")
+	if not wmlh then return end
 	local wmlhmat = WorldModel:GetBoneMatrix(wmlh)
+	if not wmlhmat then return end
 
 	local lpos, lang = WorldToLocal(lhmat:GetTranslation(), lhmat:GetAngles(), wmlhmat:GetTranslation(), angle_zero)
 
@@ -277,6 +281,7 @@ function hg.DoZManip(ent, ply)
 	end
 
 	local bones = hg.TPIKBonesLH
+	if not bones then return end
 	for _, bone in ipairs(bones) do
 		local wm_boneindex = WorldModel:LookupBone(bone)
 		if !wm_boneindex then continue end

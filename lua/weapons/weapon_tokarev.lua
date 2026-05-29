@@ -75,8 +75,9 @@ SWEP.FakeEmptyReloadSounds = {
 SWEP.AnimsEvents = {
 	["reload_empty"] = {
 		[0.2] = function(self)
+			if not CLIENT then return end
 			local ent = hg.CreateMag( self, Vector(0,-45,-12), "0", true)
-			local phys = ent:GetPhysicsObject()
+			local phys = IsValid(ent) and ent:GetPhysicsObject() or nil
 
 			if IsValid(phys) then
 				phys:AddAngleVelocity(Vector(-250,0,0))
@@ -126,7 +127,7 @@ SWEP.SightSlideOffset = 0.8
 SWEP.FakeViewBobBone = "ValveBiped.Bip01_R_Hand"
 SWEP.FakeViewBobBaseBone = "ValveBiped.Bip01_R_Forearm"
 SWEP.ViewPunchDiv = 50
-SWEP.FakeMagDropBone = "vm_mag"
+SWEP.FakeMagDropBone = 95
 
 SWEP.lmagpos = Vector(0,0,0)
 SWEP.lmagang = Angle(0,0,0)

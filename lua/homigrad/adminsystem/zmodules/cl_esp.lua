@@ -39,6 +39,7 @@ local adminESPRoleModes = {
 }
 local ROLE_SYNC_TRAITOR_KEY = "AS_ESP_IsTraitor"
 local ROLE_SYNC_GUNNER_KEY = "AS_ESP_IsGunner"
+local ROLE_SYNC_KNOWN_KEY = "AS_ESP_RoleKnown"
 
 local function CanUseAdminESP(ply)
 	if not IsValid(ply) then return false end
@@ -80,13 +81,21 @@ local function GetAdminESPTeamColor(ply)
 end
 
 local function GetAdminESPRoleKey(ply)
-	if not IsValid(ply) then return nil end
+	if not IsValid(ply) or not IsAdminESPRoleMode() then return nil end
+
+	-- Server-synced roles (mid-round joins never get HMCD_RoundStart for other players)
+	if ply:GetNWBool(ROLE_SYNC_KNOWN_KEY, false) then
+		if ply:GetNWBool(ROLE_SYNC_TRAITOR_KEY, false) then return "traitor" end
+		if ply:GetNWBool(ROLE_SYNC_GUNNER_KEY, false) then return "gunner" end
+
+		return "innocent"
+	end
+
 	if ply.isTraitor == true then return "traitor" end
 	if ply.isGunner == true then return "gunner" end
-	if ply:GetNWBool(ROLE_SYNC_TRAITOR_KEY, false) then return "traitor" end
-	if ply:GetNWBool(ROLE_SYNC_GUNNER_KEY, false) then return "gunner" end
-	if ply.isTraitor == nil and ply.isGunner == nil then return nil end
-	return "innocent"
+	if ply.isTraitor == false or ply.isGunner == false then return "innocent" end
+
+	return nil
 end
 
 local function GetAdminESPColor(ply, useRoleMode)
