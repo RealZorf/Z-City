@@ -261,9 +261,11 @@ else
 
 		-- log chat message to console
 		local textConsole = {}
+		local displayName = ply:GetNWString("PlayerName", ply:Nick())
+		local steamInfo = string.format(" (%s %s)", ply:Nick(), ply:SteamID())
 
 		textConsole[#textConsole + 1] = ply:GetPlayerColor():ToColor()
-		textConsole[#textConsole + 1] = ply:GetNWString("PlayerName", ply:Nick())
+		textConsole[#textConsole + 1] = displayName .. steamInfo
 		textConsole[#textConsole + 1] = color_white
 		textConsole[#textConsole + 1] = ": " .. text
 
