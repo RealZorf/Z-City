@@ -137,7 +137,7 @@ function MODE:Intermission()
             ent:SetModel("models/player/hostage/hostage_0"..math.random(4)..".mdl")
             ent:SetPos(ply:GetPos())
             ent:Spawn()
-            ent:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+            hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_WEAPON)
             hg.organism.Add(ent)
             hg.organism.Clear(ent.organism)
             ent.organism.fakePlayer = true

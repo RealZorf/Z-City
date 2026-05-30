@@ -541,7 +541,7 @@ if SERVER then
 		ent:SetPos(rh:GetPos())
 		ent:SetAngles(rh:GetAngles() + Angle(0, 0, 180))
 		ent:Spawn()
-		ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+		hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
 		ent:SetOwner(ragdoll)
 		ent:GetPhysicsObject():SetMass(0)
 		ent:SetModel(self.Model or self.WorldModel)

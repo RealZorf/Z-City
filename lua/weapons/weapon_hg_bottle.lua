@@ -116,7 +116,7 @@ function SWEP:CreateBottle(pos)
 	bottle:SetAngles(AngleRand(-90, 90))
 	bottle:SetModel("models/props_junk/glassbottle01a_chunk02a.mdl")
 	bottle:Spawn()
-	bottle:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+	hg.SafeSetCollisionGroup(bottle, COLLISION_GROUP_WEAPON)
 	local phys = bottle:GetPhysicsObject()
 	if IsValid(phys) then
 		phys:AddVelocity(VectorRand(-90, 90))

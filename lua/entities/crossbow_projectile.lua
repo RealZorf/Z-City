@@ -22,7 +22,7 @@ if SERVER then
 		self:PhysicsInit(SOLID_VPHYSICS)
 		self:SetMoveType(MOVETYPE_VPHYSICS)
 		self:SetSolid(SOLID_VPHYSICS)
-		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
 		self:DrawShadow(true)
 		self:SetUseType(SIMPLE_USE)
 		--self:SetAngles(-self:GetAngles())

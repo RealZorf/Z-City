@@ -843,7 +843,7 @@ function hgBlastThatDoor(ent, vel) -- taken from JMod
 
 		timer.Simple(5, function()
 			if IsValid(Replacement) then
-				Replacement:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+				hg.SafeSetCollisionGroup(Replacement, COLLISION_GROUP_WEAPON)
 			end
 		end)
 	end
@@ -887,7 +887,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 				chair:SetAngles(entang + Angle(0, -80, 0))
 				chair:SetColor4Part(0, 0, 0, 0)
 				chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-				chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+				hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 				chair:Spawn()
 				chair:SetVehicleEntryAnim(false)
 
@@ -910,7 +910,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 				chair:SetAngles(entang + Angle(0, 80, 0))
 				chair:SetColor4Part(0, 0, 0, 0)
 				chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-				chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+				hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 				chair:Spawn()
 				chair:SetVehicleEntryAnim(false)
 
@@ -939,7 +939,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 			chair:SetAngles(entang + Angle(0, 0, 25))
 			chair:SetColor4Part(255, 255, 255, 255)
 			chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-			chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+			hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 			chair:Spawn()
 			chair:SetVehicleEntryAnim(false)
 
@@ -960,7 +960,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 			chair:SetAngles(entang + Angle(0, 0, 0))
 			chair:SetColor4Part(255, 255, 255, 0)
 			chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-			chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+			hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 			chair:Spawn()
 			chair:SetVehicleEntryAnim(false)
 
@@ -981,7 +981,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 			chair:SetAngles(entang+Angle(0,-90,0))
 			chair:SetColor4Part(255,255,255,0)
 			chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-			chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+			hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 			chair:Spawn()
 			chair:SetVehicleEntryAnim(false)
 
@@ -1002,7 +1002,7 @@ hook.Add( "OnEntityCreated", "VechicleChairs", function( ent )
 			chair:SetAngles(entang + Angle(0, 90, 0))
 			chair:SetColor4Part(255, 255, 255, 0)
 			chair:SetRenderMode(RENDERGROUP_TRANSLUCENT)
-			chair:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+			hg.SafeSetCollisionGroup(chair, COLLISION_GROUP_IN_VEHICLE)
 			chair:Spawn()
 			chair:SetVehicleEntryAnim(false)
 
@@ -1269,7 +1269,7 @@ hook.Add( "OnEntityCreated", "ReplaceEnt", function( ent )
 		end
 		Replacment.IsSpawned = true
 		Replacment.init = true
-		Replacment:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		hg.SafeSetCollisionGroup(Replacment, COLLISION_GROUP_WEAPON)
 
 		local phys = Replacment:GetPhysicsObject()
 		if IsValid(phys) then

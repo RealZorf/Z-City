@@ -9,10 +9,10 @@ function ENT:Initialize()
 	self:SetSolid(SOLID_VPHYSICS)
 	self:DrawShadow(true)
 	self:SetUseType(USE_TOGGLE)
-	self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
 	timer.Simple(0.1, function()
 		if not IsValid(self) then return end
-		self:SetCollisionGroup(COLLISION_GROUP_NONE)
+		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_NONE)
 	end)
 	local phys = self:GetPhysicsObject()
 	if phys:IsValid() then

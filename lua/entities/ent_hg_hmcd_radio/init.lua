@@ -9,7 +9,7 @@ function ENT:Initialize()
         self:SetMoveType(MOVETYPE_VPHYSICS)
     end
     self:SetSolid(SOLID_VPHYSICS)
-    self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+    hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
     self:DrawShadow(true)
     self:AddEFlags(EFL_IN_SKYBOX)
     

@@ -141,7 +141,7 @@ if CLIENT then
         gib:SetPos(pos + VectorRand() * math.Rand(2, 12))
         gib:SetAngles(AngleRand())
         gib:SetModelScale((istable(modelData) and modelData.scale or 1) or 1, 0)
-        gib:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+        hg.SafeSetCollisionGroup(gib, COLLISION_GROUP_DEBRIS)
         if gib.PhysicsInit then
             gib:PhysicsInit(SOLID_VPHYSICS)
         end

@@ -14,7 +14,7 @@ function ENT:Initialize()
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
 	self:DrawShadow(true)
-	self:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_NONE)
 	self:UseTriggerBounds(true, 24)
 	local phys = self:GetPhysicsObject()
 	if IsValid(phys) then

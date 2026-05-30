@@ -9,7 +9,7 @@ function ENT:Initialize()
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
-	self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
 	self:SetUseType(SIMPLE_USE)
 	self:DrawShadow(true)
 

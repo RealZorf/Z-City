@@ -196,7 +196,7 @@ function ENT:Initialize()
 	-- Don't draw ourselves, don't collide with anything
 	self:DrawShadow(false)
 	self:SetNoDraw(true)
-	self:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_IN_VEHICLE)
 
 	self.fires = {}
 	self.cnt = 0

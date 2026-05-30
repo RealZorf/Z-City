@@ -122,7 +122,7 @@ local function handcuff(ragdoll)
 
 	handcuffs:FollowBone(ragdoll,ragdoll:TranslatePhysBoneToBone(hg.realPhysNum(ragdoll,7)))
 	handcuffs:SetMoveType(MOVETYPE_VPHYSICS)
-	handcuffs:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+	hg.SafeSetCollisionGroup(handcuffs, COLLISION_GROUP_DEBRIS)
 	handcuffs:Spawn()
 
 	ragdoll.handcuffed = true

@@ -1287,7 +1287,7 @@ function MODE:Intermission()
 
 	ent:SetAngles(AngleRand(-180, 180))
 	ent:Spawn()
-	ent:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_WEAPON)
 	hg.organism.Add(ent)
 	hg.organism.Clear(ent.organism)
 	ent.organism.fakePlayer = true

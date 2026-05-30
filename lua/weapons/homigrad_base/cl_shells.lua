@@ -86,7 +86,7 @@ function SWEP:MakeShell(shell, pos, ang, vel)
 	ent:SetMoveType(MOVETYPE_VPHYSICS)
 	ent:SetModelScale(t.vCustomScale and t.vCustomScale or 1)
 	ent:SetSolid(SOLID_VPHYSICS) 
-	ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
     hg_shelles[#hg_shelles+1] = ent
 	
 	local phys = ent:GetPhysicsObject()
@@ -204,7 +204,7 @@ function hg.CreateMag( self, vel, bodygroups, bDontChangePhys )
 	end
 	ent:SetMoveType(MOVETYPE_VPHYSICS) 
 	ent:SetSolid(SOLID_VPHYSICS) 
-	ent:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_WEAPON)
 	if not bDontChangePhys then
 		ent:SetRenderBounds( -Vector(1,1,1), Vector(1,1,1), lpos2 )
 	end

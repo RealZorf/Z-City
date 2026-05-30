@@ -118,7 +118,7 @@ local function hideOriginalMapProp(ent)
 	ent:SetNoDraw(true)
 	ent:SetNotSolid(true)
 	ent:SetSolid(SOLID_NONE)
-	ent:SetCollisionGroup(COLLISION_GROUP_WORLD)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_WORLD)
 	ent.hg_collision_hidden = true
 end
 
@@ -127,7 +127,7 @@ local function restoreOriginalMapProp(ent)
 
 	ent:SetNoDraw(false)
 	ent:SetNotSolid(false)
-	ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_NONE)
 	ent.hg_collision_hidden = nil
 end
 
@@ -191,7 +191,7 @@ local function tryEnableFurniturePhysics(ent)
 
 	restoreOriginalMapProp(ent)
 	ent:SetMoveType(MOVETYPE_NONE)
-	ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_NONE)
 	ent:EnableCustomCollisions(true)
 
 	if ent.PhysicsInitStatic then
@@ -224,7 +224,7 @@ local function ensureCollisionBlocker(ent)
 	blocker:DrawShadow(false)
 	blocker:SetMoveType(MOVETYPE_NONE)
 	blocker:SetNotSolid(false)
-	blocker:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(blocker, COLLISION_GROUP_NONE)
 	blocker:EnableCustomCollisions(true)
 	blocker:Spawn()
 	blocker:Activate()
@@ -287,7 +287,7 @@ local function ensureFurniturePhysicsProxy(ent)
 	end
 
 	proxy:SetMoveType(MOVETYPE_NONE)
-	proxy:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(proxy, COLLISION_GROUP_NONE)
 	proxy:EnableCustomCollisions(true)
 
 	if proxy.PhysicsInitStatic then
@@ -355,7 +355,7 @@ local function tryRepairMapPropCollision(ent)
 	end
 
 	ent:SetMoveType(MOVETYPE_NONE)
-	ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_NONE)
 	ent:EnableCustomCollisions(true)
 
 	if ent:GetClass() ~= "prop_static" and not forceBlocker then
