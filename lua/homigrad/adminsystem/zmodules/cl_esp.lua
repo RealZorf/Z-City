@@ -174,33 +174,17 @@ function ESP:SetupHooks()
 	hook.Add("SetupOutlines", "ZB_AdminESP_Outlines", function(outline_Add)
 		if not IsAdminESPActive() then return end
 		if not CanUseAdminESP(LocalPlayer()) then return end
+		if not zb.ESPPerf or not zb.ESPPerf.ShouldDrawOutlines() then return end
 
 		local ply = LocalPlayer()
 		local useRoleMode = IsAdminESPRoleMode()
-		local grouped = {}
+		local targets = zb.ESPPerf.BuildTargets(ply, ShouldDrawAdminESPFor, GetAdminESPEntity)
 
-		for _, target in player.Iterator() do
-			if not ShouldDrawAdminESPFor(ply, target) then continue end
-
-			local ent = GetAdminESPEntity(target)
-			local groupKey = useRoleMode and (GetAdminESPRoleKey(target) or target:Team()) or target:Team()
-
-			grouped[groupKey] = grouped[groupKey] or {}
-			table.insert(grouped[groupKey], {ent = ent, ply = target})
-		end
-
-		for _, targets in pairs(grouped) do
-			if #targets == 0 then continue end
-
-			local col = GetAdminESPColor(targets[1].ply, useRoleMode)
-			local ents = {}
-
-			for i = 1, #targets do
-				ents[i] = targets[i].ent
-			end
-
-			outline_Add(ents, col, OUTLINE_MODE_BOTH)
-		end
+		zb.ESPPerf.AddGroupedOutlines(outline_Add, targets, function(targetPly)
+			return GetAdminESPColor(targetPly, useRoleMode)
+		end, function(targetPly)
+			return useRoleMode and (GetAdminESPRoleKey(targetPly) or targetPly:Team()) or targetPly:Team()
+		end)
 	end)
 
 	hook.Add("PreDrawHUD", "ZB_AdminESP_EyeTrace", function()
@@ -210,39 +194,43 @@ function ESP:SetupHooks()
 
 		local ply = LocalPlayer()
 		local useRoleMode = IsAdminESPRoleMode()
+		local targets = zb.ESPPerf and zb.ESPPerf.BuildTargets(ply, ShouldDrawAdminESPFor, GetAdminESPEntity) or {}
 
-		for _, target in player.Iterator() do
-			if not ShouldDrawAdminESPFor(ply, target) then continue end
+		if #targets == 0 then return end
 
-			local col = GetAdminESPColor(target, useRoleMode)
-			local eyePos = target:EyePos()
-			local endPos = eyePos + target:EyeAngles():Forward() * 10000
+		cam.Start3D()
+			for i = 1, #targets do
+				local target = targets[i].ply
+				local col = GetAdminESPColor(target, useRoleMode)
+				local eyePos = target:EyePos()
+				local endPos = eyePos + target:EyeAngles():Forward() * 10000
 
-			cam.Start3D()
 				render.DrawLine(eyePos, endPos, col, true)
-			cam.End3D()
-		end
+			end
+		cam.End3D()
 	end)
 
 	hook.Add("HUDPaint", "ZB_AdminESP_HUD", function()
 		if not IsAdminESPActive() then return end
 		if not CanUseAdminESP(LocalPlayer()) then return end
+		if not zb.ESPPerf or not zb.ESPPerf.ShouldDrawHUDThisFrame() then return end
 
 		local ply = LocalPlayer()
 		local origin = EyePos()
 		local useRoleMode = IsAdminESPRoleMode()
+		local targets = zb.ESPPerf.BuildTargets(ply, ShouldDrawAdminESPFor, GetAdminESPEntity, origin)
 
-		for _, target in player.Iterator() do
-			if not ShouldDrawAdminESPFor(ply, target) then continue end
-
-			local ent = GetAdminESPEntity(target)
+		for i = 1, #targets do
+			local entry = targets[i]
+			local target = entry.ply
+			local ent = entry.ent
 			local col = GetAdminESPColor(target, useRoleMode)
 			local roleLabel = GetAdminESPRoleLabel(target, useRoleMode)
 
 			local topScreen = GetAdminESPLabelTopPos(ent):ToScreen()
 			if not topScreen.visible then continue end
 
-			local distance = math.floor(origin:Distance(ent:WorldSpaceCenter()) / 52.49)
+			local distance = zb.ESPPerf.GetDistanceMeters(origin, ent)
 
 			draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", topScreen.x, topScreen.y - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 			draw.SimpleTextOutlined(distance .. " m", "TargetIDSmall", topScreen.x, topScreen.y + 5, adminESPTextColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)

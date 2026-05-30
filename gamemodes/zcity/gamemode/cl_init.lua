@@ -626,38 +626,35 @@ end
 
 hook.Add("SetupOutlines", "ZB_SpectatorESP_Outlines", function(outline_Add)
 	if not IsSpectatorESPAllowed() then return end
+	if not zb.ESPPerf or not zb.ESPPerf.ShouldDrawOutlines() then return end
 
 	local ply = LocalPlayer()
+	local targets = zb.ESPPerf.BuildTargets(ply, ShouldDrawSpectatorESPFor, GetSpectatorESPEntity)
 
-	for _, target in player.Iterator() do
-		if not ShouldDrawSpectatorESPFor(ply, target) then continue end
-
-		outline_Add(GetSpectatorESPEntity(target), GetSpectatorESPColor(target), OUTLINE_MODE_BOTH)
-	end
+	zb.ESPPerf.AddGroupedOutlines(outline_Add, targets, GetSpectatorESPColor)
 end)
 
 
 hook.Add("HUDPaint", "ZB_SpectatorESP_HUD", function()
 	if not IsSpectatorESPAllowed() then return end
+	if not zb.ESPPerf or not zb.ESPPerf.ShouldDrawHUDThisFrame() then return end
 
 	local ply = LocalPlayer()
 	local origin = EyePos()
+	local targets = zb.ESPPerf.BuildTargets(ply, ShouldDrawSpectatorESPFor, GetSpectatorESPEntity, origin)
 
-	for _, target in player.Iterator() do
-		if not ShouldDrawSpectatorESPFor(ply, target) then continue end
-
-		local ent = GetSpectatorESPEntity(target)
+	for i = 1, #targets do
+		local entry = targets[i]
+		local target = entry.ply
+		local ent = entry.ent
 		local col = GetSpectatorESPColor(target)
 
 		local screen = GetSpectatorESPLabelPos(ent):ToScreen()
-
 		if not screen.visible then continue end
 
-
-		local distance = math.floor(origin:Distance(ent:WorldSpaceCenter()) / 52.49)
+		local distance = zb.ESPPerf.GetDistanceMeters(origin, ent)
 
 		draw.SimpleTextOutlined(target:Nick(), "TargetIDSmall", screen.x, screen.y - 10, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
-
 		draw.SimpleTextOutlined(distance .. " m", "TargetIDSmall", screen.x, screen.y + 5, spectatorESPTextColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 	end
 end)
