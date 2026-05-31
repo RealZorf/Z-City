@@ -288,7 +288,7 @@ players : 1 humans, 0 bots (20 max)
 			if tr.StartPos:Distance( tr.HitPos ) > 5000 and !subsonic then
 				local time = view.origin:Distance(tr.StartPos+tr.HitPos/2) / 17836
 				timer.Simple(time,function()
-					EmitSound("cracks/distant/dist_crack_" .. ( mr < 9 and "0" or "") .. mr .. ".ogg", tr.StartPos+tr.HitPos*0.35, 0, CHAN_AUTO, 1,SNDLVL_140dB)
+					EmitSound("cracks/distant/dist_crack_" .. ( mr < 10 and "0" or "") .. mr .. ".ogg", tr.StartPos+tr.HitPos*0.35, 0, CHAN_AUTO, 1,SNDLVL_140dB)
 				end)
 			end
 
