@@ -460,10 +460,9 @@ Perfect for aggressive players who want to spread chaos and kill as many people 
 		Objective = "You are a terrorist. Burn, blast and butcher everyone before they can stop you.",
 		SpawnFunction = function(ply)
 			ply:Give("weapon_bombvest")
-			ply:Give("weapon_matches")
-			ply:Give("weapon_hg_pipebomb_tpik")
-			ply:Give("weapon_hg_molotov_tpik")
-			ply:Give("weapon_hg_grenade_tpik")
+			ply:Give("weapon_claymore")
+			ply:Give("weapon_hg_rgd_tpik")
+			ply:Give("weapon_hg_type59_tpik")
 			ply:Give("weapon_traitor_ied")
 			ply:Give("weapon_buck200knife")
 
@@ -481,13 +480,12 @@ You rely on fire, explosives and a bomb vest to turn the whole round into a mass
 Perfect for aggressive players who want to spread chaos and kill as many people as possible.]],
 		Objective = "You are a terrorist. Burn, blast and butcher everyone before they can stop you.",
 		SpawnFunction = function(ply)
-			ply:Give("weapon_bombvest")
-			ply:Give("weapon_matches")
-			ply:Give("weapon_hg_pipebomb_tpik")
-			ply:Give("weapon_hg_molotov_tpik")
-			ply:Give("weapon_hg_grenade_tpik")
+			ply:Give("weapon_claymore")
+			ply:Give("weapon_hg_rgd_tpik")
+			ply:Give("weapon_hg_type59_tpik")
 			ply:Give("weapon_traitor_ied")
-			ply:Give("weapon_buck200knife")
+			ply:Give("weapon_bombvest")
+			ply:Give("weapon_sogknife")
 
 			ply.organism.recoilmul = 1
 			ply.organism.stamina.max = 300
