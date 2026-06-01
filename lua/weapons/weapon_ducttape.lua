@@ -83,8 +83,10 @@ SWEP.WorkWithFake = false
 SWEP.angHold = Angle(0, 0, 0)
 SWEP.UnTapeables = {MAT_SAND, MAT_SLOSH, MAT_SNOW}
 SWEP.TapeAmount = 100
+SWEP.TapeChargeTime = 2.8
+SWEP.TapeAnimCycleMax = 0.68
 SWEP.AnimList = {
-	["start"] = {"start", 2.5, false},
+	["start"] = {"start", 2.8, false},
 	["stop"] = {"start", 1, false},
 }
 
@@ -151,21 +153,52 @@ function SWEP:Animation()
 	self:BoneSet("l_forearm", vector_origin, lang2)
 end
 
+function SWEP:GetTapeCycle()
+	return math.Clamp((self:GetHolding() - 25) / 75, 0, 1) * self.TapeAnimCycleMax
+end
+
 function SWEP:Think()
+	if not IsFirstTimePredicted() then return end
+
 	local owner = self:GetOwner()
-	if IsValid(owner) and owner:KeyDown(IN_ATTACK) then return end
-	self:SetHolding(math.max(self:GetHolding() - 1, 25))
-	self:PlayAnim('start', 0)
+	if not IsValid(owner) then return end
+
+	local dt = FrameTime()
+	if owner:KeyDown(IN_ATTACK) and not owner:KeyDown(IN_SPEED) and hg.CanUseLeftHand(owner) and hg.CanUseRightHand(owner) then
+		local go = self:FindObjects()
+		if go then
+			if not self.TapeCharging then
+				self.TapeCharging = true
+				self.LerpedHolding = self:GetTapeCycle()
+				self:PlayAnim("start", self.TapeChargeTime)
+			end
+
+			if SERVER then
+				self:SetHolding(math.Clamp(self:GetHolding() + (75 / self.TapeChargeTime) * dt, 25, 100))
+				if self:GetHolding() >= 100 then
+					self:ApplyTape()
+				end
+			end
+		else
+			self.TapeCharging = false
+		end
+	else
+		self.TapeCharging = false
+		if SERVER then
+			self:SetHolding(math.max(self:GetHolding() - (75 / self.TapeChargeTime) * dt * 2, 25))
+		end
+		self:PlayAnim("start", 0)
+	end
 end
 
 function SWEP:CustomTiming()
 	self.lasttapeamount = self.lasttapeamount or self:GetTapeAmount()
 	if self:GetTapeAmount() < self.lasttapeamount then
-		self.LerpedHolding = 0.25
+		self.LerpedHolding = math.min(self:GetTapeCycle(), 0.25)
 		self.lasttapeamount = self:GetTapeAmount()
 	end
 
-	self.LerpedHolding = math.Clamp(LerpFT(0.01, self.LerpedHolding or 0, self:GetHolding() / 100), 0, 0.68)
+	self.LerpedHolding = math.Clamp(self:GetTapeCycle(), 0, self.TapeAnimCycleMax)
 	self.setlh = not (self.LerpedHolding <= 0.26)
 	return self.LerpedHolding
 end
@@ -284,74 +317,86 @@ function SWEP:FindObjects()
 	end
 end
 
+function SWEP:ApplyTape()
+	if not SERVER then return end
+	if self.TapeApplying then return end
+
+	local Owner = self:GetOwner()
+	if not IsValid(Owner) then return end
+
+	local Go, TrOne, TrTwo = self:FindObjects()
+	if not Go then
+		self.TapeCharging = false
+		self:SetHolding(25)
+		return
+	end
+
+	self.TapeApplying = true
+	if not self.TapeAmount then self.TapeAmount = 100 end
+
+	local DoorSealed = false
+	if hgIsDoor(TrOne.Entity) then
+		DoorSealed = true
+		if not DoorIsOpen(TrOne.Entity) then
+			if not TrOne.Entity.LockedDoor then TrOne.Entity.LockedDoorMap = true end
+		else
+			TrOne.Entity.LockedDoorMap = false
+		end
+
+		TrOne.Entity:Fire("lock", "", 0)
+		TrOne.Entity.LockedDoor = self.TapeAmount
+	end
+
+	if hgIsDoor(TrTwo.Entity) then
+		DoorSealed = true
+		if not DoorIsOpen(TrTwo.Entity) then
+			if not TrTwo.Entity.LockedDoor then TrTwo.Entity.LockedDoorMap = true end
+		else
+			TrTwo.Entity.LockedDoorMap = false
+		end
+
+		TrTwo.Entity:Fire("lock", "", 0)
+		TrTwo.Entity.LockedDoor = self.TapeAmount
+	end
+
+	if DoorSealed then
+		self.TapeAmount = self.TapeAmount - 100
+		self:SetTapeAmount(self.TapeAmount)
+		sound.Play("snd_jack_hmcd_ducttape.wav", TrOne.HitPos, 65, math.random(80, 120))
+		Owner:SetAnimation(PLAYER_ATTACK1)
+		Owner:ViewPunch(Angle(3, 0, 0))
+		self:SprayDecals()
+		Owner:PrintMessage(HUD_PRINTCENTER, "Door Sealed")
+		timer.Simple(.1, function() if IsValid(self) and self.TapeAmount <= 0 then self:Remove() end end)
+	else
+		local Strength = BindObjects(TrOne.Entity, TrOne.HitPos, TrTwo.Entity, TrTwo.HitPos, 2, TrOne.PhysicsBone, TrTwo.PhysicsBone)
+		self.TapeAmount = self.TapeAmount - 10
+		self:SetTapeAmount(self.TapeAmount)
+		sound.Play("snd_jack_hmcd_ducttape.wav", TrOne.HitPos, 65, math.random(80, 120))
+		Owner:SetAnimation(PLAYER_ATTACK1)
+		Owner:ViewPunch(Angle(3, 0, 0))
+		util.Decal("hmcd_jackatape", TrOne.HitPos + TrOne.HitNormal, TrOne.HitPos - TrOne.HitNormal)
+		util.Decal("hmcd_jackatape", TrTwo.HitPos + TrTwo.HitNormal, TrTwo.HitPos - TrTwo.HitNormal)
+		Owner:ChatPrint("Bond strength: " .. tostring(Strength))
+		timer.Simple(.1, function() if IsValid(self) and self.TapeAmount <= 0 then self:Remove() end end)
+	end
+
+	self:SetHolding(25)
+	self.TapeCharging = false
+	self.TapeApplying = false
+end
+
 function SWEP:PrimaryAttack()
 	local Owner = self:GetOwner()
-	if Owner:KeyDown(IN_SPEED) then return end
+	if not IsValid(Owner) or Owner:KeyDown(IN_SPEED) then return end
 	if not hg.CanUseLeftHand(Owner) or not hg.CanUseRightHand(Owner) then return end
-	if self:GetHolding() == 25 or self:GetHolding() == 95 then
-		self:EmitSound("player/clothes_generic_foley_0"..math.random(5)..".wav", 55, math.random(95, 105), 0.25)
+
+	self:SetNextPrimaryFire(CurTime() + 0.2)
+
+	local hold = self:GetHolding()
+	if (hold <= 30 or hold >= 92) and Owner:KeyDown(IN_ATTACK) then
+		self:EmitSound("player/clothes_generic_foley_0" .. math.random(5) .. ".wav", 55, math.random(95, 105), 0.25)
 	end
-
-	if SERVER then
-		if not self.TapeAmount then self.TapeAmount = 100 end
-		local Go, TrOne, TrTwo = self:FindObjects()
-		self:SetHolding(math.Clamp(self:GetHolding() + 1, 25, 100))
-		if Go then
-			if self:GetHolding() < 100 then return end
-			local DoorSealed = false
-			if hgIsDoor(TrOne.Entity) then
-				DoorSealed = true
-				if not DoorIsOpen(TrOne.Entity) then
-					if not TrOne.Entity.LockedDoor then TrOne.Entity.LockedDoorMap = true end
-				else
-					TrOne.Entity.LockedDoorMap = false
-				end
-
-				TrOne.Entity:Fire("lock", "", 0)
-				TrOne.Entity.LockedDoor = self.TapeAmount
-			end
-
-			if hgIsDoor(TrTwo.Entity) then
-				DoorSealed = true
-				if not DoorIsOpen(TrTwo.Entity) then
-					if not TrTwo.Entity.LockedDoor then TrTwo.Entity.LockedDoorMap = true end
-				else
-					TrTwo.Entity.LockedDoorMap = false
-				end
-
-				TrTwo.Entity:Fire("lock", "", 0)
-				TrTwo.Entity.LockedDoor = self.TapeAmount
-			end
-
-			if DoorSealed then
-				self.TapeAmount = self.TapeAmount - 100
-				self:SetTapeAmount(self.TapeAmount)
-				sound.Play("snd_jack_hmcd_ducttape.wav", TrOne.HitPos, 65, math.random(80, 120))
-				Owner:SetAnimation(PLAYER_ATTACK1)
-				Owner:ViewPunch(Angle(3, 0, 0))
-				self:SprayDecals()
-				Owner:PrintMessage(HUD_PRINTCENTER, "Door Sealed")
-				timer.Simple(.1, function() if self.TapeAmount <= 0 then self:Remove() end end)
-				self:SetHolding(25)
-			else
-				local Strength = BindObjects(TrOne.Entity, TrOne.HitPos, TrTwo.Entity, TrTwo.HitPos, 2, TrOne.PhysicsBone, TrTwo.PhysicsBone)
-				if not self.TapeAmount then self.TapeAmount = 100 end
-				self.TapeAmount = self.TapeAmount - 10
-				self:SetTapeAmount(self.TapeAmount)
-				sound.Play("snd_jack_hmcd_ducttape.wav", TrOne.HitPos, 65, math.random(80, 120))
-				Owner:SetAnimation(PLAYER_ATTACK1)
-				Owner:ViewPunch(Angle(3, 0, 0))
-				util.Decal("hmcd_jackatape", TrOne.HitPos + TrOne.HitNormal, TrOne.HitPos - TrOne.HitNormal)
-				util.Decal("hmcd_jackatape", TrTwo.HitPos + TrTwo.HitNormal, TrTwo.HitPos - TrTwo.HitNormal)
-				--Owner:PrintMessage(HUD_PRINTCENTER,"Bond strength: "..tostring(Strength))
-				Owner:ChatPrint("Bond strength: " .. tostring(Strength))
-				timer.Simple(.1, function() if self.TapeAmount <= 0 then self:Remove() end end)
-				self:SetHolding(25)
-			end
-		end
-	end
-
-	--self:SetNextPrimaryFire(CurTime() + 1.5)
 end
 
 function SWEP:SecondaryAttack()
