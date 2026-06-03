@@ -5,7 +5,7 @@ local ESPPerf = zb.ESPPerf
 
 local esp_range_limit = ConVarExists("zb_esp_range_limit") and GetConVar("zb_esp_range_limit") or CreateClientConVar("zb_esp_range_limit", "0", true, false, "Maximum ESP range in meters (0 = unlimited)", 0, 1000)
 local esp_outline_limit = ConVarExists("zb_esp_outline_limit") and GetConVar("zb_esp_outline_limit") or CreateClientConVar("zb_esp_outline_limit", "0", true, false, "Maximum number of player outlines (0 = unlimited)", 0, 40)
-local esp_show_outlines = ConVarExists("zb_esp_show_outlines") and GetConVar("zb_esp_show_outlines") or CreateClientConVar("zb_esp_show_outlines", "1", true, false, "Enable or disable player outlines", 0, 1)
+local esp_show_outlines = ConVarExists("zb_esp_show_outlines") and GetConVar("zb_esp_show_outlines") or CreateClientConVar("zb_esp_show_outlines", "0", true, false, "Enable or disable player outlines", 0, 1)
 
 local METERS_TO_UNITS = 52.49
 
