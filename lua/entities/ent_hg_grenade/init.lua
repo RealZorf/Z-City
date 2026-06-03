@@ -15,10 +15,10 @@ function ENT:Initialize()
 	self:SetUseType(USE_TOGGLE)
 	self:DrawShadow(true)
 	self:InitAdd()
-	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
+	self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 	timer.Simple(0.1,function()
 		if not IsValid(self) then return end
-		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_NONE)
+		self:SetCollisionGroup(COLLISION_GROUP_NONE)
 	end)
 	local phys = self:GetPhysicsObject()
 	if IsValid(phys) then
@@ -144,7 +144,7 @@ local function createSpoon(self)
 	entasd:SetModel(self.spoon)
 	entasd:SetPos(self:GetPos())
 	entasd:SetAngles(self:GetAngles())
-	hg.SafeSetCollisionGroup(entasd, COLLISION_GROUP_DEBRIS)
+	entasd:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 	entasd:Spawn()
 
 	if self.spoon == "models/codww2/equipment/mk,ii hand grenade spoon.mdl" then

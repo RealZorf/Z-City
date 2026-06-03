@@ -371,7 +371,7 @@ if CLIENT then
 			dummy:PhysicsInit(SOLID_VPHYSICS)
 			dummy:SetMoveType(MOVETYPE_VPHYSICS)
 			dummy:SetSolid(SOLID_VPHYSICS)
-			hg.SafeSetCollisionGroup(dummy, colGroup)
+			dummy:SetCollisionGroup(colGroup)
 			dummy:SetAngles(AngleRand())
 		dummy:Spawn()
 

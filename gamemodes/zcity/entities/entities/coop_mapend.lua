@@ -15,7 +15,7 @@ function ENT:Initialize()
 	self:DrawShadow( false )
 	self:SetCollisionBounds( min, max )
 	self:SetSolid( SOLID_BBOX )
-	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WORLD )
+	self:SetCollisionGroup( COLLISION_GROUP_WORLD )
 	self:SetMoveType( 0 )
 	self:SetTrigger( true )
 

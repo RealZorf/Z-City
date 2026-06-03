@@ -8,7 +8,7 @@ if SERVER then
 
     function ENT:Initialize()
         self:SetModel("models/props_junk/PropaneCanister001a.mdl")
-        hg.SafeSetCollisionGroup(self, COLLISION_GROUP_VEHICLE_CLIP)
+        self:SetCollisionGroup(COLLISION_GROUP_VEHICLE_CLIP)
         self:SetNoDraw(true)
         
         self.CreationTime = CurTime()

@@ -85,7 +85,7 @@ local math_random, math_Rand = math.random, math.Rand
 
 		timer.Simple(0, function()
 			if IsValid(rag) then
-				hg.SafeSetCollisionGroup(rag, COLLISION_GROUP_WEAPON)
+				rag:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 			end
 		end)
 		if IsValid(ent) and IsValid(rag) and ent:IsNPC() and loot then

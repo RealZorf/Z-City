@@ -97,7 +97,7 @@ function SWEP:CreateFake(ragdoll)
 	
 	if !IsValid(ent:GetPhysicsObject()) then return end
 
-	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
+	ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 	ent:SetMoveType(MOVETYPE_NONE)
 	--ent:SetOwner(ragdoll)
 	ent:GetPhysicsObject():SetMass(0)

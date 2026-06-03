@@ -180,7 +180,7 @@ function ENT:PhysicsCollide2(data, physobj)
                 ent:Spawn()
 
                 ent:SetSolid(SOLID_VPHYSICS)
-                hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_NONE)
+                ent:SetCollisionGroup(COLLISION_GROUP_NONE)
                 ent:SetModel(self:GetModel())
                 ent:PhysicsInit(SOLID_VPHYSICS)
                 local newPhys = ent:GetPhysicsObject()

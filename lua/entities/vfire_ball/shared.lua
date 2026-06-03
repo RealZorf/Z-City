@@ -240,7 +240,7 @@ function ENT:Initialize()
 	self:DrawShadow(false)
 
 	-- Make sure it's not directly interactable
-	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_DEBRIS_TRIGGER)
+	self:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
 
 
 	if SERVER then

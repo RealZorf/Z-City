@@ -35,7 +35,7 @@ end
 
 function ENT:Initialize()
     self:SetModel( "models/mossman.mdl" )
-    hg.SafeSetCollisionGroup(self, COLLISION_GROUP_VEHICLE_CLIP)
+    self:SetCollisionGroup(COLLISION_GROUP_VEHICLE_CLIP)
     self:SetNoDraw(true)
     
     self.CreateTime = CurTime()

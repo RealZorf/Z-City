@@ -455,7 +455,7 @@ if(SERVER)then
 		ent:SetAngles(rh:GetAngles() + Angle(0, 0, 180))
 		ent:Spawn()
 
-		hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
+		ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 		ent:SetOwner(ragdoll)
 		ent:GetPhysicsObject():SetMass(0)
 		ent:SetNoDraw(true)

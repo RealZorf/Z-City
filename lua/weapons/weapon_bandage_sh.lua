@@ -436,7 +436,7 @@ function SWEP:SpawnGarbage(mdl_custom, skin_custom, snd_custom, clr_custom, bgs_
 	end
 
 	ent:SetPos(matrix:GetTranslation())
-	hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
+	ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 	ent:SetAngles(AngleRand(-180, 180))
 	ent:Activate()
 	ent:Spawn()
@@ -714,7 +714,7 @@ if SERVER then
 		ent:SetPos(rh:GetPos())
 		ent:SetAngles(rh:GetAngles() + Angle(0, 0, 180))
 		ent:Spawn()
-		hg.SafeSetCollisionGroup(ent, COLLISION_GROUP_DEBRIS)
+		ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 		ent:SetOwner(ragdoll)
 		ent:GetPhysicsObject():SetMass(0)
 		ent:SetModel(self.Model or self.WorldModel)

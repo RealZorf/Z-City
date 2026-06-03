@@ -411,8 +411,8 @@ function MODE:ReturnToRealmOfLiving(ply)
 end
 
 function MODE:Disappear(ply)
-	hg.SafeSetCustomCollisionCheck(ply, true)
-	hg.SafeCollisionRulesChanged(ply)
+	ply:SetCustomCollisionCheck(true)
+	ply:CollisionRulesChanged()
 	ply:SetNetVar("disappearance", true)
 
 	if self.CurrentVictim == ply then
@@ -587,8 +587,8 @@ function MODE:ResetNetworkVars(ply)
 	ply:SetNWFloat("willsuicide", 0)
 	ply:SetLocalVar("afterlife", nil)
 	ply:SetNetVar("disappearance", nil)
-	hg.SafeSetCustomCollisionCheck(ply, false)
-	hg.SafeCollisionRulesChanged(ply)
+	ply:SetCustomCollisionCheck(false)
+	ply:CollisionRulesChanged()
 end
 
 function MODE:PlayerSilentDeath(ply)
@@ -616,8 +616,8 @@ function MODE:PlayerDeath(ply)
 end
 
 function MODE:Ragdoll_Create(ply, ent)
-	hg.SafeSetCustomCollisionCheck(ent, true)
-	hg.SafeCollisionRulesChanged(ent)
+	ent:SetCustomCollisionCheck(true)
+	ent:CollisionRulesChanged()
 end
 
 function MODE:HG_PlayerCanHearPlayersVoice(listener, talker)

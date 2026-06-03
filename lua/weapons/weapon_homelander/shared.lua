@@ -1320,7 +1320,7 @@ function SWEP:ClearGrabbedTarget(restoreWeapons, preserveRagdoll, keepTargetHidd
 
     if IsValid(target) then
         if targetIsRagdoll then
-            hg.SafeSetCollisionGroup(target, self.HomelanderGrabbedCollisionGroup or COLLISION_GROUP_NONE)
+            target:SetCollisionGroup(self.HomelanderGrabbedCollisionGroup or COLLISION_GROUP_NONE)
         elseif targetIsPlayerOnFakeRagdoll then
             target.HomelanderGrabbedBy = nil
             if not keepTargetHidden and target:Alive() and hg and hg.FakeUp then
@@ -1366,7 +1366,7 @@ function SWEP:ClearGrabbedTarget(restoreWeapons, preserveRagdoll, keepTargetHidd
             end
 
             if not keepTargetHidden then
-                hg.SafeSetCollisionGroup(target, self.HomelanderGrabbedCollisionGroup or COLLISION_GROUP_NONE)
+                target:SetCollisionGroup(self.HomelanderGrabbedCollisionGroup or COLLISION_GROUP_NONE)
             end
         end
     end
@@ -1441,7 +1441,7 @@ function SWEP:CreateGrabRagdoll(target)
     ragdoll:SetColor(target:GetColor())
     ragdoll:SetRenderMode(target:GetRenderMode())
     ragdoll:SetMaterial(target:GetMaterial() or "")
-    hg.SafeSetCollisionGroup(ragdoll, COLLISION_GROUP_PASSABLE_DOOR)
+    ragdoll:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
 
     if target.GetBodyGroups then
         for _, bodygroup in ipairs(target:GetBodyGroups()) do
@@ -1601,7 +1601,7 @@ end
 function SWEP:ThrowExecutionRagdoll(ragdoll, owner, headPos)
     if not IsValid(ragdoll) or not IsValid(owner) then return end
 
-    hg.SafeSetCollisionGroup(ragdoll, COLLISION_GROUP_DEBRIS)
+    ragdoll:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
     ragdoll:DrawShadow(true)
 
     local forward = owner:EyeAngles():Forward()
@@ -1835,7 +1835,7 @@ function SWEP:TryGrabTarget()
         self.HomelanderGrabbedInventory = nil
         self.HomelanderGrabbedRagdoll = target
         self.HomelanderGrabbedRagdollOwned = false
-        hg.SafeSetCollisionGroup(target, COLLISION_GROUP_PASSABLE_DOOR)
+        target:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
     elseif target:IsPlayer() then
         self.HomelanderGrabbedInventory = nil
         target.HomelanderGrabbedBy = self
@@ -1862,7 +1862,7 @@ function SWEP:TryGrabTarget()
             return
         end
 
-        hg.SafeSetCollisionGroup(target, COLLISION_GROUP_IN_VEHICLE)
+        target:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
         target:SetNoDraw(true)
         target:DrawShadow(false)
         target:SetNotSolid(true)

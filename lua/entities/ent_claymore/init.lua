@@ -44,7 +44,7 @@ function ENT:Initialize()
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
-	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
+	self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 	self:SetUseType(ONOFF_USE)
 	self:DrawShadow(true)
 	self.MotionTriggerIsActivated = false

@@ -33,7 +33,7 @@ function ENT:Initialize()
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
 	self:SetCollisionBounds(mins, maxs)
-	hg.SafeSetCollisionGroup(self, COLLISION_GROUP_NONE)
+	self:SetCollisionGroup(COLLISION_GROUP_NONE)
 	self:SetUseType(USE_TOGGLE)
 	self:DrawShadow(true)
 
@@ -78,7 +78,7 @@ function ENT:Think()
 	local settled = self.lowSpeedSince and (self.lowSpeedSince + 0.15) < CurTime()
 	local desiredCollisionGroup = settled and COLLISION_GROUP_WEAPON or COLLISION_GROUP_NONE
 	if self:GetCollisionGroup() ~= desiredCollisionGroup then
-		hg.SafeSetCollisionGroup(self, desiredCollisionGroup)
+		self:SetCollisionGroup(desiredCollisionGroup)
 	end
 end
 

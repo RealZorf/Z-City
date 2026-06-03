@@ -82,7 +82,7 @@ function ENT:Initialize()
     self:SetSolid( SOLID_VPHYSICS )
     self:SetMoveType( MOVETYPE_VPHYSICS )
     self:PhysicsInit( SOLID_VPHYSICS )
-    hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON )
+    self:SetCollisionGroup( COLLISION_GROUP_WEAPON )
     self:DrawShadow( false )
 
     self.projectileSpeed = 10000

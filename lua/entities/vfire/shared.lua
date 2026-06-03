@@ -34,7 +34,7 @@ if SERVER or CLIENT then
 		self:SetFireState(1)
 
 		-- Make sure the fire is not directly interactable or seen
-		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_IN_VEHICLE)
+		self:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
 		self:DrawShadow(false)
 
 		-- Set the dummy model so we aren't a hidden error

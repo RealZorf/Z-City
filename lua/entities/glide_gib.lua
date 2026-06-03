@@ -52,7 +52,7 @@ function ENT:Initialize()
     self:SetMoveType( MOVETYPE_VPHYSICS )
 
     if collisionCvar:GetInt() == 0 then
-        hg.SafeSetCollisionGroup(self, COLLISION_GROUP_DEBRIS )
+        self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
     end
 
     self:PhysicsInit( SOLID_VPHYSICS )

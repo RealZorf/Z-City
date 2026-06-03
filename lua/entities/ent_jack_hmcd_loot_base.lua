@@ -11,7 +11,7 @@ if SERVER then
 		self:PhysicsInit(SOLID_VPHYSICS)
 		self:SetMoveType(MOVETYPE_VPHYSICS)
 		self:SetSolid(SOLID_VPHYSICS)
-		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_WEAPON)
+		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 		self:DrawShadow(false)
 		SafeRemoveEntityDelayed(self, 1)
 	end

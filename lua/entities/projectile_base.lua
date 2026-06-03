@@ -69,7 +69,7 @@ if SERVER then
 		self:SetSolid(SOLID_VPHYSICS)
 		self:DrawShadow(true)
 		self:SetUseType(SIMPLE_USE)
-		hg.SafeSetCollisionGroup(self, COLLISION_GROUP_PROJECTILE)
+		self:SetCollisionGroup(COLLISION_GROUP_PROJECTILE)
 		local phys = self:GetPhysicsObject()
 		if phys:IsValid() then
 			phys:SetMass(20)

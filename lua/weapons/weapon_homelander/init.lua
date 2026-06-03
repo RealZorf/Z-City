@@ -140,7 +140,7 @@ if SERVER then
         ply:SetNoDraw(false)
         ply:DrawShadow(true)
         ply:SetNotSolid(false)
-        hg.SafeSetCollisionGroup(ply, COLLISION_GROUP_PLAYER)
+        ply:SetCollisionGroup(COLLISION_GROUP_PLAYER)
         ply.HomelanderSWEPHealthGranted = nil
         ply.HomelanderGrabbedBy = nil
         ply.HomelanderGrabExecutionPending = nil
