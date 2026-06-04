@@ -109,24 +109,21 @@ end
 zb.ROUND_TIME = zb.ROUND_TIME or 300
 
 function zb:ShouldRoundEnd()
-	local round = CurrentRound()
-	local time = zb.ROUND_TIME or round.ROUND_TIME or 300
-	local shouldroundend = round:ShouldRoundEnd()
-	local timedOut = (zb.ROUND_START + time) < CurTime()
+	local time = zb.ROUND_TIME
+	local shouldroundend = CurrentRound():ShouldRoundEnd()
+	if shouldroundend ~= false then
+		local boringround = (zb.ROUND_START + time) < CurTime()
 
-	if shouldroundend == true then return true end
-	if shouldroundend == false and not timedOut then return false end
-
-	if timedOut then
-		if round.BoringRoundFunction then
+		if boringround and CurrentRound().BoringRoundFunction then
 			PrintMessage(HUD_PRINTTALK, "Stopping round because it was TOO boring.")
-			round:BoringRoundFunction()
+
+			CurrentRound():BoringRoundFunction()
 		end
 
-		return true
+		return (shouldroundend and true) or (boringround)
+	else
+		return false
 	end
-
-	return shouldroundend and true or false
 end
 
 function zb:EndRoundThink()
@@ -572,7 +569,7 @@ function zb:RoundStart()
 	VFIRE_DISABLED = (mode.name == "coop")
 
 	zb.ROUND_BEGIN = CurTime()
-	hg.UpdateRoundTime(mode.ROUND_TIME, CurTime(), CurTime() + (mode.start_time or 5))
+	hg.UpdateRoundTime()
 
 	net.Start("RoundInfo")
 		net.WriteString(mode.name or "hmcd")
