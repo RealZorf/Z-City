@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Fire Extinguisher"
-SWEP.Instructions = "This is a hand-held cylindrical pressure vessel containing an agent that can be discharged to extinguish a fire.\n\nLMB to attack.\nR to change mode.\nRMB to block."
+SWEP.Instructions = "This is a hand-held cylindrical pressure vessel containing an agent that can be discharged to extinguish a fire.\n\nLMB to attack.\nR to change mode.\nRMB to block.\nE+LMB to charge up a heavy attack."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -22,9 +22,9 @@ SWEP.weight = 4
 SWEP.HoldPos = Vector(-15,1,2)
 SWEP.HoldAng = Angle()
 
-SWEP.AttackTime = 0.45
-SWEP.AnimTime1 = 1.9
-SWEP.WaitTime1 = 1.3
+SWEP.AttackTime = 0.55
+SWEP.AnimTime1 = 2.10
+SWEP.WaitTime1 = 1.45
 SWEP.ViewPunch1 = Angle(1,2,0)
 
 SWEP.Attack2Time = 0.25
@@ -52,7 +52,7 @@ SWEP.MaxPenLen = 5
 SWEP.PenetrationSizePrimary = 3
 SWEP.PenetrationSizeSecondary = 1.25
 
-SWEP.StaminaPrimary = 45
+SWEP.StaminaPrimary = 34
 SWEP.StaminaSecondary = 15
 
 SWEP.AttackLen1 = 65
@@ -94,6 +94,27 @@ SWEP.AttackRads2 = 0
 SWEP.SwingAng = -30
 SWEP.SwingAng2 = 0
 
+SWEP.HeavyAttackDamageMul = 1.85 -- Max damage multiplier at full charge
+SWEP.HeavyAttackWaitTime = 2.5 -- Time before you can attack again
+SWEP.HeavyAttackAnimTimeBegin = 1.0 -- Duration of the wind-up/start animation
+SWEP.HeavyAttackAnimTimeIdle = 1 -- Duration of the idle loop
+SWEP.HeavyAttackAnimTimeEnd = 1.85 -- Duration of the attack animation
+SWEP.HeavyAttackDelay = 0.25 -- Time delay before the hit actually connects (during attack anim)
+SWEP.HeavyAttackTimeLength = 0.4 -- Duration of the active hit window
+SWEP.HeavyAttackViewPunch = Angle(5, 0, 0) -- View punch angle on hit
+SWEP.HeavyAttackMaxChargeTime = 2.0 -- Time in seconds to reach max damage/shake
+SWEP.HeavyAttackSwingAng = -30 -- Custom swing angle for heavy attack
+SWEP.HeavyAttackRads = 60 -- Custom radius/arc for heavy attack
+SWEP.HeavyAttackStamina = 35
+SWEP.HeavyChargeHoldPos = Vector(12,5.5,-1.45)
+
+
+SWEP.CanHeavyAttack = true -- Set to true to enable
+
+SWEP.BlockTier = 4
+SWEP.MeleeMaterial = "metal"
+SWEP.BlockImpactSound = "physics/metal/metal_solid_impact_bullet1.wav"
+
 function SWEP:Reload()
     if SERVER then
         if self:GetOwner():KeyPressed(IN_RELOAD) then
@@ -111,16 +132,6 @@ hook.Add("OnNetVarSet", "AsdGuilt",function(index, key, var)
         self.AnimList["deploy"] = self:GetNetVar("extinguishermode") and "HoseEquip" or "Draw"
     end
 end)
-
-function SWEP:ModelAnimAdd(model, pos, ang)
-    self.CustomLerpMode = LerpFT(0.1,self.CustomLerpMode or 0, self:GetNetVar("extinguishermode") and 1 or 0)
-    pos = pos + ((ang:Up() * -14 + ang:Forward() * -5 + ang:Right() * 3) * self.CustomLerpMode)
-    ang:RotateAroundAxis(ang:Forward(), -5 * self.CustomLerpMode)
-    ang:RotateAroundAxis(ang:Up(), 3 * self.CustomLerpMode)
-    ang:RotateAroundAxis(ang:Right(), 10 * self.CustomLerpMode)
-
-    return pos, ang
-end
 
 function SWEP:CanSecondaryAttack()
     self.DamageType = DMG_CLUB

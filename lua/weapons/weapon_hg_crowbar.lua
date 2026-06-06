@@ -1,7 +1,7 @@
 ﻿if SERVER then AddCSLuaFile() end
 SWEP.Base = "weapon_melee"
 SWEP.PrintName = "Crowbar"
-SWEP.Instructions = "The Crowbar is a two-handed tool which can be used as a melee weapon. It is also an iconic signature weapon of Gordon Freeman. Can break down doors.\n\nLMB to attack.\nRMB to block."
+SWEP.Instructions = "The Crowbar is a two-handed tool which can be used as a melee weapon. It is also an iconic signature weapon of Gordon Freeman. Can break down doors.\n\nLMB to attack.\nRMB to block.\nE+LMB to charge up a heavy attack."
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -31,14 +31,16 @@ SWEP.DamageType = DMG_SLASH
 SWEP.HoldPos = Vector(-11, 0, 0)
 SWEP.HoldAng = Angle()
 
-SWEP.AttackTime = 0.42
-SWEP.AnimTime1 = 1.5
-SWEP.WaitTime1 = 1.3
-SWEP.ViewPunch1 = Angle(1, 1, -1)
+SWEP.AttackTime = 0.5
+SWEP.AnimTime1 = 1.65
+SWEP.WaitTime1 = 1.7
+SWEP.ViewPunch1 = Angle(1, 2, 0)
+SWEP.weight = 4.5
 
-SWEP.Attack2Time = 0.2
+
+SWEP.Attack2Time = 0.4
 SWEP.AnimTime2 = 1
-SWEP.WaitTime2 = 0.8
+SWEP.WaitTime2 = 1
 SWEP.ViewPunch2 = Angle(0, 0, -2)
 
 SWEP.attack_ang = Angle(0, 0, 0)
@@ -46,25 +48,27 @@ SWEP.sprint_ang = Angle(15, 0, 0)
 
 SWEP.basebone = 94
 
-SWEP.weaponPos = Vector(0, 0, -15)
+SWEP.weaponPos = Vector(0, 0, -17.9)
 SWEP.weaponAng = Angle(0, -90, 0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 35
-SWEP.DamageSecondary = 12
+SWEP.DamagePrimary = 28
+SWEP.NeckBreakChance = 0.02
+SWEP.DamageSecondary = 11
 
-SWEP.PenetrationPrimary = 3
-SWEP.PenetrationSecondary = 5
+SWEP.PenetrationPrimary = 2
+SWEP.PenetrationSecondary = 3
 
 SWEP.MaxPenLen = 4
 
 SWEP.PenetrationSizePrimary = 3
 SWEP.PenetrationSizeSecondary = 1.25
 
-SWEP.StaminaPrimary = 40
-SWEP.StaminaSecondary = 25
+SWEP.StaminaPrimary = 29
+SWEP.StaminaSecondary = 24
+SWEP.HeavyAttackStamina = 35
 
-SWEP.AttackLen1 = 65
+SWEP.AttackLen1 = 60
 SWEP.AttackLen2 = 45
 
 SWEP.AnimList = {
@@ -89,6 +93,14 @@ SWEP.Attack2Hit = "Canister.ImpactHard"
 SWEP.AttackHitFlesh = "Flesh.ImpactHard"
 SWEP.Attack2HitFlesh = "snd_jack_hmcd_axehit.wav"
 SWEP.DeploySnd = "physics/metal/metal_grenade_impact_soft2.wav"
+SWEP.HitFleshExtra = {
+    "shovelcrowbarshared/shovelhit1.ogg",
+    "shovelcrowbarshared/shovelhit2.ogg",
+}
+SWEP.HitFleshExtraPitch = 85
+SWEP.SwingSound = "baseballbat/swing.ogg"
+SWEP.SwingSoundPitch = {115, 125}
+
 
 SWEP.AttackPos = Vector(0, 0, 0)
 
@@ -114,6 +126,26 @@ SWEP.AttackRads2 = 0
 
 SWEP.SwingAng = -15
 SWEP.SwingAng2 = 0
+
+SWEP.HeavyAttackDamageType = DMG_SLASH
+SWEP.HeavyAttackDamageMul = 2.0 -- Max damage multiplier at full charge
+SWEP.HeavyAttackWaitTime = 1.0 -- Time before you can attack again
+SWEP.HeavyAttackAnimTimeBegin = 1.0 -- Duration of the wind-up/start animation
+SWEP.HeavyAttackAnimTimeIdle = 1 -- Duration of the idle loop
+SWEP.HeavyAttackAnimTimeEnd = 1.85 -- Duration of the attack animation
+SWEP.HeavyAttackDelay = 0.5 -- Time delay before the hit actually connects (during attack anim)
+SWEP.HeavyAttackTimeLength = 0.4 -- Duration of the active hit window
+SWEP.HeavyAttackViewPunch = Angle(5, 0, 0) -- View punch angle on hit
+SWEP.HeavyAttackMaxChargeTime = 2.0 -- Time in seconds to reach max damage/shake
+SWEP.HeavyAttackSwingAng = -90 -- Custom swing angle for heavy attack
+SWEP.HeavyAttackRads = 70 -- Custom radius/arc for heavy attack
+
+
+SWEP.CanHeavyAttack = true -- Set to true to enable
+
+SWEP.BlockTier = 3
+SWEP.MeleeMaterial = "metal"
+SWEP.BlockImpactSound = "physics/metal/metal_solid_impact_bullet1.wav"
 
 
 function SWEP:PrimaryAttack()
