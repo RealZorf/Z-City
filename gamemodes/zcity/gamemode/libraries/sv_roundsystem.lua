@@ -569,7 +569,8 @@ function zb:RoundStart()
 
 	VFIRE_DISABLED = (mode.name == "coop")
 
-	hg.UpdateRoundTime(mode.ROUND_TIME, CurTime(), CurTime())
+	zb.ROUND_BEGIN = CurTime()
+	hg.UpdateRoundTime(mode.ROUND_TIME)
 
 	net.Start("RoundInfo")
 		net.WriteString(mode.name or "hmcd")
