@@ -95,6 +95,8 @@ function SWEP:DrawWorldModel()
 	end
 end
 
+hg.weapons2 = hg.weapons2 or {}
+
 function SWEP:Initialize()
 	self:SetHold(self.HoldType)
 
