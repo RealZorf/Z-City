@@ -1,7 +1,8 @@
 include("shared.lua")
 SWEP.Category = "ZCity Other"
-SWEP.PrintName = "CoolHands"
-SWEP.Spawnable = false --// Use this hands if you like it more.. - Mannytko
+SWEP.PrintName = "Cool Hands"
+SWEP.AdminOnly = true
+SWEP.Spawnable = true --// Use this hands if you like it more.. - Mannytko
 SWEP.Instructions = "LMB - raise fists\nRELOAD - lower fists\n\nIn the raised state:\nLMB - strike\nRMB - block\n\nIn the lowered state: RMB - raise the object, RMB+R - check the pulse (when used on someone's head or hand)\n\nWhen holding the object: RELOAD - fix the object in air, E - spin the object in the air."
 SWEP.blockinganim = 0
 SWEP.animtime = 0
@@ -22,6 +23,13 @@ local lerpthing = 1
 local lerpalpha = 0
 local colwhite = Color(0, 0, 0, 0)
 local colred = Color(122, 0, 0, 0)
+local furryPlayerModel = "models/eradium/protogen_player.mdl"
+
+local function isFurryHands(owner)
+	if not IsValid(owner) or owner.PlayerClassName ~= "furry" then return false end
+
+	return string.lower(owner:GetModel() or "") == furryPlayerModel
+end
 
 local ang4 = Angle(0,0,180)
 local ang5 = Angle(0,0,0)
@@ -152,22 +160,65 @@ end
 
 -- Settings...
 local blocking_ang = Angle(-40,0,0)
+	local function initializeSequenceState(mdl)
+		if not IsValid(mdl) then return end
+
+		mdl.ZCLastSequenceModel = mdl:GetModel()
+		mdl.ZCSequenceReadyAt = CurTime() + 0.25
+		mdl.ZCAnimAssigned = false
+
+		if mdl.ResetSequenceInfo then
+			mdl:ResetSequenceInfo()
+		end
+	end
+
+local function normalizeSequenceState(mdl)
+	if not IsValid(mdl) then return false end
+
+		local currentModel = mdl:GetModel()
+		if mdl.ZCLastSequenceModel ~= currentModel then
+			mdl.ZCLastSequenceModel = currentModel
+			mdl.ZCSequenceReadyAt = CurTime() + 0.1
+			mdl.ZCAnimAssigned = false
+		end
+
+		if (mdl.ZCSequenceReadyAt or 0) > CurTime() then return false end
+
+		local seqCount = mdl.GetSequenceCount and mdl:GetSequenceCount() or 0
+		if seqCount <= 0 then return false end
+
+		local seq = mdl:GetSequence()
+		if not isnumber(seq) or seq < 0 or seq >= seqCount then
+			mdl.ZCAnimAssigned = false
+			return false
+		end
+
+		return true
+	end
+
 function SWEP:DrawWorldModel()
 	local owner = self:GetOwner()
 
 	if not IsValid(self.worldModel) then
 		self.worldModel = ClientsideModel(self.WorldModel)
+		if not IsValid(self.worldModel) then return end
+        initializeSequenceState(self.worldModel)
 	end
 
-	if owner.PlayerClassName == "furry" and self.worldModel != "models/weapons/salat/anims/furry_fists.mdl" then
-		self.worldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
+	local desiredModel = isFurryHands(owner) and "models/weapons/salat/anims/furry_fists.mdl" or self.WorldModel
+	if self.worldModel:GetModel() ~= desiredModel then
+		self.worldModel:SetModel(desiredModel)
+		initializeSequenceState(self.worldModel)
 	end
 
 	if not self:GetFists() then return end
 
 	local WorldModel = self.worldModel
+	if not normalizeSequenceState(WorldModel, desiredModel) then return end
 
-	WorldModel:SetCycle(1 - math_Clamp(self.animtime - CurTime(),0,1))
+	if WorldModel.ZCAnimAssigned then
+		WorldModel:SetCycle(1 - math_Clamp(self.animtime - CurTime(),0,1))
+	end
 
 	self.blockinganim = qerp(0.05 * FrameTime() / engine.TickInterval(),self.blockinganim,self:GetBlocking() and 1 or 0)
 
@@ -186,7 +237,7 @@ function SWEP:DrawWorldModel()
 
 		local pos, ang = self:ModelAnim(WorldModel, pos, ang)
 
-		if owner.PlayerClassName == "furry" then
+		if isFurryHands(owner) then
 			pos = pos + ang:Forward() * 10
 		end
 
@@ -343,7 +394,7 @@ function SWEP:SetHandPos(noset)
 	local ply = self:GetOwner()
 
 	if not IsValid(ply) or not IsValid(self.worldModel) then return end
-	if IsValid(ply) and (not ply.shouldTransmit or ply.NotSeen) then return end
+	if IsValid(ply) and ply ~= LocalPlayer() and GetViewEntity() ~= ply and (not ply.shouldTransmit or ply.NotSeen) then return end
 	-- ply:SetupBones()
 
 	self.rhandik = (self:GetFists()) or (IsValid(ent) and twohands)
@@ -359,6 +410,11 @@ function SWEP:SetHandPos(noset)
 
 	local wm = self:GetWM()
 	if !IsValid(wm) then return end
+	local desiredModel = isFurryHands(ply) and "models/weapons/salat/anims/furry_fists.mdl" or self.WorldModel
+	if wm:GetModel() ~= desiredModel then
+		wm:SetModel(desiredModel)
+		initializeSequenceState(wm)
+	end
 
 	local inv = ply:GetNetVar("Inventory",{})
 	local havekastet = inv["Weapons"] and inv["Weapons"]["hg_brassknuckles"]
@@ -559,7 +615,7 @@ function SWEP:Think()
 		if owner.PlayerClassName == "sc_infiltrator" and self.PrintName ~= "CQC" then
 			self.PrintName = "CQC"
 			self.WepSelectIcon = cqcicon
-		elseif owner.PlayerClassName == "furry" and self.PrintName ~= "Paws" then
+		elseif isFurryHands(owner) and self.PrintName ~= "Paws" then
 			self.PrintName = "Paws"
 			self.WepSelectIcon = paw
 			self.Instructions = "LMB - raise paws\nRELOAD - lower paws\n\nIn the raised state:\nLMB - strike\nRMB - block\n\n<color=91,121,229>As a bearer of a pathowogen infection, you have new abilities.\n\nIn lowered state, hold RMB to grab uninfected prey, then hold LMB to assimilate them.\n\nYou can press LMB to lick your fellow mates, doing so helps them alleviate their pain.\n\n:3<color=180,180,180>"
@@ -594,7 +650,7 @@ function SWEP:PrimaryAttack(forcespecial)
 	local owner = self:GetOwner()
 	if not IsValid(owner) or owner:InVehicle() then return end
 	if (self.attacked or 0) > CurTime() then return end
-	local isfur = owner.PlayerClassName == "furry"
+	local isfur = isFurryHands(owner)
 	local side = isfur and "fists_left" or "attack_quick_2"
 	local rand = math.Round(util.SharedRandom( "fist_Punching", 1, 2 ),0) == 1
 
@@ -635,7 +691,7 @@ function SWEP:PrimaryAttack(forcespecial)
 	end
 
 	if CLIENT and self.IsLocal and self:IsLocal() then
-		ViewPunch(special_attack and specang1 or Angle(-1, -(rand and -3 or 3), (rand and -8 or 8)))
+		ViewPunch(special_attack and specang1 or Angle(-1, -(rand and -3 or 3), (rand and -9 or 9)))
 		//ViewPunch2(special_attack and Angle(5, -2, 2) or Angle((-1), -(rand and 2 or -2), (rand and 6 or -6)))
 		if special_attack then
 			if not isfur then
@@ -651,7 +707,10 @@ function SWEP:PrimaryAttack(forcespecial)
 	end
 
 	if CLIENT and self.IsLocal and not self:IsLocal() then
-		owner:AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD,owner:LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l"),0,true)
+		local seqID = owner:LookupSequence((special_attack or rand) and "range_fists_r" or "range_fists_l")
+		if isnumber(seqID) and seqID >= 0 and seqID < owner:GetSequenceCount() then
+			owner:AddVCDSequenceToGestureSlot(GESTURE_SLOT_ATTACK_AND_RELOAD, seqID, 0, true)
+		end
 	end
 end
 
