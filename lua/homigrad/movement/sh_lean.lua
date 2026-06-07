@@ -52,7 +52,11 @@ function hg.SetPlayerLean(ply, active, target)
 end
 
 function hg.IsLeaning(ply)
-	return IsValid(ply) and ply.hglean ~= nil
+	if not IsValid(ply) then return false end
+	if ply.hglean ~= nil then return true end
+	if hg.KeyDown(ply, IN_ALT1) or hg.KeyDown(ply, IN_ALT2) then return true end
+	if math.abs(ply.lean or 0) > 0.05 then return true end
+	return false
 end
 
 if SERVER then
@@ -92,15 +96,16 @@ if SERVER then
 		end
 	end)
 
-	hook.Add("ZB_CanLootInventory", "hg_lean", function(ply)
+	hook.Add("ZB_CanLootInventory", "hg_lean", function(ply, ent, canloot)
 		if hg.IsLeaning(ply) then
-			return false
+			return ply, ent, false
 		end
 	end)
 end
 
 if CLIENT then
 	local active = false
+	local holdMode = false
 	local target = 0
 	local sendcd = 0
 	local senttarget, sentactive = 0, false
@@ -132,6 +137,7 @@ if CLIENT then
 
 	local function setLeanOff()
 		if not active and LocalPlayer().hglean == nil then return end
+		holdMode = false
 		setLeanActive(false)
 		sendLeanState()
 	end
@@ -139,6 +145,8 @@ if CLIENT then
 	local function tryToggleLean()
 		local ply = LocalPlayer()
 		if not IsValid(ply) then return end
+
+		holdMode = false
 
 		if active then
 			setLeanOff()
@@ -154,20 +162,35 @@ if CLIENT then
 	concommand.Add("hg_lean", tryToggleLean)
 	concommand.Add("+hg_lean", function()
 		local ply = LocalPlayer()
-		if not IsValid(ply) or not hg.CanLean(ply) or active then return end
-		setLeanActive(true)
-		sendLeanState()
+		if not IsValid(ply) or not hg.CanLean(ply) then return end
+		holdMode = true
+		if not active then
+			setLeanActive(true)
+			sendLeanState()
+		end
 	end)
-	concommand.Add("-hg_lean", setLeanOff)
+	concommand.Add("-hg_lean", function()
+		if not holdMode then return end
+		setLeanOff()
+	end)
 
 	hook.Add("Fake", "hg_lean", function(ply)
 		if ply ~= LocalPlayer() then return end
+		holdMode = false
 		setLeanActive(false)
 	end)
 
 	hook.Add("FakeUp", "hg_lean", function(ply)
 		if ply ~= LocalPlayer() then return end
+		holdMode = false
 		setLeanActive(false)
+	end)
+
+	hook.Add("PlayerBindPress", "hg_lean", function(ply, bind, pressed)
+		if ply ~= LocalPlayer() or not active or not pressed then return end
+		if string.find(bind, "+menu", 1, true) then
+			return true
+		end
 	end)
 
 	hook.Add("Think", "hg_lean", function()
@@ -176,6 +199,7 @@ if CLIENT then
 
 		if not hg.CanLean(ply) then
 			if active or ply.hglean ~= nil then
+				holdMode = false
 				setLeanActive(false)
 				if CurTime() > sendcd then
 					net.Start("hg_lean")
