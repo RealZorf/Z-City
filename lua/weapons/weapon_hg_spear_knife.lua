@@ -110,7 +110,7 @@ function SWEP:CustomAttack2()
     ent.returndamage = 30
     ent.returnblood = 100
     ent.PenetrationSize = 15
-    ent.penetration = 10
+    ent.Penetration = 40
 
     ent.hitworldfunc = function(ent)
         ent.wep = "weapon_hg_spear"

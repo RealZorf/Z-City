@@ -12,22 +12,19 @@ SWEP.WorldModelExchange = "models/weapons/tacint_melee/w_tonfa.mdl"
 SWEP.ViewModel = ""
 
 SWEP.HoldType = "melee"
-SWEP.weight = 0.6
 
 SWEP.HoldPos = Vector(-12,0,0)
 SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.AttackTime = 0.275
-SWEP.AnimTime1 = 1.2
-SWEP.WaitTime1 = 0.9
-SWEP.ViewPunch1 = Angle(1,1,0)
+SWEP.AttackTime = 0.45
+SWEP.AnimTime1 = 1.45
+SWEP.WaitTime1 = 1.15
+SWEP.ViewPunch1 = Angle(0,-5,3)
 
 SWEP.Attack2Time = 0.3
-SWEP.AnimTime2 = 0.7
-SWEP.WaitTime2 = 0.7
-SWEP.ViewPunch2 = Angle(0,0,-2)
-
-SWEP.AnimAlwaysBack = true
+SWEP.AnimTime2 = 1
+SWEP.WaitTime2 = 0.8
+SWEP.ViewPunch2 = Angle(0,0,-4)
 
 SWEP.attack_ang = Angle(0,0,0)
 SWEP.sprint_ang = Angle(15,0,0)
@@ -38,11 +35,11 @@ SWEP.weaponPos = Vector(-0.3,0.5,-8)
 SWEP.weaponAng = Angle(0,-90,0)
 
 SWEP.DamageType = DMG_CLUB
-SWEP.DamagePrimary = 16
+SWEP.DamagePrimary = 19
 SWEP.DamageSecondary = 13
 
-SWEP.PenetrationPrimary = 3
-SWEP.PenetrationSecondary = 3
+SWEP.PenetrationPrimary = 1
+SWEP.PenetrationSecondary = 1
 
 SWEP.MaxPenLen = 3
 
@@ -52,7 +49,7 @@ SWEP.PenetrationSizeSecondary = 2
 SWEP.StaminaPrimary = 12
 SWEP.StaminaSecondary = 8
 
-SWEP.AttackLen1 = 55
+SWEP.AttackLen1 = 40
 SWEP.AttackLen2 = 30
 
 SWEP.AnimList = {
@@ -78,6 +75,11 @@ SWEP.Attack2Hit = "Plastic_Box.ImpactHard"
 SWEP.AttackHitFlesh = "Flesh.ImpactHard"
 SWEP.Attack2HitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "Plastic_Box.ImpactSoft"
+SWEP.SwingSoundPitch = 115
+
+SWEP.BlockTier = 2
+SWEP.MeleeMaterial = "metal"
+SWEP.BlockImpactSound = "Plastic_Box.ImpactHard"
 
 SWEP.AttackPos = Vector(0,0,0)
 --[[
@@ -98,6 +100,17 @@ end
 
 function SWEP:CanSecondaryAttack()
     return false
+end
+
+function SWEP:CustomBlockAnim(addPosLerp, addAngLerp)
+    addPosLerp.z = addPosLerp.z + (self:GetBlocking() and -14 or 0)
+    addPosLerp.x = addPosLerp.x + (self:GetBlocking() and 13.4 or 0)
+    addPosLerp.y = addPosLerp.y + (self:GetBlocking() and -28 or 0)
+    addAngLerp.r = addAngLerp.r + (self:GetBlocking() and -85 or 0)
+    addAngLerp.y = addAngLerp.y + (self:GetBlocking() and 105 or 0)
+    addAngLerp.x = addAngLerp.x + (self:GetBlocking() and 0 or 0)
+    
+    return true
 end
 
 SWEP.AttackTimeLength = 0.155

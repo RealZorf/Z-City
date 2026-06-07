@@ -29,14 +29,16 @@ SWEP.SuicidePunchAng = Angle(5, -15, 0)
 SWEP.HoldPos = Vector(-12,0,0)
 SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.AttackTime = 0.26
-SWEP.AnimTime1 = 1.2
-SWEP.WaitTime1 = 0.9
+SWEP.AttackTime = 0.6
+SWEP.AnimTime1 = 1.85
+SWEP.WaitTime1 = 1.2
+SWEP.AttackLen1 = 45
 SWEP.ViewPunch1 = Angle(1,1,0)
 
-SWEP.Attack2Time = 0.3
-SWEP.AnimTime2 = 0.7
-SWEP.WaitTime2 = 0.7
+SWEP.Attack2Time = 0.6
+SWEP.AnimTime2 = 1.85
+SWEP.WaitTime2 = 1
+SWEP.AttackLen2 = 30
 SWEP.ViewPunch2 = Angle(0,0,-2)
 
 SWEP.attack_ang = Angle(0,0,0)
@@ -69,6 +71,20 @@ SWEP.Attack2Hit = "Canister.ImpactHard"
 SWEP.AttackHitFlesh = "snd_jack_hmcd_axehit.wav"
 SWEP.Attack2HitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "physics/metal/metal_solid_impact_soft1.wav"
+SWEP.SwingSound = "baseballbat/swing.ogg"
+SWEP.HitFleshExtra = {
+    "hatchet/hatchethit1.ogg",
+    "hatchet/hatchethit2.ogg",
+    "hatchet/hatchethit3.ogg",
+
+}
+SWEP.HitFleshExtraPitch = 105
+SWEP.SwingSoundPitch = {115, 120}
+
+SWEP.BlockTier = 2
+SWEP.MeleeMaterial = "metal"
+SWEP.BlockImpactSound = "physics/metal/metal_solid_impact_bullet1.wav"
+
 
 SWEP.AttackPos = Vector(0,0,0)
 
@@ -100,8 +116,6 @@ function SWEP:CustomAttack2()
     ent.owner = ply
     ent.localshit = Vector(4,6,0)
     ent.damage = 25
-    ent.penetration = 5
-    ent.shouldntlodge = true
 
     local phys = ent:GetPhysicsObject()
     if IsValid(phys) then
@@ -123,10 +137,10 @@ function SWEP:PrimaryAttackAdd(ent)
 end
 
 SWEP.DamageType = DMG_SLASH
-SWEP.DamagePrimary = 40
+SWEP.DamagePrimary = 28
 SWEP.DamageSecondary = 9
 
-SWEP.PenetrationPrimary = 10
+SWEP.PenetrationPrimary = 3
 SWEP.PenetrationSecondary = 3
 
 SWEP.MaxPenLen = 6
@@ -134,13 +148,11 @@ SWEP.MaxPenLen = 6
 SWEP.PenetrationSizePrimary = 2
 SWEP.PenetrationSizeSecondary = 3
 
-SWEP.StaminaPrimary = 20
-SWEP.StaminaSecondary = 60
+SWEP.StaminaPrimary = 24
+SWEP.StaminaSecondary = 20
 
 SWEP.AttackLen1 = 40
 SWEP.AttackLen2 = 30
-
-SWEP.AnimAlwaysBack = true
 
 SWEP.NoHolster = true
 

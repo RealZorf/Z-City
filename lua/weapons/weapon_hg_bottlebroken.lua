@@ -5,7 +5,7 @@ SWEP.Instructions = "Broken beer bottle, looks like someone was too drunk.\n\nLM
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
-SWEP.HoldType = "knife"
+SWEP.HoldType = "melee"
 
 SWEP.WorldModel = "models/props_junk/glassbottle01a_chunk01a.mdl"
 SWEP.WorldModelReal = "models/weapons/salat/reanim/c_s&wch0014.mdl"
@@ -21,7 +21,6 @@ SWEP.SuicideSound = "snd_jack_hmcd_knifestab.wav"
 SWEP.SuicideNoLH = true
 
 SWEP.BreakBoneMul = 0.1
-SWEP.weight = 0.5
 
 SWEP.AnimTime1 = 1.0
 SWEP.AttackTime = 0.2

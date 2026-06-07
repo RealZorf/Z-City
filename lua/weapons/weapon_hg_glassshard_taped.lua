@@ -20,7 +20,6 @@ SWEP.CanSuicide = true
 SWEP.SuicideNoLH = true
 
 SWEP.BreakBoneMul = 0.1
-SWEP.weight = 0.5
 
 SWEP.AnimTime1 = 1.0
 SWEP.AttackTime = 0.2
@@ -46,7 +45,6 @@ SWEP.DamagePrimary = 7
 SWEP.PenetrationPrimary = 1.1
 
 SWEP.StaminaPrimary = 10
-SWEP.StaminaSecondary = 20
 
 SWEP.BleedMultiplier = 1.8
 
@@ -96,10 +94,8 @@ function SWEP:CustomAttack2()
     ent.damage = self.DamagePrimary * 0.7
     ent.MaxSpeed = 1200
     ent.DamageType = self.DamageType
-    ent.AttackHitFlesh = "snd_jack_hmcd_knifestab.wav"
-	ent.AttackHit = "snd_jack_hmcd_knifehit.wav"
-    ent.shouldntlodge = true
-    ent.modelscale = self.modelscale
+    ent.AttackHit = "GlassBottle.ImpactHard"
+    ent.AttackHitFlesh = "Flesh.ImpactHard"
     ent:PrecacheGibs()
 
     ent.func = function(data)

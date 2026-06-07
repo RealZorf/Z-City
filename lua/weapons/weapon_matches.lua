@@ -3,7 +3,7 @@ if SERVER then
 end
 
 if CLIENT then
-    SWEP.PrintName = "Match Box"
+    SWEP.PrintName = "Matchbox"
     SWEP.Slot = 3
     SWEP.SlotPos = 5
     SWEP.DrawAmmo = false
@@ -60,13 +60,11 @@ function SWEP:BoneSet(lookup_name, vec, ang)
 end
 
 local lang1, lang2 = Angle(0, -10, 0), Angle(0, 10, 0)
-local rang1, rang2 = Angle(15, -20, 10), Angle(0, 0, 40)
+local rang1, rang2 = Angle(15, -20, 10),Angle(0, 0, 40)
 function SWEP:Animation()
-	local owner = self:GetOwner()
-    if (owner.zmanipstart ~= nil and not owner.organism.larmamputated) then return end
+    if (self:GetOwner().zmanipstart ~= nil and not self:GetOwner().organism.larmamputated) then return end
     local hold = self:GetHolding()
-
-    if self:Clip1() <= 0 and hold <= 5 then
+    if self:Clip1() <= 0 then
         self:BoneSet("r_upperarm", vector_origin, rang1)
         self:BoneSet("r_forearm", vector_origin, rang2)
     else

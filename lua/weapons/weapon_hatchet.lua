@@ -5,8 +5,6 @@ SWEP.Instructions = "A single-handed striking tool with a sharp blade on one sid
 SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
-SWEP.Damage = 25
-SWEP.Damage = 25
 SWEP.HoldType = "melee"
 
 SWEP.SuicidePos = Vector(28, 6, -31)
@@ -28,19 +26,18 @@ SWEP.WorldModelExchange = false
 SWEP.DontChangeDropped = true
 SWEP.ViewModel = ""
 
-SWEP.bloodID = 3
 
 SWEP.HoldPos = Vector(-12,0,0)
 SWEP.HoldAng = Angle(0,0,0)
 
-SWEP.AttackTime = 0.37
-SWEP.AnimTime1 = 1.5
-SWEP.WaitTime1 = 1
+SWEP.AttackTime = 0.6
+SWEP.AnimTime1 = 1.85
+SWEP.WaitTime1 = 1.2
 SWEP.AttackLen1 = 45
 SWEP.ViewPunch1 = Angle(1,1,0)
 
-SWEP.Attack2Time = 0.4
-SWEP.AnimTime2 = 1
+SWEP.Attack2Time = 0.6
+SWEP.AnimTime2 = 1.85
 SWEP.WaitTime2 = 1
 SWEP.AttackLen2 = 30
 SWEP.ViewPunch2 = Angle(0,0,-2)
@@ -52,8 +49,6 @@ SWEP.basebone = 94
 
 SWEP.weaponPos = Vector(0,5,-2)
 SWEP.weaponAng = Angle(0,-90,0)
-
-SWEP.AnimAlwaysBack = true
 
 SWEP.AnimList = {
     ["idle"] = "Idle",
@@ -72,6 +67,7 @@ end
 SWEP.setlh = false
 SWEP.setrh = true
 SWEP.TwoHanded = false
+SWEP.NoReverse = true
 
 
 SWEP.AttackHit = "Canister.ImpactHard"
@@ -79,23 +75,39 @@ SWEP.Attack2Hit = "Canister.ImpactHard"
 SWEP.AttackHitFlesh = "snd_jack_hmcd_axehit.wav"
 SWEP.Attack2HitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "physics/metal/metal_solid_impact_soft1.wav"
+SWEP.SwingSound = "baseballbat/swing.ogg"
+SWEP.HitFleshExtra = {
+    "hatchet/hatchethit1.ogg",
+    "hatchet/hatchethit2.ogg",
+    "hatchet/hatchethit3.ogg",
+
+}
+SWEP.HitFleshExtraPitch = 105
+SWEP.SwingSoundPitch = {115, 120}
 
 SWEP.AttackPos = Vector(0,0,0)
 
 SWEP.DamageType = DMG_SLASH
-SWEP.DamagePrimary = 25
+SWEP.DamagePrimary = 24
 SWEP.DamageSecondary = 11
 
-SWEP.PenetrationPrimary = 10
-SWEP.PenetrationSecondary = 3
+SWEP.PenetrationPrimary = 3
+SWEP.PenetrationSecondary = 2
 
 SWEP.MaxPenLen = 6
 
 SWEP.PenetrationSizePrimary = 2
 SWEP.PenetrationSizeSecondary = 3
 
-SWEP.StaminaPrimary = 30
-SWEP.StaminaSecondary = 60
+SWEP.StaminaPrimary = 31
+SWEP.StaminaSecondary = 10
+
+SWEP.AttackLen1 = 55
+SWEP.AttackLen2 = 30
+
+SWEP.BlockTier = 3
+SWEP.MeleeMaterial = "wood"
+SWEP.BlockImpactSound = "physics/wood/wood_plank_impact_hard1.wav"
 
 function SWEP:CanPrimaryAttack()
     self.DamageType = DMG_SLASH
@@ -124,9 +136,8 @@ function SWEP:CustomAttack2()
     ent.localshit = Vector(4,6,0)
     ent.wep = self:GetClass()
     ent.owner = ply
-    ent.damage = 25
-    ent.penetration = 5
-    ent.shouldntlodge = true
+    ent.damage = 30
+    ent.wallLodgeChance = 0.15
 
     local phys = ent:GetPhysicsObject()
 

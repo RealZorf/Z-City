@@ -102,7 +102,8 @@ function SWEP:Initialize()
 		self.HoldType = "melee"
 		self:SetHold(self.HoldType)
 	end
-	
+
+	hg.weapons2[self] = true
 	self.count = 1
 end
 
@@ -147,7 +148,6 @@ end
 local veczero = Vector(0, 0, 0)
 function SWEP:PrimaryAttack()
 	if CLIENT then return end
-	if self.cooldowndeploy and self.cooldowndeploy > CurTime() then return end
 	local time = CurTime()
 	local ent = ents.Create("ent_throwable")
 
@@ -185,14 +185,6 @@ function SWEP:PrimaryAttack()
 		ply:SelectWeapon("weapon_hands_sh")
 		self:Remove()
 	end
-end
-
-function SWEP:Deploy()
-	self.BaseClass.Deploy(self)
-
-	if !IsFirstTimePredicted() then return end
-
-	self.cooldowndeploy = CurTime() + 1
 end
 
 function SWEP:SecondaryAttack()
