@@ -99,13 +99,17 @@ if CLIENT then
 	}
 end
 
+SWEP.settedGroups = false
 function SWEP:ThinkAdd()
 	if CLIENT and self:GetWM() and not isbool(self:GetWM()) and isstring(self.FakeBodyGroups) then
 		if self:HasAttachment("grip", "grip_akdong") then
 			self:GetWM():SetBodyGroups("02900080302")
+			self.settedGroups = true
 		else
 			self:GetWM():SetBodyGroups(self.FakeBodyGroups)
+			self.settedGroups = true
 		end
+		--self:GetWM():SetBodyGroups(self.FakeBodyGroups)
 	end
 end
 

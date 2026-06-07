@@ -120,21 +120,11 @@ SWEP.AnimList = {
 	["start"] = "base_reload_start",
 	["cycle"] = "base_fire_cock_2",
 }
-
-local function setM590ShellScale(model, vec)
-	if not IsValid(model) then return end
-
-	local shellBone = model:LookupBone("Shell")
-	if not isnumber(shellBone) then return end
-
-	model:ManipulateBoneScale(shellBone, vec)
-end
-
 SWEP.AnimsEvents = {
 	["base_reload_insert"] = {
 		[0.0] = function(self, mdl)
 			self:EmitSound("weapons/arccw_ud/870/shell-insert-0"..math.random(1,3)..".ogg")
-			setM590ShellScale(mdl, Vector(1, 1, 1))
+			mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), Vector(1, 1, 1))
 			--
 			--self:GetWM():ManipulateBoneScale(47, vector_full)
 		end,
@@ -144,7 +134,7 @@ SWEP.AnimsEvents = {
 	},
 	["base_reload_end"] = {
 		[0.0] = function(self, mdl)
-			setM590ShellScale(mdl, vector_origin)
+			mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), vector_origin)
 		end,
 	},
 	["base_fire_cock_2"] = {
@@ -206,7 +196,7 @@ function SWEP:DrawPost() --!! оно на груди не видно а еще �
 end]]
 
 function SWEP:ModelCreated(mdl)
-	setM590ShellScale(mdl, vector_origin)
+	mdl:ManipulateBoneScale(mdl:LookupBone("Shell"), vector_origin)
 end
 
 function SWEP:AnimationPost()
@@ -281,13 +271,13 @@ local function reloadFunc(self)
 
 	self:SetNetVar("shootgunReload",CurTime() + 1.1)
 
-	if self.MagIndex then
+	if self.MagIndex and IsValid(self:GetWM()) then
 		self:GetWM():ManipulateBoneScale(self.MagIndex, vector_full)
 	end
 	
 	self:PlayAnim(self.AnimList["insert"] or "sgreload_insert", 1, false, function() 
 		self:InsertAmmo(1) 
-		if self.MagIndex then
+		if self.MagIndex and IsValid(self:GetWM()) then
 			self:GetWM():ManipulateBoneScale(self.MagIndex, vector_origin)
 		end
 		

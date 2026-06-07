@@ -16,7 +16,7 @@ SWEP.WorldModel = "models/weapons/w_rif_m4a1.mdl"
 SWEP.WepSelectIcon2 = Material("vgui/hud/tfa_ins2_m4a1.png")
 SWEP.IconOverride = "entities/arc9_eft_m4a1.png"
 
-SWEP.Primary.Wait = 0.063
+SWEP.Primary.Wait = 0.085
 SWEP.Primary.Automatic = true
 
 //SWEP.StartAtt = {"ironsight2", false}

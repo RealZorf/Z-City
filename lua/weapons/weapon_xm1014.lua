@@ -15,7 +15,7 @@ SWEP.WepSelectIcon2 = Material("pwb/sprites/xm1014.png")
 SWEP.IconOverride = "entities/weapon_pwb_xm1014.png"
 SWEP.WorldModelFake = "models/weapons/arccw/c_ud_m1014.mdl"
 
-
+--PrintAnims(Entity(1):GetActiveWeapon():GetWM())
 --PrintTable(Entity(1):GetActiveWeapon():GetWM():GetAttachments())
 --uncomment for funny
 SWEP.FakePos = Vector(-10, 3.035, 3.45)
@@ -145,30 +145,11 @@ SWEP.AnimList = {
 function SWEP:AnimHoldPost()
 end
 
-local function getValidXM1014WM(self, fallback)
-	if IsValid(fallback) then
-		return fallback
-	end
-
-	if not self.GetWM then return nil end
-
-	local wm = self:GetWM()
-	return IsValid(wm) and wm or nil
-end
-
-local function setXM1014LoadingPortScale(self, vec, fallback)
-	local wm = getValidXM1014WM(self, fallback)
-	if not IsValid(wm) then return end
-
-	wm:ManipulateBoneScale(47, vec)
-end
-
 function SWEP:ModelCreated(model)
-	local wm = getValidXM1014WM(self, model)
-	if IsValid(wm) and isstring(self.FakeBodyGroups) then
-		setXM1014LoadingPortScale(self, vector_origin, wm)
-		wm:SetBodyGroups(self.FakeBodyGroups)
-		--local ent = wm
+	if CLIENT and self:GetWM() and not isbool(self:GetWM()) and isstring(self.FakeBodyGroups) then
+		self:GetWM():ManipulateBoneScale(47, vector_origin)
+		self:GetWM():SetBodyGroups(self.FakeBodyGroups)
+		--local ent = self:GetWM()
 		--ent:SetColor(Color(255,0,0))
 	end
 end
@@ -239,12 +220,12 @@ local function reloadFunc(self)
 	
 	self:SetNetVar("shootgunReload",CurTime() + 1.1)
 
-	setXM1014LoadingPortScale(self, vector_full)
+	self:GetWM():ManipulateBoneScale(47, vector_full)
 	--self:GetOwner():PullLHTowards("ValveBiped.Bip01_Spine2", 0.58)
 
 	self:PlayAnim(self.AnimList["insert"] or "sgreload_insert", 1, false, function() 
 		self:InsertAmmo(1) 
-		setXM1014LoadingPortScale(self, vector_origin)
+		self:GetWM():ManipulateBoneScale(47, vector_origin)
 		
 		local key = hg.KeyDown(self:GetOwner(), IN_RELOAD)
 		--print("reload",key)
@@ -302,23 +283,23 @@ SWEP.AnimsEvents = {
 	["sgreload_start_empty"] = {
 		[0.2] = function(self)
 			self:EmitSound("weapons/arccw_ud/m1014/breechload.ogg")
-			setXM1014LoadingPortScale(self, vector_full)
+			self:GetWM():ManipulateBoneScale(47, vector_full)
 		end,
 		[0.8] = function(self)
 			self:EmitSound("weapons/arccw_ud/m1014/breechclose.ogg")
 		end,
 		[0.9] = function(self)
-			setXM1014LoadingPortScale(self, vector_origin)
+			self:GetWM():ManipulateBoneScale(47, vector_origin)
 		end,
 	},
 	["sgreload_insert"] = {
 		[0.0] = function(self)
 			self:EmitSound("weapons/arccw_ud/m1014/shell-insert-0"..math.random(1,3)..".ogg")
 			--
-			setXM1014LoadingPortScale(self, vector_full)
+			self:GetWM():ManipulateBoneScale(47, vector_full)
 		end,
 		[0.8] = function(self)
-			setXM1014LoadingPortScale(self, vector_origin)
+			self:GetWM():ManipulateBoneScale(47, vector_origin)
 		end,
 	}
 }

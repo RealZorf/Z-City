@@ -107,10 +107,6 @@ function SWEP:CanPrimaryAttack()
 	return not (self:GetAnimPos_Draw(CurTime()) > 0)
 end
 
-local function getM4SuperPrimaryWait(self)
-	return (self.Primary and self.Primary.Wait) or SWEP.Primary.Wait or 0
-end
-
 SWEP.reloadCoolDown = 0
 if SERVER then
 	util.AddNetworkString("hgwep draw")
@@ -131,7 +127,7 @@ if SERVER then
 			net.WriteBool(self.drawBullet)
 			net.WriteFloat(CurTime())
 			net.Broadcast()
-			self.Primary.Next = CurTime() + self.AnimDraw + getM4SuperPrimaryWait(self)
+			self.Primary.Next = CurTime() + self.AnimDraw + self.Primary.Wait
 			self:PlaySnd(self.CockSound or "weapons/shotgun/shotgun_cock.wav",true,CHAN_AUTO)
 			local ply = self:GetOwner()
 			if IsValid(ply:GetNetVar("carryent2")) then
@@ -195,7 +191,7 @@ else
 			self.AnimStart_Draw = time
 			self.drawBullet = drawBullet
 			--if self.Draw then self:Draw() end
-			self.Primary.Next = time + (self.AnimDraw or 0) + getM4SuperPrimaryWait(self)
+			self.Primary.Next = time + (self.AnimDraw or 0) + self.Primary.Wait
 		end
 	end)
 end
@@ -217,7 +213,7 @@ function SWEP:ReloadEnd()
 			net.WriteFloat(CurTime())
 			net.Broadcast()
 			if self.Chocking then
-				self.Primary.Next = CurTime() + self.AnimDraw + getM4SuperPrimaryWait(self)
+				self.Primary.Next = CurTime() + self.AnimDraw + self.Primary.Wait
 				self:GetOwner():EmitSound(self.CockSound or "weapons/shotgun/shotgun_cock.wav")
 			end
 		end

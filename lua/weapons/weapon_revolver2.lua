@@ -287,7 +287,6 @@ if SERVER then
 
 		if not wep.Drum then return end
 
-		wep:AttachAnim()
 		if wep.Drum[val] != 0 then
 			local value = -(-wep.Drum[val])
 			wep.Drum[val] = 0
@@ -310,12 +309,10 @@ if SERVER then
 
 	concommand.Add("hg_rolldrum",function(ply, cmd, args)
 		local wep = ply:GetActiveWeapon()
-		if IsValid(wep) and wep.Drum and (ply.DrumCD or 0) < CurTime() then
-			wep:AttachAnim()
+		if IsValid(wep) and wep.Drum then
 			wep:ShiftDrum(math.random(6))
 			ply:EmitSound("weapons/357/357_spin1.wav")
 			wep.Rolled = true
-			ply.DrumCD = CurTime() + 0.5
 		end
 	end)
 end
@@ -350,7 +347,7 @@ end
 
 function SWEP:Unload()
 	if CLIENT then return end
-
+	
 	if self.SendDrum then
 		for i = 1,#self.Drum do
 			self.Drum[i] = 0
@@ -387,7 +384,6 @@ local phrases = {
 	"Luck is on my side!",
 }
 
-local clr_notify = Color(122, 0, 0)
 function SWEP:Shoot(override)
 	--self:GetWeaponEntity():ResetSequenceInfo()
 	--self:GetWeaponEntity():SetSequence(1)
@@ -410,10 +406,10 @@ function SWEP:Shoot(override)
 		self.shooanim = 1
 
 		local ply = self:GetOwner()
-		if SERVER and IsValid(ply) and ply:IsPlayer() and ply.organism and self.Rolled and self:Clip1() > 0 and ply.suiciding and ply:GetNWFloat("willsuicide") < CurTime() then
+		if SERVER and IsValid(ply) and ply:IsPlayer() and ply.organism and self.Rolled and self:Clip1() > 0 and ply.suiciding then
 			ply.organism.adrenalineAdd = ply.organism.adrenalineAdd + self:Clip1()
 			ply.organism.fearadd = ply.organism.fearadd + 0.5
-			ply:Notify(phrases[math.random(#phrases)], 1, "suicide", nil, nil, clr_notify)
+			ply:Notify(phrases[math.random(#phrases)], 1, "suicide", nil, nil, Color(122, 0, 0))
 			hg.achievements.AddPlayerAchievement(ply, "deadlygambling", 1)
 		end
 

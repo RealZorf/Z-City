@@ -10,7 +10,7 @@ SWEP.SlotPos = 10
 SWEP.ViewModel = ""
 SWEP.WorldModel = "models/weapons/w_pist_elite_single.mdl"
 SWEP.WorldModelFake = "models/weapons/arccw/c_ur_m1911.mdl"
--- SWEP.GetDebug = false
+SWEP.GetDebug = false
 
 SWEP.WepSelectIcon2 = Material("entities/arc9_eft_m1911.png")
 SWEP.IconOverride = "entities/arc9_eft_m1911.png"
@@ -121,17 +121,15 @@ SWEP.AnimsEvents = {
 	["reload_empty"] = {
 		[0.2] = function(self)
 			local ent = hg.CreateMag( self, Vector(0,-45,-12), self:GetRandomBodygroups() or "0", true)
-			if IsValid(ent) then
-				for i = 0, ent:GetBoneCount() - 1 do
-					ent:ManipulateBoneScale(i, vector_origin)
-				end
-
-				ent:ManipulateBoneScale(54, Vector(1,1,1))
-				ent:ManipulateBoneScale(55, Vector(1,1,1))
+			for i = 0, ent:GetBoneCount() - 1 do
+				ent:ManipulateBoneScale(i, vector_origin)
 			end
 
+			ent:ManipulateBoneScale(54, Vector(1,1,1))
+			ent:ManipulateBoneScale(55, Vector(1,1,1))
+
 			HideMag2(self:GetWM(),false)
-			local phys = IsValid(ent) and ent:GetPhysicsObject() or nil
+			local phys = ent:GetPhysicsObject()
 
 			if IsValid(phys) then
 				phys:AddAngleVelocity(Vector(-250,0,0))
