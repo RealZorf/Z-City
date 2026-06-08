@@ -194,6 +194,9 @@ end
 
 SWEP.modelscale = 1
 SWEP.modelscale2 = 1
+
+local ResetMeleeClientState
+
 if CLIENT then
     function PrintBones( entity )
         for i = 0, entity:GetBoneCount() - 1 do
@@ -205,6 +208,78 @@ if CLIENT then
         PrintTable(entity:GetSequenceList())
     end
 
+    function ResetMeleeClientState(self, owner, keepModel)
+        self.rhandik = false
+        self.lhandik = false
+        self.velocityAdd = nil
+        self.velocityAddVel = nil
+        self.walkLerped = nil
+        self.walkTime = nil
+        self.lerpedAddPos = nil
+        self.lerpedAddAng = nil
+        self.lastAddPos = nil
+        self.timetick2 = nil
+        self.lasthuyhuy = nil
+
+        if IsValid(owner) and hg.ResetTPIKState then
+            hg.ResetTPIKState(owner)
+        end
+
+        if not keepModel then
+            if IsValid(self.worldModel) then
+                self.worldModel:Remove()
+            end
+            self.worldModel = nil
+
+            if IsValid(self.worldModel2) then
+                self.worldModel2:Remove()
+            end
+            self.worldModel2 = nil
+        end
+    end
+
+    local function EnsureMeleeAnimationModel(self, model)
+        if not IsValid(model) or not self.WorldModelReal then return end
+        if model:GetModel() == self.WorldModelReal then return end
+
+        model:SetModel(self.WorldModelReal)
+        model:SetNoDraw(true)
+        model:SetupBones()
+
+        local idle = self.AnimList and self.AnimList.idle
+        if idle then
+            model:SetSequence(idle)
+        end
+
+        self.animtime = CurTime()
+        self.animspeed = 1
+        self.cycling = false
+        self.reverseanim = false
+    end
+
+    local function getMeleeExchangeModel(self)
+        if self.WorldModelExchange then return self.WorldModelExchange end
+        if self.WorldModelReal and self.WorldModel and self.WorldModel ~= self.WorldModelReal then
+            return self.WorldModel
+        end
+    end
+
+    local function hideViewmodelPlayerMesh(worldModel, extraBones)
+        local bonesToHide = extraBones or hg.TPIKBonesOther
+        if not bonesToHide then return end
+
+        for _, boneName in ipairs(bonesToHide) do
+            local bone = worldModel:LookupBone(boneName)
+            if not bone then continue end
+
+            local matrix = worldModel:GetBoneMatrix(bone)
+            if not matrix then continue end
+
+            matrix:Zero()
+            worldModel:SetBoneMatrix(bone, matrix)
+        end
+    end
+
 	function SWEP:GetWM()
         if IsValid(self.worldModel) then
             return self.worldModel
@@ -212,6 +287,7 @@ if CLIENT then
             self.worldModel = ClientsideModel(self.WorldModel)
             self.worldModel:SetNoDraw(true)
             self.worldModel:SetupBones()
+            local model = self.worldModel
             self:CallOnRemove("remove_worldmodel1",function()
                 if IsValid(model) then
                     model:Remove()
@@ -227,12 +303,14 @@ if CLIENT then
 		local ent = self:GetOwner()
         if not IsValid(ent) then
             self:DrawWorldModel2()
+            return
         end
         
         if ent:IsNPC() then
 			local RHand = ent:LookupBone("ValveBiped.Bip01_R_Hand")
 			if not RHand then return end
-			local matrixR = ent:GetBoneMatrix(RHand) or ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_R_Forearm"))
+			local RForearm = ent:LookupBone("ValveBiped.Bip01_R_Forearm")
+			local matrixR = ent:GetBoneMatrix(RHand) or (RForearm and ent:GetBoneMatrix(RForearm) or nil)
 			if not matrixR then 
 				//matrixR = Matrix()
 				//local att = ent:GetAttachment(ent:LookupAttachment("anim_attachment_RH"))
@@ -267,7 +345,7 @@ if CLIENT then
 
     SWEP.Current = 1
 
-	function SWEP:DrawWorldModel2()
+	function SWEP:DrawWorldModel2(updateOnly)
 		local owner = self:GetOwner()
         
         if not IsValid(self.worldModel) then
@@ -276,13 +354,32 @@ if CLIENT then
         
         self.worldModel:SetNoDraw(true)
         
-        if IsValid(owner) and (not owner.shouldTransmit or owner.NotSeen) then return end
+        local localOwner = CLIENT and IsValid(owner) and (owner == LocalPlayer() or GetViewEntity() == owner)
+        if IsValid(owner) and not localOwner and (not owner.shouldTransmit or owner.NotSeen) then return end
         if not IsValid(owner) and (not self.shouldTransmit or self.NotSeen) then return end
 
 		local WorldModel = self.worldModel
         
         self.worldModel:SetModelScale(self.modelscale2)
+        if IsValid(owner) then
+            EnsureMeleeAnimationModel(self, WorldModel)
+        end
+
         local ent = hg.GetCurrentCharacter(owner)
+        if IsValid(owner) and not IsValid(ent) then
+            ResetMeleeClientState(self, owner, true)
+            return
+        end
+
+        local worldModelName = WorldModel:GetModel()
+        local entModel = IsValid(ent) and ent:GetModel() or nil
+        if self.ZCMeleeLastOwner ~= owner or self.ZCMeleeLastEnt ~= ent or self.ZCMeleeLastEntModel ~= entModel or self.ZCMeleeLastWorldModel ~= worldModelName then
+            ResetMeleeClientState(self, owner, true)
+            self.ZCMeleeLastOwner = owner
+            self.ZCMeleeLastEnt = ent
+            self.ZCMeleeLastEntModel = entModel
+            self.ZCMeleeLastWorldModel = worldModelName
+        end
 
         local inuse = self:InUse()
 
@@ -319,6 +416,7 @@ if CLIENT then
 
                 local timing = (1 - math.Clamp((self.animtime - animCalcTime) / self.animspeed, 0, 1))
                 timing = self.reverseanim and (1 - timing) or timing
+                timing = self.CustomTiming and self:CustomTiming() or timing
                 WorldModel:SetCycle(timing)
                 --PrintTable( WorldModel:GetSequenceList() )
                 
@@ -331,9 +429,20 @@ if CLIENT then
                 WorldModel:SetCycle(timing)
             end
 
-            if WorldModel:GetModel() ~= self.WorldModelReal then WorldModel:SetModel(self.WorldModelReal) end
-            
             local pos, ang = self:ModelAnim(WorldModel)
+            if not isvector(pos) or not isangle(ang) or pos.x ~= pos.x or pos.y ~= pos.y or pos.z ~= pos.z then
+                local fallbackEnt = IsValid(ent) and ent or owner
+                local handBone = IsValid(fallbackEnt) and fallbackEnt.LookupBone and fallbackEnt:LookupBone("ValveBiped.Bip01_R_Hand")
+                local handMatrix = handBone and fallbackEnt:GetBoneMatrix(handBone)
+
+                if handMatrix then
+                    pos, ang = handMatrix:GetTranslation(), handMatrix:GetAngles()
+                else
+                    pos, ang = owner:EyePos(), owner:EyeAngles()
+                end
+            end
+
+            if not isvector(pos) or not isangle(ang) then return end
 
             self.ShakePos = self.ShakePos or Vector(0, 0, 0)
             self.ShakeAng = self.ShakeAng or Angle(0, 0, 0)
@@ -368,6 +477,7 @@ if CLIENT then
         WorldModel:SetupBones()
         
         if IsValid(owner) and !inuse then
+            if not IsValid(ent) then return end
             local bon = ent:LookupBone("ValveBiped.Bip01_R_Hand")
             if not bon then return end
             local mat = ent:GetBoneMatrix(bon)
@@ -387,6 +497,7 @@ if CLIENT then
             WorldModel:SetAngles(ang)
 
             local bon = WorldModel:LookupBone("ValveBiped.Bip01_R_Hand")
+            if not bon then return end
             local matW = WorldModel:GetBoneMatrix(bon)
 
             if !matW then return end
@@ -401,13 +512,18 @@ if CLIENT then
             end
         end
 
-        if not self.WorldModelExchange then
+        if updateOnly then return end
+
+        local exchangeModel = getMeleeExchangeModel(self)
+
+        if not exchangeModel then
+            hideViewmodelPlayerMesh(WorldModel, self.HideVMArms)
             WorldModel:DrawModel()
         end
 
-        if IsValid(self.worldModel) and self.WorldModelExchange then
+        if IsValid(self.worldModel) and exchangeModel then
             if not IsValid(self.worldModel2) then
-                self.worldModel2 = ClientsideModel(self.WorldModelExchange)
+                self.worldModel2 = ClientsideModel(exchangeModel)
                 self.worldModel2:SetNoDraw(true)
                 self.worldModel2:SetupBones()
                 local model = self.worldModel2
@@ -576,7 +692,7 @@ function SWEP:ModelAnim(model, pos, ang)
 
     addPosLerp.z = addPosLerp.z + ((hg.KeyDown(owner, IN_DUCK)) and -2 or 0)
 
-    local chargeState = self.CanHeavyAttack and ((self.GetChargeState and self:GetChargeState()) or self:GetDTInt(6)) or 0
+    local chargeState = self.CanHeavyAttack and ((self.GetChargeState and self:GetChargeState()) or self:GetDTInt(11)) or 0
     local isChargingHeavy = chargeState == 1 or chargeState == 2
 
     if isChargingHeavy then
@@ -734,9 +850,16 @@ function SWEP:SetHandPos(noset)
 	self.lhandik = false
     
     if not IsValid(ply) or not IsValid(self.worldModel) then return end
-    if not ply.shouldTransmit or ply.NotSeen then return end
+    local localOwner = CLIENT and (ply == LocalPlayer() or GetViewEntity() == ply)
+    if not localOwner and (not ply.shouldTransmit or ply.NotSeen) then return end
 
     local ent = hg.GetCurrentCharacter(ply)
+    if not IsValid(ent) then
+        if CLIENT and ResetMeleeClientState then
+            ResetMeleeClientState(self, ply, true)
+        end
+        return
+    end
 
 	local bones = hg.TPIKBonesLH
 
@@ -758,7 +881,9 @@ function SWEP:SetHandPos(noset)
 	ply.rhold = rhmat
 	ply.lhold = lhmat
 
-	if self.lhandik and self:InUse() then
+    local shouldApplyTpikBones = ent ~= ply or (hg.RagdollCombatInUse and hg.RagdollCombatInUse(ply))
+
+	if self.lhandik and self:InUse() and shouldApplyTpikBones then
 		for _, bone in ipairs(bones) do
 			local wm_boneindex = wm:LookupBone(bone)
 			if !wm_boneindex then continue end
@@ -806,7 +931,7 @@ function SWEP:SetHandPos(noset)
 
 	local bones = hg.TPIKBonesRH
 
-	if self.rhandik and self:InUse() then
+	if self.rhandik and self:InUse() and shouldApplyTpikBones then
 		for _, bone in ipairs(bones) do
 			local wm_boneindex = wm:LookupBone(bone)
 			if !wm_boneindex then continue end
@@ -848,12 +973,16 @@ function SWEP:SetupDataTables()
     self:NetworkVar("Float", 7, "AttackLength")
     self:NetworkVar("Float", 8, "AttackTime")
     
-    self:NetworkVar("Int", 6, "ChargeState") -- 0: None, 1: Begin, 2: Idle, 3: Attack
+    self:NetworkVar("Int", 11, "ChargeState") -- 0: None, 1: Begin, 2: Idle, 3: Attack
     self:NetworkVar("Float", 9, "NextChargeStateTime")
     self:NetworkVar("Float", 10, "ChargeStartTime")
 end
 
 function SWEP:OwnerChanged()
+    if CLIENT then
+        ResetMeleeClientState(self, self:GetOwner(), false)
+    end
+
     if IsValid(self:GetOwner()) and self:GetOwner():IsPlayer() then
         self.EquipLockEnd = CurTime() + math.max(self.EquipTime or 1, 0)
         self:PlayAnim("deploy", self.DrawAnimTime or 1.25, false, nil, false, true)
@@ -866,12 +995,20 @@ function SWEP:OwnerChanged()
 end
 
 function SWEP:OnRemove()
+    if CLIENT then
+        ResetMeleeClientState(self, self:GetOwner(), false)
+        return
+    end
+
     if IsValid(self.worldModel) then
         self.worldModel:Remove()
     end
 end
 SWEP.Initialzed = false
 function SWEP:Deploy()
+    if CLIENT then
+        ResetMeleeClientState(self, self:GetOwner(), false)
+    end
     if SERVER and self.Initialzed and not self:GetOwner().noSound then self:GetOwner():EmitSound(self.DeploySnd,65) end
     self.Initialzed = true
     self.EquipLockEnd = CurTime() + math.max(self.EquipTime or 1, 0)
@@ -882,9 +1019,12 @@ function SWEP:Deploy()
 end
 
 function SWEP:Holster(wep)
+    if CLIENT then
+        ResetMeleeClientState(self, self:GetOwner(), false)
+    end
     self:SetInAttack(false)
     if self.CanHeavyAttack then
-        if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(6, 0) end
+        if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(11, 0) end
         self.HeavyAttackFeintBlockUntilRelease = false
         if CLIENT then
             self.ShakePos = Vector(0,0,0)
@@ -897,7 +1037,7 @@ end
 function SWEP:OnDrop()
     self:SetInAttack(false)
     if self.CanHeavyAttack then
-        if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(6, 0) end
+        if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(11, 0) end
         self.HeavyAttackFeintBlockUntilRelease = false
         if CLIENT then
             self.ShakePos = Vector(0,0,0)
@@ -1299,7 +1439,7 @@ end
 
 function SWEP:SetupMove(ply, mv, cmd)
     if self.CanHeavyAttack then
-        local state = self.GetChargeState and self:GetChargeState() or self:GetDTInt(6)
+        local state = self.GetChargeState and self:GetChargeState() or self:GetDTInt(11)
         if state == 1 or state == 2 then
             local speed = 110
             
@@ -1391,7 +1531,7 @@ function SWEP:CustomThink()
     local owner = self:GetOwner()
 
     if self.CanHeavyAttack then
-        local state = self.GetChargeState and self:GetChargeState() or self:GetDTInt(6)
+        local state = self.GetChargeState and self:GetChargeState() or self:GetDTInt(11)
         local nextState = self.GetNextChargeStateTime and self:GetNextChargeStateTime() or self:GetDTFloat(9)
         if CLIENT then
             nextState = math.max(nextState or 0, self.HeavyChargeNextStateLocal or 0)
@@ -1408,7 +1548,7 @@ function SWEP:CustomThink()
             cancelTime = math.Clamp(cancelTime or self.HeavyAttackAnimTimeBegin, 0.05, self.HeavyAttackAnimTimeBegin)
             local feintLockTime = math.max(cancelTime, 0.5)
             self:PlayAnim(self.Attack_Charge_Begin, cancelTime, false, nil, true, true)
-            if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(6, 0) end
+            if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(11, 0) end
             if self.SetNextChargeStateTime then self:SetNextChargeStateTime(0) else self:SetDTFloat(9, 0) end
             self.HeavyChargeNextStateLocal = 0
             self.HeavyChargeStartLocal = 0
@@ -1447,7 +1587,7 @@ function SWEP:CustomThink()
                     cancelHeavyChargeWithFeintAnim(cancelTime)
                     state = 0
                 else
-                    if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(6, 0) end
+                    if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(11, 0) end
                     self.HeavyAttackStaminaDeducted = false
                     self.HeavyAttackFeintBlockUntilRelease = false
                     self.HeavyChargeNextStateLocal = 0
@@ -1486,7 +1626,7 @@ function SWEP:CustomThink()
             self.HeavyChargeStaminaDrainTick = curTime
             if useDown and attackDown and not heavyGetupBlocked and not self.HeavyAttackFeintBlockUntilRelease and not self:GetInAttack() and (self:GetLastAttack() + self:GetAttackWait() < curTime) and not self:GetBlocking() and not self:IsEquipLocked() then
                 if owner.organism and owner.organism.stamina and owner.organism.stamina[1] and owner.organism.stamina[1] < 80 then return end
-                if self.SetChargeState then self:SetChargeState(1) else self:SetDTInt(6, 1) end
+                if self.SetChargeState then self:SetChargeState(1) else self:SetDTInt(11, 1) end
                 self.HeavyAttackStaminaDeducted = false
                 if self.SetNextChargeStateTime then self:SetNextChargeStateTime(curTime + self.HeavyAttackAnimTimeBegin) else self:SetDTFloat(9, curTime + self.HeavyAttackAnimTimeBegin) end
                 if self.SetChargeStartTime then self:SetChargeStartTime(curTime) else self:SetDTFloat(10, curTime) end
@@ -1515,7 +1655,7 @@ function SWEP:CustomThink()
             if curTime >= beginEndTime then
                 if not hg.KeyDown(owner, IN_ATTACK) then
                      -- Released during charge? Go straight to attack
-                    if self.SetChargeState then self:SetChargeState(3) else self:SetDTInt(6, 3) end
+                    if self.SetChargeState then self:SetChargeState(3) else self:SetDTInt(11, 3) end
                     self.HeavyChargeNextStateLocal = 0
                     
                     self.HitEnts = nil
@@ -1553,7 +1693,7 @@ function SWEP:CustomThink()
                     
                     self.viewpunch = true
                 else
-                    if self.SetChargeState then self:SetChargeState(2) else self:SetDTInt(6, 2) end
+                    if self.SetChargeState then self:SetChargeState(2) else self:SetDTInt(11, 2) end
                     if self.SetNextChargeStateTime then self:SetNextChargeStateTime(curTime + self.HeavyAttackAnimTimeIdle) else self:SetDTFloat(9, curTime + self.HeavyAttackAnimTimeIdle) end
                     self.HeavyChargeNextStateLocal = curTime + self.HeavyAttackAnimTimeIdle
                     self.HeavyChargeBeginAnimEnd = 0
@@ -1575,7 +1715,7 @@ function SWEP:CustomThink()
 
             if not hg.KeyDown(owner, IN_ATTACK) then
                 -- Trigger Attack
-                if self.SetChargeState then self:SetChargeState(3) else self:SetDTInt(6, 3) end
+                if self.SetChargeState then self:SetChargeState(3) else self:SetDTInt(11, 3) end
                 self.HeavyChargeNextStateLocal = 0
                 
                 local mul = 1
@@ -1626,7 +1766,7 @@ function SWEP:CustomThink()
              self.HeavyChargeStaminaDrainTick = curTime
              self.HeavyChargeBeginAnimEnd = 0
              if not self:GetInAttack() then
-                 if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(6, 0) end
+                 if self.SetChargeState then self:SetChargeState(0) else self:SetDTInt(11, 0) end
              end
         end
 

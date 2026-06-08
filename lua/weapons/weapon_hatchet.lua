@@ -22,7 +22,7 @@ SWEP.weight = 1
 
 SWEP.WorldModel = "models/weapons/tfa_nmrih/w_me_hatchet.mdl"
 SWEP.WorldModelReal = "models/weapons/tfa_nmrih/v_me_hatchet.mdl"
-SWEP.WorldModelExchange = false
+SWEP.WorldModelExchange = "models/weapons/tfa_nmrih/w_me_hatchet.mdl"
 SWEP.DontChangeDropped = true
 SWEP.ViewModel = ""
 
