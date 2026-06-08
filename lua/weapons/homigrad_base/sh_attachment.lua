@@ -166,8 +166,11 @@ function SWEP:DrawAttachments()
 	if SERVER then return end
 
 	local gun = self:GetWeaponEntity()
+	if not IsValid(gun) or gun == NULL then return end
+
 	local att = self:GetMuzzleAtt(self:GetWM(), true)
 	if not att then return end
+
 	local pos, ang = att.Pos, att.Ang
 	
 	local available = self.availableAttachments
@@ -193,8 +196,15 @@ function SWEP:DrawAttachments()
 
 	self.modelAtt = self.modelAtt or {}
 	local flagRemovehuy = false
-	for plc,att in pairs(self.attachments) do
-		local attdata = hg.attachments[plc][att[1]]
+	for plc, att in pairs(self.attachments or {}) do
+    	if not IsValid(self) or self == NULL then return end
+    	if not IsValid(gun) or gun == NULL then return end
+    	if not att or not att[1] then continue end
+		local dataPlc = hg.attachments[plc]
+		if not dataPlc then continue end
+
+		local attdata = dataPlc[att[1]]
+		if not attdata then continue end
 		
 		local tblhuy = self:HasAttachment(plc) and available[plc] and ((available[plc][att[1]] and istable(available[plc][att[1]]) and available[plc][att[1]][2]) or (istable(available[plc]["removehuy"]) and available[plc]["removehuy"][attdata.mountType] or available[plc]["removehuy"]))
 		if tblhuy then flagRemovehuy = true end
@@ -203,10 +213,12 @@ function SWEP:DrawAttachments()
 		
 		if istable(tblhuy) and not table.IsEmpty(tblhuy) then
 			for index, mat in pairs(tblhuy) do
-				local submat = gun:GetSubMaterial(index)
-				--submat = #submat > 0 and submat or gun:GetMaterials()[index]
-				
-				if submat ~= (mat or "null") then gun:SetSubMaterial(index, mat or "null") end
+				if IsValid(gun) and gun ~= NULL then
+    				local submat = gun:GetSubMaterial(index)
+    				if submat ~= (mat or "null") then
+        				gun:SetSubMaterial(index, mat or "null")
+    				end
+				end
 			end
 		end
 		--print(att[1])
