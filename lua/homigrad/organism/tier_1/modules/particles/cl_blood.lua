@@ -31,11 +31,87 @@ local BLOOD_POSITION_RESET_CAP = 2500
 local BLOOD_DECALS_PER_POS = 3
 local BLOOD_POOL_DECAL_THRESHOLD = 18
 local BLOOD_LIGHT_UPDATE_INTERVAL = 0.08
+local nosebleedDripNext = {}
 
 hook.Add("PostCleanupMap","removeblooddroplets",function()
 	hg.bloodparticles1 = {}
 	hg.bloodpositions = {}
 	hg.bloodcount = 0
+	nosebleedDripNext = {}
+end)
+
+local function getNosebleedCharacter(ply)
+	if hg and hg.GetCurrentCharacter then
+		local character = hg.GetCurrentCharacter(ply)
+		if IsValid(character) then return character end
+	end
+
+	local ragdoll = ply.GetNWEntity and ply:GetNWEntity("FakeRagdoll", NULL) or nil
+	if IsValid(ragdoll) then return ragdoll end
+
+	ragdoll = ply.GetNWEntity and ply:GetNWEntity("RagdollDeath", NULL) or nil
+	if IsValid(ragdoll) then return ragdoll end
+
+	return ply
+end
+
+local function getNosebleedHead(ent)
+	if not IsValid(ent) or not ent.LookupBone then return nil end
+
+	local bone = ent:LookupBone("ValveBiped.Bip01_Head1")
+	if not bone then return nil end
+
+	if ent.SetupBones then ent:SetupBones() end
+	return ent:GetBoneMatrix(bone)
+end
+
+local function addNosebleedDrip(ply, pos, ang, activeFrac)
+	local now = CurTime()
+	if (nosebleedDripNext[ply] or 0) > now then return end
+
+	nosebleedDripNext[ply] = now + math.Rand(0.35, 0.9)
+	if math.Rand(0, 1) > math.Clamp(activeFrac + 0.15, 0.2, 0.85) then return end
+	if not hg or not hg.addBloodPart then return end
+
+	local vel = vector_up * -30 + ang:Forward() * 2
+	hg.addBloodPart(pos, vel, nil, 1.8, 1.8, false, false, ply)
+end
+
+local function drawNosebleedForPlayer(ply, eyePos, maxDistanceSqr)
+	local bleedUntil = ply:GetNWFloat("ZCity_NosebleedUntil", 0)
+	local now = CurTime()
+	if bleedUntil <= now then return end
+
+	local character = getNosebleedCharacter(ply)
+	if not IsValid(character) then return end
+	if character:GetPos():DistToSqr(eyePos) > maxDistanceSqr then return end
+
+	local matrix = getNosebleedHead(character)
+	if not matrix then return end
+
+	local pos = matrix:GetTranslation()
+	local ang = matrix:GetAngles()
+	local remaining = bleedUntil - now
+	local activeFrac = math.Clamp(remaining / 45, 0.1, 1)
+
+	local nostril = pos + ang:Right() * 2.7 + ang:Forward() * 3.4 - ang:Up() * 4.9
+	addNosebleedDrip(ply, nostril, ang, activeFrac)
+end
+
+hook.Add("PostDrawTranslucentRenderables", "ZCity_NosebleedFaceRun", function()
+	local lply = LocalPlayer()
+	if not IsValid(lply) then return end
+
+	local maxDistance = math.min(hg_blood_draw_distance:GetInt(), 900)
+	if maxDistance <= 0 then return end
+
+	local eyePos = EyePos()
+	local maxDistanceSqr = maxDistance * maxDistance
+
+	for _, ply in ipairs(player.GetAll()) do
+		if not IsValid(ply) or not ply:IsPlayer() then continue end
+		drawNosebleedForPlayer(ply, eyePos, maxDistanceSqr)
+	end
 end)
 
 local mat_huy = Material("effects/blood_core")

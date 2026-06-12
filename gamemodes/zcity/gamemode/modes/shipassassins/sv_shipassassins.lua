@@ -12,8 +12,8 @@ local nextAssignmentEnsureThink = 0
 local function isActiveAssassin(ply)
 	return IsValid(ply)
 		and ply:IsPlayer()
+		and ply:Alive()
 		and ply:Team() ~= TEAM_SPECTATOR
-		and zb:CanActivelyParticipate(ply)
 end
 
 local ILLEGAL_HARM_SLAY_THRESHOLD = 15
@@ -889,7 +889,9 @@ hook.Add("HomigradDamage", "ShipAssassins_IllegalDamageRaw", function(victim, dm
 	local rnd = CurrentRound and CurrentRound()
 	if not rnd or rnd.name ~= MODE.name then return end
 
-	local attacker = IsValid(dmgInfo) and dmgInfo:GetAttacker() or nil
+	local attacker = dmgInfo and dmgInfo.GetAttacker and dmgInfo:GetAttacker() or nil
+	local inflictor = dmgInfo and dmgInfo.GetInflictor and dmgInfo:GetInflictor() or ent
+	attacker = MODE:ResolveKillerPlayer(attacker, inflictor)
 	victim = hg and hg.RagdollOwner and hg.RagdollOwner(victim) or victim
 	if not IsValid(attacker) or not attacker:IsPlayer() then return end
 	if not IsValid(victim) or not victim:IsPlayer() then return end
