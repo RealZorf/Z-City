@@ -296,6 +296,127 @@ function hg.organism.AddWoundManual(ent,dmgBlood,localPos,localAng,bone,time)
 	end
 end
 
+local NOSEBLEED_MIN_HARM = 18
+local NOSEBLEED_COOLDOWN = 12
+local nosebleedLocalPos = Vector(3.5, 0, -3.5)
+local nosebleedLocalAng = Angle(90, 0, 0)
+
+local function isBluntMeleeInflictor(dmgInfo)
+	local inflictor = dmgInfo and dmgInfo.GetInflictor and dmgInfo:GetInflictor() or nil
+	if not IsValid(inflictor) or not inflictor:IsWeapon() then return false end
+
+	local class = inflictor:GetClass()
+	if class == "weapon_hands_sh" or class == "weapon_hg_coolhands" then return true end
+
+	local stored = weapons.GetStored(class)
+	return inflictor.Base == "weapon_melee" or (stored and stored.Base == "weapon_melee")
+end
+
+local function isBluntFaceHit(dmgInfo, hitgroup, harm)
+	if hitgroup ~= HITGROUP_HEAD then return false end
+	if not isnumber(harm) or harm < NOSEBLEED_MIN_HARM then return false end
+	if not dmgInfo or not dmgInfo.IsDamageType then return false end
+	if not isBluntMeleeInflictor(dmgInfo) then return false end
+
+	return dmgInfo:IsDamageType(DMG_CLUB) or dmgInfo:IsDamageType(DMG_CRUSH)
+end
+
+local function applyNosebleed(ent, harm, ignoreCooldown)
+	local ply = hg and hg.RagdollOwner and hg.RagdollOwner(ent) or ent
+	if not IsValid(ply) or not ply:IsPlayer() or not ply:Alive() then return end
+
+	local org = ply.organism
+	if not org or not org.alive or org.superfighter then return end
+
+	local time = CurTime()
+	if not ignoreCooldown and (org.nextNosebleed or 0) > time then return end
+
+	local character = hg and hg.GetCurrentCharacter and hg.GetCurrentCharacter(ply) or ply
+	if not IsValid(character) or not character.organism then character = ply end
+	if not IsValid(character) or not character.LookupBone then return end
+
+	local headBone = character:LookupBone("ValveBiped.Bip01_Head1")
+	if not headBone then return end
+
+	org.nextNosebleed = time + NOSEBLEED_COOLDOWN
+
+	local woundPower = math.Clamp(harm * 0.55, 10, 28)
+	hg.organism.AddWoundManual(character, woundPower, nosebleedLocalPos, nosebleedLocalAng, headBone, time)
+	ply:SetNWFloat("ZCity_NosebleedUntil", math.max(ply:GetNWFloat("ZCity_NosebleedUntil", 0), time + math.Clamp(harm * 2.2, 28, 75)))
+
+	if ply.Notify then
+		ply:Notify("My nose is bleeding.", 8, "nosebleed", 0)
+	end
+
+	return true
+end
+
+hook.Add("HomigradDamage", "ZCity_BluntFaceNosebleed", function(ent, dmgInfo, hitgroup, attackerEnt, harm)
+	if not isBluntFaceHit(dmgInfo, hitgroup, harm) then return end
+
+	applyNosebleed(ent, harm)
+end)
+
+concommand.Add("zc_debug_nosebleed", function(ply)
+	if IsValid(ply) and not ply:IsAdmin() then return end
+
+	local enabled = not GetGlobalBool("ZCity_DebugNosebleed", false)
+	SetGlobalBool("ZCity_DebugNosebleed", enabled)
+
+	if IsValid(ply) then
+		ply:ChatPrint("Nosebleed debug " .. (enabled and "enabled" or "disabled") .. ".")
+	else
+		print("Nosebleed debug " .. (enabled and "enabled" or "disabled") .. ".")
+	end
+end)
+
+hook.Add("HomigradDamage", "ZCity_BluntFaceNosebleedDebug", function(ent, dmgInfo, hitgroup, attackerEnt, harm)
+	if not GetGlobalBool("ZCity_DebugNosebleed", false) then return end
+	if hitgroup ~= HITGROUP_HEAD then return end
+
+	local attacker = dmgInfo and dmgInfo.GetAttacker and dmgInfo:GetAttacker() or nil
+	local inflictor = dmgInfo and dmgInfo.GetInflictor and dmgInfo:GetInflictor() or nil
+	if not IsValid(attacker) or not attacker:IsPlayer() then return end
+
+	local msg = string.format(
+		"[NosebleedDebug] victim=%s harm=%.2f dmgClub=%s dmgCrush=%s inflictor=%s base=%s melee=%s",
+		IsValid(ent) and tostring(ent) or "NULL",
+		isnumber(harm) and harm or -1,
+		tostring(dmgInfo and dmgInfo.IsDamageType and dmgInfo:IsDamageType(DMG_CLUB) or false),
+		tostring(dmgInfo and dmgInfo.IsDamageType and dmgInfo:IsDamageType(DMG_CRUSH) or false),
+		IsValid(inflictor) and inflictor:GetClass() or "NULL",
+		IsValid(inflictor) and tostring(inflictor.Base) or "nil",
+		tostring(isBluntMeleeInflictor(dmgInfo))
+	)
+
+	attacker:ChatPrint(msg)
+	print(msg)
+end)
+
+concommand.Add("zc_test_nosebleed", function(ply, cmd, args)
+	if IsValid(ply) and not ply:IsAdmin() then return end
+
+	local target = ply
+	if IsValid(ply) then
+		local tr = ply:GetEyeTrace()
+		if tr and IsValid(tr.Entity) then
+			target = hg and hg.RagdollOwner and hg.RagdollOwner(tr.Entity) or tr.Entity
+		end
+	elseif args and args[1] then
+		target = Entity(tonumber(args[1]) or 0)
+	end
+
+	if not IsValid(target) or not target:IsPlayer() then
+		if IsValid(ply) then ply:ChatPrint("Look at a player/fake ragdoll or run zc_test_nosebleed on yourself.") end
+		return
+	end
+
+	local harm = tonumber(args and args[1]) or 30
+	if applyNosebleed(target, harm, true) and IsValid(ply) then
+		ply:ChatPrint("Forced nosebleed on " .. target:Name() .. " with harm " .. tostring(harm) .. ".")
+	end
+end)
+
 --[[hook.Add( "PlayerDeath", "GlobalDeathMessage", function( victim, inflictor, attacker )
 	if victim:IsAdmin() or victim:IsSuperAdmin() then return end
     victim:Kick("uh... you died")

@@ -189,7 +189,7 @@ function hg.CreateInv(ply)
     ply:SetNetVar("Inventory", inv)
 end
 
-function hg.RenewInv(ply, isDead)
+function hg.RenewInv(ply, isDead, deathRagdoll)
     ply.inventory = ply.inventory or {}
     local inv = ply.inventory
     inv.Weapons = inv.Weapons or {}
@@ -214,14 +214,14 @@ function hg.RenewInv(ply, isDead)
 
             wep:AddSolidFlags(FSOLID_NOT_SOLID)
 
-            local rag = ply:GetNWEntity("RagdollDeath")
+            local rag = IsValid(deathRagdoll) and deathRagdoll or ply:GetNWEntity("RagdollDeath")
 
             if IsValid(rag) then
                 wep:SetPos(rag:GetPos() + vector_up * - 10000)
                 wep:SetParent(rag, 0)
             else
-                wep:SetPos(ply:GetPos())
-                wep:SetParent(ply, 0)
+                wep:SetParent(NULL)
+                wep:SetPos(ply:GetPos() + vector_up * -10000)
             end
 
             inv.Weapons[wep:GetClass()] = wep
@@ -465,10 +465,10 @@ end
 
 hook.Add("PostPlayerDeath", "homigrad-inventory", function(ply)
     local ragdoll = ply:GetNWEntity("RagdollDeath")
-    hg.RenewInv(ply, true)
+    hg.RenewInv(ply, true, ragdoll)
     hg.TransferItems(ply, ragdoll)
     ply:SetNetVar("Inventory", ply.inventory)
-    ragdoll:SetNetVar("Inventory", ragdoll.inventory)
+    if IsValid(ragdoll) then ragdoll:SetNetVar("Inventory", ragdoll.inventory) end
 
     --ply:StripWeapons() -- WTF
     ply:SetNetVar("Armor",{})
