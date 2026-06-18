@@ -648,6 +648,7 @@ end)
 
 hook.Add("OnNetVarSet","wounds_netvar2",function(index, key, var)
 	if key == "arterialwounds" then
+		if not istable(var) then return end
 		local ent = Entity(index)
 		--local ent = hg.RagdollOwner(ent) or ent
 		

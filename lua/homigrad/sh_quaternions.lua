@@ -327,7 +327,12 @@ function QUATERNION:Mul(q)
 end
 
 function QUATERNION:__mul(q)
-	return IsQuaternion(q) && Quaternion(self):Mul(q) || Quaternion(self):MulScalar(q);
+	if IsQuaternion(q) then
+		return Quaternion(self):Mul(q)
+	elseif isnumber(q) then
+		return Quaternion(self):MulScalar(q)
+	end
+	return self
 end
 
 function QUATERNION:__concat(q)

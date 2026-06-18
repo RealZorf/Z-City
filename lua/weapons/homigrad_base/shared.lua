@@ -878,6 +878,7 @@ if CLIENT then
 			local clipsize = self:GetMaxClip1() + (self.OpenBolt and 0 or 1)
 			local clip = self:Clip1()
 			local owner = self:GetOwner()
+			if not IsValid(owner) or not owner.GetAmmoCount then return end
 			local shoot = CurTime() - self:LastShootTime()
 			local ammo = owner:GetAmmoCount(self:GetPrimaryAmmoType())
 			local magCount = self.AnimInsert and ammo or math.ceil(ammo / clipsize)
@@ -1954,8 +1955,8 @@ function SWEP:GetAdditionalValues()
 	self.pitch = Lerp(hg.lerpFrameTime(0.001,dtime), self.pitch, ply:GetNWFloat("InLegKick",0) > CurTime() and 0.5 or suiciding and 1 or huypitch and 0.65 or (self.reload and self.ReloadNoPitch) and 0.75 or 0)
 	
 	if not huypitch then
-		local torso = ply:LookupBone("ValveBiped.Bip01_Spine1")
-		local tmat = ent:GetBoneMatrix(torso)
+		local torso = ent:LookupBone("ValveBiped.Bip01_Spine1")
+		local tmat = torso and ent:GetBoneMatrix(torso)
 		
 		if tmat then
 			local ang2 = tmat:GetAngles():Forward()
@@ -2336,7 +2337,15 @@ elseif CLIENT then
 end
 
 function SWEP:GetWM()
-	return IsValid(self.worldModel) and self.worldModel//self:GetWeaponEntity()
+	local wm = self.worldModel
+	return IsValid(wm) and wm or nil
+end
+
+function SWEP:SafeBoneScale(ent, bone, scale)
+	if not IsValid(ent) then return end
+	local idx = isnumber(bone) and bone or ent:LookupBone(bone)
+	if not idx then return end
+	ent:ManipulateBoneScale(idx, scale)
 end
 
 SWEP.AnimList = {

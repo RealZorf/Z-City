@@ -140,6 +140,7 @@ local function WRITE_TO_POINTER( start, finish, type )
 	if not base_path then return end
 
 	local mdl_file = file.Open( base_path, "r", "GAME" )
+	if not mdl_file then return end
 	local str = ""
 	for i=0, mdl_file:Size() do
 		local byte = mdl_file:ReadByte()

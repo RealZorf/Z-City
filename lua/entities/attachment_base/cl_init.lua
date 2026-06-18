@@ -1,5 +1,7 @@
 include("shared.lua")
 function ENT:Draw()
+	if not IsValid(self) then return end
+
 	if not self.PhysModel then
 		self:DrawModel()
 		return
@@ -7,9 +9,12 @@ function ENT:Draw()
 
 	local model = self.model
 
-	if not IsValid(self.model) then
+	if not IsValid(model) then
 		self.model = ClientsideModel(self.Model, RENDERGROUP_OPAQUE)
+		model = self.model
 	end
+
+	if not IsValid(model) then return end
 
 	local pos, ang = LocalToWorld(self.PhysPos, self.PhysAng, self:GetPos(), self:GetAngles())
 	model:SetRenderOrigin(pos)

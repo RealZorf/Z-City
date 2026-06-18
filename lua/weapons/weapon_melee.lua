@@ -283,6 +283,7 @@ if CLIENT then
         
         self.worldModel:SetModelScale(self.modelscale2)
         local ent = hg.GetCurrentCharacter(owner)
+        if not IsValid(ent) then return end
 
         local inuse = self:InUse()
 
@@ -387,6 +388,7 @@ if CLIENT then
             WorldModel:SetAngles(ang)
 
             local bon = WorldModel:LookupBone("ValveBiped.Bip01_R_Hand")
+            if not bon then return end
             local matW = WorldModel:GetBoneMatrix(bon)
 
             if !matW then return end
@@ -737,6 +739,7 @@ function SWEP:SetHandPos(noset)
     if not ply.shouldTransmit or ply.NotSeen then return end
 
     local ent = hg.GetCurrentCharacter(ply)
+    if not IsValid(ent) then return end
 
 	local bones = hg.TPIKBonesLH
 
@@ -751,7 +754,7 @@ function SWEP:SetHandPos(noset)
 	-- ent:SetupBones()
 
 	self.rhandik = self.setrh and IsValid(owner)//self.setrh
-	self.lhandik = self.setlh and IsValid(owner) and (ply:GetTable().ChatGestureWeight < 0.1) and hg.CanUseLeftHand(ply) and !(owner.suiciding and self.SuicideNoLH)
+	self.lhandik = self.setlh and IsValid(owner) and ((ply:GetTable().ChatGestureWeight or 0) < 0.1) and hg.CanUseLeftHand(ply) and !(owner.suiciding and self.SuicideNoLH)
 
     local rhmat, lhmat = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_R_Hand")), ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_L_Hand"))
 
@@ -932,7 +935,7 @@ if CLIENT then
 
         mul = math.max( (math.max(math.min(mul,self.MinSensivity or 0.35),0)) - (self.MinSensivity/10) ,0 )
         mul = 1-(mul)
-		if wep.GetBlocking and wep:GetBlocking() then
+		if self.GetBlocking and self:GetBlocking() then
 			mul = math.Clamp(mul * 0.35, 0.2, 1)
 		end
 
@@ -1315,6 +1318,7 @@ end
 
 function SWEP:CustomThink()
     local owner = self:GetOwner()
+    if not IsValid(owner) then return end
     local actwep = owner.GetActiveWeapon and owner:GetActiveWeapon()
 
     if CLIENT and (not self.ShakePos or not self.ShakeAng) then

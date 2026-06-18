@@ -44,7 +44,11 @@ function SWEP:Think()
 	end
 
 	self:SetHold(self.HoldType)
-	self.ModelScale = math.Clamp((self.modeValues[1] / (self.modeValuesdef[1][1] * 0.8)) * 1.1, 0.5, 1.1)
+	local modeVal = self.modeValues and self.modeValues[1]
+	local modeDef = self.modeValuesdef and self.modeValuesdef[1] and self.modeValuesdef[1][1]
+	if modeVal and modeDef then
+		self.ModelScale = math.Clamp((modeVal / (modeDef * 0.8)) * 1.1, 0.5, 1.1)
+	end
 end
 
 SWEP.isFirstDeploy = true

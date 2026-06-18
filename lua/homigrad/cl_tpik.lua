@@ -1945,7 +1945,7 @@ function meta:PullLHTowards(towards, timetopull, mdl, offsets, callback)
 
     timer.Simple(timetopull, function()
         if !IsValid(ply) or !IsValid(ply:GetActiveWeapon()) or !callback then return end
-        callback(ply:GetActiveWeapon())
+        callback()
     end)
 
     do return end

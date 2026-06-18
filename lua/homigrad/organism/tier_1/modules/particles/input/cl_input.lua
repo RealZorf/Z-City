@@ -174,8 +174,9 @@ net.Receive("bloodsquirt", function()
 	
 	if not IsValid(ent) then return end
 
-	local bone = net.ReadString()
-	local bone = ent:LookupBone(bone)
+	local boneName = net.ReadString()
+	local bone = ent:LookupBone(boneName)
+	if not bone then return end
 	local mat = net.ReadMatrix()
 	local pos = net.ReadVector()
 	local dir = net.ReadVector()
@@ -218,8 +219,9 @@ net.Receive("bloodsquirt2", function()
 	
 	if not IsValid(ent) then return end
 
-	local bone = net.ReadString()
-	local bone = ent:LookupBone(bone)
+	local boneName = net.ReadString()
+	local bone = ent:LookupBone(boneName)
+	if not bone then return end
 	local mat = net.ReadMatrix()
 	local pos = net.ReadVector()
 	local dir = net.ReadVector()

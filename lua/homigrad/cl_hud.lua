@@ -587,7 +587,12 @@ hook.Add("radialOptions", "7", function()
         if ply.GetPlayerClass and ply:GetPlayerClass() and ply:GetPlayerClass().CanUseGestures ~= nil and not ply:GetPlayerClass().CanUseGestures then return end
 		local tbl = {function(mouseClick)
 			if mouseClick == 1 then
-				RunConsoleCommand("act", randomGestures[math.random(#randomGestures)])
+				local gesture = randomGestures[math.random(#randomGestures)]
+				if istable(gesture) then
+					if gesture[2] then gesture[2]() end
+				else
+					RunConsoleCommand("act", gesture)
+				end
 				if (ply.NextFoley or 0) < CurTime() then
 					ply:EmitSound("player/clothes_generic_foley_0" .. math.random(5) .. ".wav", 55)
 					ply.NextFoley = CurTime() + 1

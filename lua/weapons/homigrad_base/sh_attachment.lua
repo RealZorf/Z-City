@@ -725,7 +725,7 @@ if CLIENT then
 		local inv = lply:GetNetVar("Inventory")
 		if inv == nil then return end
 
-		local tbl = inv["Attachments"]
+		local tbl = inv["Attachments"] or {}
 		local wep = lply:GetActiveWeapon()
 		local achtbl = {}
 		if IsValid(wep) and ishgweapon(wep) then

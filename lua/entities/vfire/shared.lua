@@ -1249,7 +1249,7 @@ if CLIENT then
 		if self.LOD then return end
 
 
-		if true and not potato and distSqr <= FIRE_LIGHT_DIST_SQR then
+		if true and not potato and distSqr <= FIRE_LIGHT_DIST_SQR and lightCalls[state] then
 			-- Load information onto our light calls table
 			local entIndex = self:EntIndex()
 			lightCalls[state][entIndex] = {
