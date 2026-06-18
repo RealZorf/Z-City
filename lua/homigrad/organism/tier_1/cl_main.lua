@@ -50,6 +50,24 @@ end)
 
 local min = math.min
 local pain_mat = Material("sprites/mat_jack_hmcd_narrow")
+local maniacFuryBreathFullDuration = 22
+local maniacFuryBreathFadeDuration = 8
+
+local function getManiacFuryBreathVolumeMultiplier(ply)
+	if not IsValid(ply) then return 1 end
+
+	if not ply:GetNWBool("HMCD_ManiacFuryActive", false) then
+		return 1
+	end
+
+	local started_at = ply:GetNWFloat("HMCD_ManiacFuryStartedAt", 0)
+	if started_at <= 0 then return 1 end
+
+	local elapsed = CurTime() - started_at
+	if elapsed <= maniacFuryBreathFullDuration then return 1 end
+
+	return math.Clamp(1 - (elapsed - maniacFuryBreathFullDuration) / maniacFuryBreathFadeDuration, 0, 1)
+end
 
 local tab = {
 	["$pp_colour_addr"] = 0,
@@ -790,7 +808,11 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 
 				end
 
-				ply:EmitSound("snds_jack_hmcd_breathing/" .. (ThatPlyIsFemale(ent) and "f" or "m") .. math.random(4) .. ".wav", min(heartbeat * 1.0 / ( muffed and 2.5 or 4), 45), pitch + pitchadd + math.Rand(-2, 2), vol, CHAN_AUTO, 0, muffed and 16 or 0)
+				vol = vol * getManiacFuryBreathVolumeMultiplier(ply)
+
+				if vol > 0.01 then
+					ply:EmitSound("snds_jack_hmcd_breathing/" .. (ThatPlyIsFemale(ent) and "f" or "m") .. math.random(4) .. ".wav", min(heartbeat * 1.0 / ( muffed and 2.5 or 4), 45), pitch + pitchadd + math.Rand(-2, 2), vol, CHAN_AUTO, 0, muffed and 16 or 0)
+				end
 			elseif org.breathed and sin >= 0.1 then
 				org.breathed = false
 			end

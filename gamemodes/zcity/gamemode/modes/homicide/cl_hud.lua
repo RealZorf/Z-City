@@ -8,9 +8,17 @@ local vgui_color_text_main = Color(150, 50, 0, 255)
 local vgui_color_text_shadow = Color(0, 0, 0, 255)
 
 local mat_gradientdown = Material("vgui/gradient_down")
-local mat_shadow_camouflage = Material("models/debug/debugwhite")
+local mat_shadow_camouflage = CreateMaterial("hmcd_shadow_camouflage_refract", "Refract", {
+	["$model"] = "1",
+	["$translucent"] = "1",
+	["$normalmap"] = "effects/strider_pinch_dudv",
+	["$dudvmap"] = "effects/strider_pinch_dudv",
+	["$refractamount"] = "0.014",
+	["$bluramount"] = "0.34",
+	["$forcerefract"] = "1",
+	["$nocull"] = "1",
+})
 local color_white = Color(255, 255, 255, 255)
-local vector_origin = Vector(0, 0, 0)
 
 local function draw_shadow_text(text, cx, cy)
 	draw.DrawText(text, "HomigradFontMedium", cx + 1, cy + 1, vgui_color_text_shadow, TEXT_ALIGN_CENTER)
@@ -47,8 +55,10 @@ function MODE.GetShadowCamouflageVisuals(ply)
 	if not IsValid(ply) then
 		return {
 			tint = MODE.ShadowCamouflageTint or color_white,
-			modulation = MODE.ShadowCamouflageColorModulation or {0.42, 0.45, 0.5},
-			blend = MODE.ShadowCamouflageBlend or 0.34
+			modulation = MODE.ShadowCamouflageColorModulation or {0.78, 0.84, 0.94},
+			blend = MODE.ShadowCamouflageBlend or 0.52,
+			refract = 0.014,
+			blur = 0.34
 		}
 	end
 
@@ -58,72 +68,30 @@ function MODE.GetShadowCamouflageVisuals(ply)
 		return cache
 	end
 
-	local origin = ply:WorldSpaceCenter()
-	origin.z = ply:GetPos().z + math.max(ply:OBBMaxs().z * 0.4, 35)
-
-	local sampled = vector_origin
-	local hitCount = 0
-
-	for yaw = 0, 330, 30 do
-		local dir = Angle(0, yaw, 0):Forward()
-		local tr = util.TraceLine({
-			start = origin,
-			endpos = origin + dir * (MODE.ShadowCamouflageWallDistance or 34),
-			filter = ply,
-			mask = MASK_PLAYERSOLID,
-		})
-
-		if tr.Hit and not tr.HitSky then
-			local surfaceColor = render.GetSurfaceColor(tr.HitPos + tr.HitNormal * 2, tr.HitPos - tr.HitNormal * 12)
-			if surfaceColor and surfaceColor:LengthSqr() > 0.001 then
-				sampled = sampled + surfaceColor
-				hitCount = hitCount + 1
-			end
-		end
+	local viewer = LocalPlayer()
+	local distanceFrac = 0.25
+	if IsValid(viewer) and viewer ~= ply then
+		distanceFrac = math.Clamp(1 - (viewer:GetShootPos():Distance(ply:WorldSpaceCenter()) / 360), 0, 1)
 	end
 
-	local tint
-	local modulation
-	local blend
-
-	if hitCount > 0 then
-		local avg = sampled / hitCount
-		local brightness = math.Clamp((avg.x + avg.y + avg.z) / 3, 0.08, 0.95)
-		local strongest = math.max(avg.x, avg.y, avg.z, 0.001)
-		local hue = avg / strongest
-		local hueBoost = Vector(
-			math.Clamp(hue.x, 0.18, 1),
-			math.Clamp(hue.y, 0.18, 1),
-			math.Clamp(hue.z, 0.18, 1)
-		)
-		local colorStrength = math.Clamp(1.05 + brightness * 0.45, 1.05, 1.35)
-
-		tint = Color(
-			math.Clamp(math.floor(hueBoost.x * 255 * brightness * colorStrength), 24, 245),
-			math.Clamp(math.floor(hueBoost.y * 255 * brightness * colorStrength), 24, 245),
-			math.Clamp(math.floor(hueBoost.z * 255 * brightness * colorStrength), 24, 245),
-			MODE.ShadowCamouflageAlpha or 96
-		)
-
-		modulation = {
-			math.Clamp(hueBoost.x * brightness * 1.05, 0.16, 1),
-			math.Clamp(hueBoost.y * brightness * 1.05, 0.16, 1),
-			math.Clamp(hueBoost.z * brightness * 1.08, 0.16, 1)
-		}
-
-		blend = math.Clamp(0.18 + brightness * 0.18, 0.22, 0.42)
-	else
-		tint = MODE.ShadowCamouflageTint or color_white
-		modulation = MODE.ShadowCamouflageColorModulation or {0.42, 0.45, 0.5}
-		blend = MODE.ShadowCamouflageBlend or 0.34
-	end
+	local moveSpeed = MODE.ShadowCamouflageMoveSpeed or 28
+	local speedFrac = math.Clamp(ply:GetVelocity():Length2D() / math.max(moveSpeed, 1), 0, 1)
+	local shimmer = 0.5 + math.sin(now * 5.5 + ply:EntIndex() * 0.73) * 0.5
+	local tint = MODE.ShadowCamouflageTint or Color(190, 205, 220, MODE.ShadowCamouflageAlpha or 82)
+	local modulation = MODE.ShadowCamouflageColorModulation or {0.78, 0.84, 0.94}
+	local blend = math.Clamp((MODE.ShadowCamouflageBlend or 0.52) + distanceFrac * 0.08 + speedFrac * 0.04 + shimmer * 0.015, 0.44, 0.68)
+	local refract = math.Clamp(0.012 + distanceFrac * 0.006 + speedFrac * 0.006 + shimmer * 0.002, 0.01, 0.026)
+	local blur = math.Clamp(0.26 + distanceFrac * 0.12 + speedFrac * 0.08, 0.22, 0.5)
 
 	cache = {
 		tint = tint,
 		modulation = modulation,
 		blend = blend,
-		expires = now + 0.04
+		refract = refract,
+		blur = blur,
+		expires = now + 0.08
 	}
+
 	ply.HMCD_ShadowCamouflageVisualCache = cache
 
 	return cache
@@ -131,18 +99,18 @@ end
 
 local function applyShadowCamouflageRenderState(visuals)
 	local tint = visuals.tint or color_white
-	local modulation = visuals.modulation or {0.42, 0.45, 0.5}
+	local modulation = visuals.modulation or {0.78, 0.84, 0.94}
+
+	if render.UpdateRefractTexture then
+		render.UpdateRefractTexture()
+	end
+
+	mat_shadow_camouflage:SetFloat("$refractamount", visuals.refract or 0.014)
+	mat_shadow_camouflage:SetFloat("$bluramount", visuals.blur or 0.34)
 
 	render.MaterialOverride(mat_shadow_camouflage)
-	render.SetBlend(visuals.blend or 0.34)
-	render.SetColorModulation(modulation[1] or 0.42, modulation[2] or 0.45, modulation[3] or 0.5)
-	render.SuppressEngineLighting(true)
-	render.SetModelLighting(BOX_FRONT, tint.r / 255, tint.g / 255, tint.b / 255)
-	render.SetModelLighting(BOX_BACK, tint.r / 255, tint.g / 255, tint.b / 255)
-	render.SetModelLighting(BOX_TOP, tint.r / 255, tint.g / 255, tint.b / 255)
-	render.SetModelLighting(BOX_BOTTOM, tint.r / 255, tint.g / 255, tint.b / 255)
-	render.SetModelLighting(BOX_LEFT, tint.r / 255, tint.g / 255, tint.b / 255)
-	render.SetModelLighting(BOX_RIGHT, tint.r / 255, tint.g / 255, tint.b / 255)
+	render.SetBlend(visuals.blend or 0.52)
+	render.SetColorModulation((modulation[1] or 0.78) * (tint.r / 255), (modulation[2] or 0.84) * (tint.g / 255), (modulation[3] or 0.94) * (tint.b / 255))
 end
 
 hook.Add("PrePlayerDraw", "HMCD_ShadowCamouflage_PrePlayerDraw", function(ply)
@@ -206,7 +174,7 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 				end
 			end
 			
-			if(ply.SubRole == "traitor_assasin" or ply.SubRole == "traitor_assasin_soe" or ply.PlayerClassName == "sc_infiltrator")then
+			if((MODE.IsAssassinRole and MODE.IsAssassinRole(ply.SubRole)) or ply.PlayerClassName == "sc_infiltrator")then
 				local aim_ent, other_ply, trace = MODE.GetPlayerTraceToOther(ply, nil, MODE.DisarmReach)
 				local text = "(HOLD)[ALT + E] Disarm"
 				local tw, th = surface.GetTextSize(text)
@@ -227,7 +195,7 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 				end
 			end
 			
-			if(ply.SubRole == "traitor_chemist")then
+			if(MODE.IsChemistRole and MODE.IsChemistRole(ply.SubRole))then
 				local after_side_bar_offset = 5
 				local bar_border = 5
 				local bar_width = ScreenScale(20)

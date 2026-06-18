@@ -72,6 +72,141 @@ net.Receive("HMCD_UpdateChemicalResistance", function(len, ply)
 end)
 --//
 
+--\\Stalker sonar
+local stalkerMarks = {}
+local matStalkerGlow = Material("sprites/light_glow02_add")
+
+local function getStalkerMarkState(target)
+	stalkerMarks.State = stalkerMarks.State or {}
+	stalkerMarks.State[target] = stalkerMarks.State[target] or {
+		nextBeat = 0,
+		lastBeat = 0,
+		interval = 60 / 70
+	}
+
+	return stalkerMarks.State[target]
+end
+
+local function getStalkerPulseColor(target, stunReady)
+	local vec = IsValid(target) and target:GetPlayerColor() or Vector(0.31, 0.82, 1)
+	local color = Color(
+		math.Clamp(vec.x * 255, 60, 255),
+		math.Clamp(vec.y * 255, 60, 255),
+		math.Clamp(vec.z * 255, 60, 255),
+		stunReady and 190 or 120
+	)
+
+	if color.r + color.g + color.b < 210 then
+		color.r = 80
+		color.g = 210
+		color.b = 255
+	end
+
+	return color
+end
+
+local function getStalkerTargetDrawPos(target)
+	if not IsValid(target) then return nil end
+
+	local ent = hg.GetCurrentCharacter and hg.GetCurrentCharacter(target) or target
+	if not IsValid(ent) then ent = target end
+
+	local bone = ent.LookupBone and ent:LookupBone("ValveBiped.Bip01_Spine2")
+	if bone then
+		local mat = ent:GetBoneMatrix(bone)
+		if mat then return mat:GetTranslation() end
+	end
+
+	return ent:WorldSpaceCenter()
+end
+
+local function getTargetHeartbeat(target)
+	local org = IsValid(target) and (target.organism or target.new_organism) or nil
+	return math.Clamp((org and org.heartbeat) or 70, 45, 180)
+end
+
+net.Receive("HMCD_StalkerMarks", function()
+	stalkerMarks.List = {}
+	local count = net.ReadUInt(2)
+
+	for i = 1, count do
+		stalkerMarks.List[i] = {
+			Target = net.ReadEntity(),
+			StunReady = net.ReadBool()
+		}
+	end
+end)
+
+hook.Add("HUDPaint", "HMCD_StalkerSonar", function()
+	local ply = LocalPlayer()
+	if not IsValid(ply) or not ply:Alive() or not MODE.IsStalkerRole or not MODE.IsStalkerRole(ply.SubRole) then return end
+
+	local now = CurTime()
+	local gaze = ply:GetNWEntity("HMCD_StalkerGazeTarget")
+	local ready_at = ply:GetNWFloat("HMCD_StalkerGazeReadyAt", 0)
+	local start_at = ply:GetNWFloat("HMCD_StalkerGazeStartedAt", 0)
+
+	if IsValid(gaze) and ready_at > start_at then
+		local pos = getStalkerTargetDrawPos(gaze)
+		if pos then
+			local scr = pos:ToScreen()
+			if scr.visible then
+				local frac = math.Clamp(1 - ((ready_at - now) / MODE.StalkerMarkTime), 0, 1)
+				local size = ScreenScale(10)
+				local pulse = 0.65 + math.sin(now * 8) * 0.35
+				local color = getStalkerPulseColor(gaze, true)
+
+				surface.SetMaterial(matStalkerGlow)
+				surface.SetDrawColor(color.r, color.g, color.b, 20 + 70 * frac + 14 * pulse)
+				surface.DrawTexturedRect(scr.x - size * 1.7, scr.y - size * 1.7, size * 3.4, size * 3.4)
+
+				local bar_w = size * 2.4
+				local bar_h = math.max(2, ScreenScale(1))
+				surface.SetDrawColor(0, 0, 0, 120)
+				surface.DrawRect(scr.x - bar_w / 2, scr.y + size + ScreenScale(4), bar_w, bar_h)
+				surface.SetDrawColor(color.r, color.g, color.b, 230)
+				surface.DrawRect(scr.x - bar_w / 2, scr.y + size + ScreenScale(4), bar_w * frac, bar_h)
+			end
+		end
+	end
+
+	for _, mark in ipairs(stalkerMarks.List or {}) do
+		local target = mark.Target
+		if not IsValid(target) or not target:Alive() then continue end
+
+		local state = getStalkerMarkState(target)
+		local heartbeat = getTargetHeartbeat(target)
+		local interval = 60 / heartbeat
+
+		if state.nextBeat <= now then
+			state.lastBeat = now
+			state.interval = interval
+			state.nextBeat = now + interval
+		end
+
+		local elapsed = now - state.lastBeat
+		local beatFrac = math.Clamp(elapsed / math.max(state.interval, 0.1), 0, 1)
+		local beat = math.exp(-beatFrac * 18)
+		beat = beat + math.exp(-math.pow(beatFrac - 0.18, 2) * 280) * 0.55
+		if beat <= 0.04 then continue end
+
+		local pos = getStalkerTargetDrawPos(target)
+		if not pos then continue end
+
+		local scr = pos:ToScreen()
+		if not scr.visible then continue end
+
+		local color = getStalkerPulseColor(target, mark.StunReady)
+		local size = ScreenScale(mark.StunReady and 15 or 13) + ScreenScale(5) * beat
+		local alpha = color.a * math.Clamp(beat, 0, 1)
+
+		surface.SetMaterial(matStalkerGlow)
+		surface.SetDrawColor(color.r, color.g, color.b, alpha)
+		surface.DrawTexturedRect(scr.x - size, scr.y - size, size * 2, size * 2)
+	end
+end)
+--//
+
 hook.Add("Think", "HMCD_SubRole_Abilities", function()
 	if(BeingVictimOfNeckBreakResetTime and BeingVictimOfNeckBreakResetTime <= CurTime())then
 		BeingVictimOfNeckBreakResetTime = nil

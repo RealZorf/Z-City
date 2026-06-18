@@ -376,7 +376,11 @@ function MODE.ResetProfessionStats(ply)
 	local health_ratio = math.Clamp(current_health / old_max_health, 0, 1)
 
 	ply:SetMaxHealth(base_health)
-	ply:SetModelScale(1, 0)
+	if(hg and hg.SetPlayerModelScale)then
+		hg.SetPlayerModelScale(ply, 1, "profession")
+	else
+		ply:SetModelScale(1, 0)
+	end
 	ply.MeleeDamageMul = nil
 	ply.StaminaExhaustMul = nil
 	ply.JumpPowerMul = nil
@@ -437,7 +441,11 @@ function MODE.ApplyProfessionLoadout(ply)
 		end
 
 		if(profession_info.ModelScale and profession_info.ModelScale != 1)then
-			ply:SetModelScale(profession_info.ModelScale, 0)
+			if(hg and hg.SetPlayerModelScale)then
+				hg.SetPlayerModelScale(ply, profession_info.ModelScale, "profession")
+			else
+				ply:SetModelScale(profession_info.ModelScale, 0)
+			end
 		end
 
 		if(profession_info.MeleeDamageMultiplier and profession_info.MeleeDamageMultiplier != 1)then
@@ -2242,7 +2250,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             if(spawn_with_subroles and MODE.RoleChooseRoundTypes[MODE.Type])then
                 if(current_ply.isTraitor)then
                     local sub_role_id = MODE.Type == "soe" and (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor_SOE) or "traitor_default_soe") or (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor) or "traitor_default")
-					sub_role = sub_role_id
+					sub_role = MODE.NormalizeTraitorSubRole and MODE.NormalizeTraitorSubRole(sub_role_id) or sub_role_id
                 end
 
                 if(current_ply.isGunner)then

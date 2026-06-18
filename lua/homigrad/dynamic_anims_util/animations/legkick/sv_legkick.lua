@@ -2,6 +2,17 @@
 local PLAYER = FindMetaTable("Player")
 
 local vpang = Angle(2, -1, 1)
+
+local function IsManiacFuryKick(ply)
+    if not IsValid(ply) or not ply:GetNWBool("HMCD_ManiacFuryActive", false) then return false end
+
+    local subrole = ply.SubRole
+    if subrole == "traitor_maniac" or subrole == "traitor_maniac_soe" then return true end
+
+    local mode = CurrentRound and CurrentRound()
+    return mode and mode.IsManiacRole and mode.IsManiacRole(subrole) or false
+end
+
 function PLAYER:LegAttack()
     if not self:Alive() or hg.GetCurrentCharacter(self):IsRagdoll() or self:GetNWFloat("InLegKick",0) > CurTime() or not self:IsOnGround() or self:IsSprinting() then return end
     if self.InLegKick and self.InLegKick > CurTime() then return end
@@ -176,6 +187,12 @@ function PLAYER:LegAttack()
                         ent:SetVelocity(normal * 150)
                     end
                     if hgIsDoor(ent) and !ent:GetNoDraw() then
+                        if IsManiacFuryKick(self) then
+                            ent:EmitSound("physics/wood/wood_box_impact_hard3.wav", 90, 90)
+                            hgBlastThatDoor(ent, normal * 450 + self:GetVelocity() * 0.25)
+                            continue
+                        end
+
                         ent.HP = ent.HP or 200
                         ent.HP = ent.HP - dmg * (tr.MatType == MAT_METAL and 1 or 2)
                         ent:EmitSound( "physics/wood/wood_crate_impact_hard" .. math.random(1,4) .. ".wav" )

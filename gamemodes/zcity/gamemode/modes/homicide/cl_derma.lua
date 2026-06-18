@@ -151,18 +151,20 @@ local traitorLoadoutText = {
 	traitor_infiltrator_soe = "Taser + 2 extra heads\nSOG knife, smoke grenade\nWalkie-talkie, adrenaline\nFiber wire, flashlight",
 	traitor_thief = "SOG knife\nAdrenaline\nSmoke grenade\nHidden starter gear tracking, flashlight",
 	traitor_thief_soe = "SOG knife\nWalkie-talkie\nAdrenaline\nSmoke grenade, hidden starter gear tracking, flashlight",
-	traitor_assasin = "No direct starter weapons\nHigh recoil control\nExtra stamina\nBuilt to disarm and steal weapons",
-	traitor_assasin_soe = "SOG knife\nWalkie-talkie\nAdrenaline\nFiber wire\nHigher recoil control and stamina",
+	traitor_assassin = "Katana with sling\nHigh recoil control\nExtra stamina\nBuilt to disarm and steal weapons",
+	traitor_assassin_soe = "Katana with sling\nWalkie-talkie\nAdrenaline\nFiber wire\nHigher recoil control and stamina",
 	traitor_chemist = "SOG knife\nAdrenaline\nPoison 1, 2, 3 and 4\nPoison consumable, sleep canister\nFiber wire, flashlight",
-	traitor_chemist_soe = "SOG knife\nAdrenaline\nPoison 1, 2, 3 and 4\nPoison consumable, sleep canister\nFiber wire, flashlight",
-	traitor_shadow = "Tranquilizer gun with population-scaled ammo\nSOG knife, poison vial, traitor suit\nAdrenaline, handcuffs, smoke grenade\nFiber wire, flashlight",
-	traitor_shadow_soe = "Tranquilizer gun with population-scaled ammo\nSOG knife, poison vial, traitor suit\nWalkie-talkie, adrenaline, handcuffs, smoke grenade\nFiber wire, flashlight",
-	traitor_maniac = "Poisoned fire axe\nM45, RGD grenade, molotov\nWalkie-talkie, poison 4, traitor suit\nAdrenaline, fiber wire, flashlight\nMassive stamina and bonus health",
-	traitor_maniac_soe = "Poisoned fire axe\nM45, RGD grenade, molotov\nWalkie-talkie, poison 4, traitor suit\nAdrenaline, fiber wire, flashlight\nMassive stamina, bonus health, SOE recoil control",
+	traitor_chemist_soe = "SOG knife\nWalkie-talkie\nAdrenaline\nPoison 1, 2, 3 and 4\nPoison consumable, sleep canister\nFiber wire, flashlight",
+	traitor_shadow = "Improved wall camouflage with short slip window\nTranquilizer gun with population-scaled ammo\nSOG knife, poison vial, traitor suit\nAdrenaline, handcuffs, smoke and decoy grenades\nFiber wire, flashlight",
+	traitor_shadow_soe = "Improved wall camouflage with short slip window\nTranquilizer gun with population-scaled ammo\nSOG knife, poison vial, traitor suit\nWalkie-talkie, adrenaline, handcuffs\nSmoke and decoy grenades\nFiber wire, flashlight",
+	traitor_maniac = "Poisoned fire axe\nM45, RGD grenade, molotov\nWalkie-talkie, poison 4, traitor suit\nAdrenaline, fiber wire, flashlight\nMassive stamina, bonus health\nFury after first serious wound",
+	traitor_maniac_soe = "Poisoned fire axe\nM45, RGD grenade, molotov\nWalkie-talkie, poison 4, traitor suit\nAdrenaline, fiber wire, flashlight\nMassive stamina, bonus health, SOE recoil control\nFury after first serious wound",
 	traitor_terrorist = "Bomb vest\nMatches\nClaymore, grenade\nIED, Buck 200 knife\nFlashlight",
 	traitor_terrorist_soe = "Bomb vest\nMatches\nClaymore, grenade\nIED, SOG knife\nFlashlight",
 	traitor_lastmanstanding = "Kar98 + 20 rounds\nSling\nBrass knuckles\nFlashlight",
-	traitor_lastmanstanding_soe = "Kar98 + 20 rounds\nSling\nBrass knuckles\nFlashlight, SOE recoil control"
+	traitor_lastmanstanding_soe = "Kar98 + 20 rounds\nSling\nBrass knuckles\nFlashlight, SOE recoil control",
+	traitor_stalker = "SOG knife\nAdrenaline\nSmoke grenade\nFiber wire, flashlight\nMark up to 3 victims by watching them\nHeartbeat sonar pulses through walls\nFirst hit against each mark lightly stuns",
+	traitor_stalker_soe = "SOG knife\nWalkie-talkie\nAdrenaline\nSmoke grenade\nFiber wire, flashlight\nMark up to 3 victims by watching them\nHeartbeat sonar pulses through walls\nFirst hit against each mark lightly stuns"
 }
 
 local function getLoadoutText(role)

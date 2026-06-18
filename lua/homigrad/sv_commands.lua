@@ -115,6 +115,8 @@ COMMANDS.help = {function(ply,args)
 end,0}
 
 if SERVER then
+    hg = hg or {}
+
     util.AddNetworkString("PunishLightningEffect")
     util.AddNetworkString("AnotherLightningEffect")
     util.AddNetworkString("PluvCommand")
@@ -127,6 +129,85 @@ if SERVER then
     local ZC_POWER_MELEE_SWING_VELOCITY_MUL = 35
     local ZC_POWER_MELEE_HIT_COOLDOWN = 0.2
     local ZC_POWER_UP_VECTOR = Vector(0, 0, 1)
+    local ZC_MIN_MODEL_SCALE = 0.1
+    local ZC_MAX_MODEL_SCALE = 10
+
+    local function ZC_NormalizeModelScale(scale)
+        scale = tonumber(scale)
+        if not scale then return nil end
+
+        return math.Clamp(scale, ZC_MIN_MODEL_SCALE, ZC_MAX_MODEL_SCALE)
+    end
+
+    local function ZC_ApplyScaleToEntity(ent, scale)
+        if not IsValid(ent) then return end
+
+        if ent.SetNWFloat then
+            ent:SetNWFloat("ZCModelScale", scale)
+        end
+
+        if not ent.SetModelScale then return end
+        if ent.IsRagdoll and ent:IsRagdoll() then
+            ent:SetModelScale(1, 0)
+            if hg.ApplyRagdollPhysicsScale then
+                hg.ApplyRagdollPhysicsScale(ent, scale)
+            end
+
+            return
+        end
+
+        ent:SetModelScale(scale, 0)
+
+        if ent:IsPlayer() and hg.ApplyScaledPlayerHull then
+            hg.ApplyScaledPlayerHull(ent, true)
+        end
+    end
+
+    function hg.GetPlayerModelScale(ply)
+        if not IsValid(ply) then return 1 end
+
+        if isnumber(ply.ZCManualModelScale) then
+            return math.Clamp(ply.ZCManualModelScale, ZC_MIN_MODEL_SCALE, ZC_MAX_MODEL_SCALE)
+        end
+
+        if isnumber(ply.HMCDProfessionModelScale) then
+            return math.Clamp(ply.HMCDProfessionModelScale, ZC_MIN_MODEL_SCALE, ZC_MAX_MODEL_SCALE)
+        end
+
+        return 1
+    end
+
+    function hg.ApplyPlayerModelScale(ply)
+        if not IsValid(ply) then return 1 end
+
+        local scale = hg.GetPlayerModelScale(ply)
+        ZC_ApplyScaleToEntity(ply, scale)
+
+        if IsValid(ply.FakeRagdoll) then
+            ZC_ApplyScaleToEntity(ply.FakeRagdoll, scale)
+        end
+
+        local death_ragdoll = ply.GetNWEntity and ply:GetNWEntity("RagdollDeath")
+        if IsValid(death_ragdoll) then
+            ZC_ApplyScaleToEntity(death_ragdoll, scale)
+        end
+
+        return scale
+    end
+
+    function hg.SetPlayerModelScale(ply, scale, scale_type)
+        if not IsValid(ply) then return 1 end
+
+        scale = ZC_NormalizeModelScale(scale) or 1
+
+        if scale_type == "profession" then
+            ply.HMCDProfessionModelScale = scale ~= 1 and scale or nil
+        elseif scale_type == "manual" then
+            ply.ZCManualModelScale = scale ~= 1 and scale or nil
+        end
+
+        return hg.ApplyPlayerModelScale(ply)
+    end
 
     local function ZC_ApplyGodModel(ply)
         if not IsValid(ply) then return end
@@ -134,6 +215,7 @@ if SERVER then
         ply:SetNetVar("Accessories", {})
         ply:SetSubMaterial()
         ply:SetModel(ZC_GOD_MODEL)
+        hg.ApplyPlayerModelScale(ply)
     end
 
     local function ZC_RestoreGodModel(ply)
@@ -145,6 +227,8 @@ if SERVER then
             ply:SetSubMaterial()
             ply:SetModel(ply.ZCGodStoredModel)
         end
+
+        hg.ApplyPlayerModelScale(ply)
 
         ply.ZCGodStoredAppearance = nil
         ply.ZCGodStoredModel = nil
@@ -462,6 +546,16 @@ if SERVER then
         end)
     end)
 
+    hook.Add("PlayerSpawn", "ZC_ModelScalePersist", function(ply)
+        if not IsValid(ply) then return end
+        if not isnumber(ply.ZCManualModelScale) and not isnumber(ply.HMCDProfessionModelScale) then return end
+
+        timer.Simple(0, function()
+            if not IsValid(ply) then return end
+            hg.ApplyPlayerModelScale(ply)
+        end)
+    end)
+
     hook.Add("EntityTakeDamage", "ZC_PowerMeleeKnockback", function(target, dmginfo)
         local attacker = dmginfo:GetAttacker()
         local is_power_melee_hit, victim = ZC_IsPowerMeleeHit(attacker, target, dmginfo)
@@ -586,18 +680,38 @@ if SERVER then
 	COMMANDS.setplayermodel = COMMANDS.setmodel
 
 	COMMANDS.setscale = {function(ply, args)
-		if not ply:IsAdmin() then return end
-		local plya = #args > 1 and args[1] or ply:Name()
-		local scale = #args > 1 and args[2] or args[1]
+        local target_ply = ply
+        local scale_arg = args[1]
 
-		for i, ply2 in pairs(player.GetListByName(plya)) do
-			if ply2:Alive() then
-				ply2:SetModelScale(scale)
+        if args[2] then
+            local resolved_target, resolve_error = ZC_FindSinglePlayerByName(args[1])
 
-				ply:ChatPrint(ply2:Name().. "'s model scale set to " .. tostring(scale))
-			end
-		end
-	end, 0}
+            if not IsValid(resolved_target) then
+                ply:Notify(resolve_error)
+                return
+            end
+
+            target_ply = resolved_target
+            scale_arg = args[2]
+        end
+
+        local scale = ZC_NormalizeModelScale(scale_arg)
+
+        if not scale then
+            ply:Notify("usage: !size \"player\" 1.0-10; 1.0 is regular size")
+            return
+        end
+
+        local applied_scale = hg.SetPlayerModelScale(target_ply, scale, "manual")
+
+        if target_ply == ply then
+            ply:Notify("your size is now " .. tostring(applied_scale))
+        else
+            ply:Notify(target_ply:Name() .. "'s size is now " .. tostring(applied_scale))
+            target_ply:Notify("your size is now " .. tostring(applied_scale))
+        end
+
+	end, 1, "[player] [scale: 1 regular, max 10]"}
 
 	--// Aliases
 	COMMANDS.setsize = COMMANDS.setscale

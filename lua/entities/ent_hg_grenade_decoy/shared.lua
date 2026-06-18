@@ -1,0 +1,12 @@
+ENT.Type = "anim"
+ENT.Base = "ent_hg_grenade"
+ENT.PrintName = "Decoy Grenade"
+ENT.Spawnable = false
+ENT.Model = "models/weapons/w_m84.mdl"
+ENT.timeToBoom = 1.5
+ENT.DecoyDuration = 15
+ENT.DecoyShotMinDelay = 0.18
+ENT.DecoyShotMaxDelay = 0.55
+ENT.DecoySound = "zcitysnd/sound/weapons/firearms/hndg_glock17/glock_fire_01.wav"
+ENT.DecoySoundLevel = 77
+ENT.DecoyAISoundRadius = 500

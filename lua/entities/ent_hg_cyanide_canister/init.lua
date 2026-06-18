@@ -64,13 +64,13 @@ function ENT:Think()
 			if not ent.organism.owner:IsPlayer() then continue end
 			if util.TraceLine({start = pos,endpos = ent:GetPos(),filter = {self,ent},mask = MASK_SOLID_BRUSHONLY}).Hit then continue end
 			
-			if isChemistSubRole(ent) then continue end
+			local is_chemist = isChemistSubRole(ent)
 
 			if (ent.organism.owner.armors["face"] != "mask2") and ent.PlayerClassName ~= "Combine" and (math.random(2) == 1) then
 				local mode_hmcd = (zb and zb.modes) and zb.modes["hmcd"]
 				
 				if mode_hmcd then
-					if(ent.SubRole == "traitor_chemist")then
+					if(is_chemist)then
 						local ply_cyanide_accumulated = AddChemicalToPlayer(ent, "HCN", 10)
 						
 						if(ply_cyanide_accumulated > 100)then

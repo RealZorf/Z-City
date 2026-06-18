@@ -188,6 +188,21 @@ local function getPreferredEyeAttachment(ent)
 end
 
 local lerped_ang = Angle(0,0,0)
+local maniacFuryBreathFullDuration = 22
+local maniacFuryBreathFadeDuration = 8
+
+local function getManiacFuryBreathMultiplier(ply)
+	if not IsValid(ply) or not ply:GetNWBool("HMCD_ManiacFuryActive", false) then return 1 end
+
+	local started_at = ply:GetNWFloat("HMCD_ManiacFuryStartedAt", 0)
+	if started_at <= 0 then return 1 end
+
+	local elapsed = CurTime() - started_at
+	if elapsed <= maniacFuryBreathFullDuration then return 1 end
+
+	return math.Clamp(1 - (elapsed - maniacFuryBreathFullDuration) / maniacFuryBreathFadeDuration, 0, 1)
+end
+
 function HGAddView(ply, origin, angles, velLen)
 	if ply:Alive() then
 		local ent = hg.GetCurrentCharacter(ply)
@@ -202,7 +217,7 @@ function HGAddView(ply, origin, angles, velLen)
 		local inSight = IsValid(wep) and wep.IsZoom and wep:IsZoom()
 
 		--breathing_amount = breathing_amount + math.max((math.Clamp(pulse, 0, 80) / 120 / 30 + velLen / 100 - (30 - o2) / 3000), 0)
-		local breathing_amount = math.sin((org.pulsethink or 0) + 0.8) * (math.max(((org.heartbeat or 0) / 120 - 1) * 0.05, 0) + math.Clamp((org.stamina and org.stamina[1] and (1 - math.min(1, org.stamina[1] / (org.stamina.max * 0.75))) or 1), 0, 0.5))
+		local breathing_amount = math.sin((org.pulsethink or 0) + 0.8) * (math.max(((org.heartbeat or 0) / 120 - 1) * 0.05, 0) + math.Clamp((org.stamina and org.stamina[1] and (1 - math.min(1, org.stamina[1] / (org.stamina.max * 0.75))) or 1), 0, 0.5)) * getManiacFuryBreathMultiplier(ply)
 		--walk_amount = walk_amount + velLen / 100
 
 		--[[camera_position_addition[1] = 0

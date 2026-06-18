@@ -16,6 +16,74 @@ MODE.TypeSounds = {
 	["supermario"] = "snd_jack_hmcd_psycho.mp3"
 }
 local fade = 0
+local maniacFuryFeedback = 0
+local maniacFuryWasActive = false
+local maniacFuryNextHeartbeat = 0
+local maniacFuryStartTime = 0
+local maniacFuryBreathEndTime = 0
+local maniacFuryNextBreath = 0
+local maniacFuryBreathIndex = 0
+local maniacFuryBreathDuration = 22
+
+local function isLocalManiacFuryActive()
+	local ply = LocalPlayer()
+
+	return IsValid(ply)
+		and ply:Alive()
+		and ply:Team() != TEAM_SPECTATOR
+		and ply:GetNWBool("HMCD_ManiacFuryActive", false)
+end
+
+local function getLocalManiacFuryElapsed(now)
+	local ply = LocalPlayer()
+	if not IsValid(ply) then return 0 end
+
+	local started_at = ply:GetNWFloat("HMCD_ManiacFuryStartedAt", 0)
+	if started_at <= 0 then return 0 end
+
+	return math.max(now - started_at, 0)
+end
+
+hook.Add("Think", "HMCD_ManiacFurySelfFeedback", function()
+	local active = isLocalManiacFuryActive()
+	local now = CurTime()
+
+	if active and not maniacFuryWasActive then
+		maniacFuryStartTime = now
+		maniacFuryNextHeartbeat = 0
+		maniacFuryBreathEndTime = now + maniacFuryBreathDuration
+		maniacFuryNextBreath = 0
+		maniacFuryBreathIndex = 0
+	elseif not active and maniacFuryWasActive then
+		maniacFuryNextHeartbeat = 0
+		maniacFuryBreathEndTime = 0
+		maniacFuryNextBreath = 0
+	end
+
+	if active and maniacFuryNextHeartbeat <= now then
+		surface.PlaySound("heartbeat/heartbeat_single.wav")
+		maniacFuryNextHeartbeat = now + math.Clamp(0.84 - math.min(now - maniacFuryStartTime, 8) * 0.025, 0.58, 0.84)
+	end
+
+	local elapsed = active and getLocalManiacFuryElapsed(now) or 0
+	if active and maniacFuryBreathDuration > 0 and elapsed < maniacFuryBreathDuration and maniacFuryNextBreath <= now then
+		local ply = LocalPlayer()
+		local fade = math.Clamp((maniacFuryBreathDuration - elapsed) / maniacFuryBreathDuration, 0, 1)
+		local volume = fade * fade * 0.24
+		local sex = ThatPlyIsFemale and ThatPlyIsFemale(ply) and "f" or "m"
+		local maxBreaths = sex == "f" and 4 or 4
+
+		if volume > 0.015 then
+			maniacFuryBreathIndex = (maniacFuryBreathIndex % maxBreaths) + 1
+			ply:EmitSound("snds_jack_hmcd_breathing/" .. sex .. maniacFuryBreathIndex .. ".wav", 45, 96, volume, CHAN_AUTO)
+		end
+
+		maniacFuryNextBreath = now + math.Remap(fade, 0, 1, 5.2, 2.8)
+	end
+
+	maniacFuryWasActive = active
+end)
+
 net.Receive("HMCD_RoundStart",function()
 	for i, ply in player.Iterator() do
 		ply.isTraitor = false
@@ -249,7 +317,7 @@ local hmcd_traitor_role_tips = {
 		"they can steal radios before you split the group.",
 		"their hidden loadout lets them look harmless while carrying gear."
 	},
-	traitor_assasin = {
+	traitor_assassin = {
 		"call gunmen; they can disarm first and turn the weapon on them.",
 		"let them open on armed targets while you cover the escape.",
 		"they disarm faster from behind and against ragdolled victims.",
@@ -277,17 +345,18 @@ local hmcd_traitor_role_tips = {
 		"draw eyes away while they camouflage near walls.",
 		"send victims past dark corners for tranquilizer and cuff plays.",
 		"their concealed kit stays quiet; let them handle witnesses.",
-		"create noise so they can stand still and vanish before striking.",
+		"create noise so they can blend into a wall before striking.",
 		"they can tranq, cuff and poison; give them isolated angles.",
 		"their handcuffs turn a risky target into a quiet delivery.",
 		"let them hold a wall while you bait someone through it.",
 		"their tranquilizer is precious; call only high-value targets.",
 		"concealed weapons keep suspicion low after a search.",
-		"their camouflage needs stillness, so keep pressure away from them."
+		"their camouflage holds briefly after cover, so time the bait."
 	},
 	traitor_maniac = {
 		"block exits before they charge with axe, molotov and grenade.",
 		"use their high stamina to start panic while you catch runners.",
+		"their first serious wound triggers permanent fury; be ready to push.",
 		"let their fire axe force close fights; cover guns at range.",
 		"their health and stamina buy time for your slower setup.",
 		"when they go loud, use the chaos to finish separated targets.",
@@ -320,6 +389,18 @@ local hmcd_traitor_role_tips = {
 		"their sling keeps the rifle ready; do not waste their angle.",
 		"bait peeks with noise while they hold the shot.",
 		"they are strongest when you feed them clean sightlines."
+	},
+	traitor_stalker = {
+		"let them watch groups early so they can mark runners.",
+		"call wounded targets; their heartbeat pulse makes hiding harder.",
+		"their first hit on each mark buys a short stun window.",
+		"split the crowd after they mark three victims.",
+		"their sonar is strongest after panic scatters people.",
+		"give them quiet sightlines before the first body drops.",
+		"marked targets are easier to chase through rooms and smoke.",
+		"let them open on a marked gun threat to interrupt the response.",
+		"their pulse readout tells you who is still alive and moving.",
+		"they are best at finishing isolated survivors, not starting a massacre."
 	}
 }
 
@@ -352,7 +433,7 @@ local hmcd_traitor_self_tip_openers = {
 		"Empty pockets while your partner holds attention;",
 		"Steal medicine before poison or bleed pressure begins;"
 	},
-	traitor_assasin = {
+	traitor_assassin = {
 		"Disarm the biggest gun threat first;",
 		"Use your stamina to force the opening;",
 		"Strip weapons before your partner commits;",
@@ -374,7 +455,7 @@ local hmcd_traitor_self_tip_openers = {
 		"Use camouflage, tranq or cuffs to isolate;",
 		"Stay hidden until your partner creates noise;",
 		"Let your concealed kit remove witnesses;",
-		"Hold still near walls before the ambush starts;",
+		"Blend into walls before the ambush starts;",
 		"Tranq the armed witness, not the easy target;",
 		"Cuff someone only when your partner can receive them;",
 		"Use poison after the victim is already controlled;"
@@ -382,6 +463,7 @@ local hmcd_traitor_self_tip_openers = {
 	traitor_maniac = {
 		"Start the panic with axe, fire or grenade;",
 		"Use your stamina and health to draw pressure;",
+		"Once seriously wounded, use the permanent fury to keep pushing;",
 		"Force close combat while exits are covered;",
 		"Make people run into your partner's trap;",
 		"Use molotovs to break rooms before charging;",
@@ -405,6 +487,15 @@ local hmcd_traitor_self_tip_openers = {
 		"Use brass knuckles only if they rush your rifle;",
 		"Let others flush targets into your scope;",
 		"Stay posted until the crowd breaks formation;"
+	},
+	traitor_stalker = {
+		"Mark victims before the room starts moving;",
+		"Watch pulses to track people through walls;",
+		"Save your first hit stun for a real opening;",
+		"Mark the armed witness before you reveal yourself;",
+		"Use heartbeat rhythm to follow wounded runners;",
+		"Stay patient until you have two or three marks;",
+		"Call marked targets when they split from the crowd;"
 	}
 }
 
@@ -412,12 +503,13 @@ local hmcd_traitor_role_colors = {
 	traitor_default = Color(255, 172, 46),
 	traitor_infiltrator = Color(195, 80, 255),
 	traitor_thief = Color(70, 235, 255),
-	traitor_assasin = Color(80, 150, 255),
+	traitor_assassin = Color(80, 150, 255),
 	traitor_chemist = Color(70, 255, 115),
 	traitor_shadow = Color(130, 90, 255),
 	traitor_maniac = Color(255, 70, 70),
 	traitor_terrorist = Color(255, 120, 35),
-	traitor_lastmanstanding = Color(255, 220, 80)
+	traitor_lastmanstanding = Color(255, 220, 80),
+	traitor_stalker = Color(80, 210, 255)
 }
 
 local function get_hmcd_traitor_player_by_steamid(steamID)
@@ -504,6 +596,7 @@ local function get_hmcd_traitor_role_name(info)
 		role = ply.SubRole or ""
 	end
 
+	role = MODE.NormalizeTraitorSubRole and MODE.NormalizeTraitorSubRole(role) or role
 	return get_hmcd_subrole_name(role)
 end
 
@@ -518,7 +611,7 @@ local function get_hmcd_traitor_role_id(info)
 		end
 	end
 
-	return role
+	return MODE.NormalizeTraitorSubRole and MODE.NormalizeTraitorSubRole(role) or role
 end
 
 local function get_hmcd_traitor_base_role_id(info)
@@ -536,6 +629,7 @@ local function get_hmcd_local_traitor_base_role_id()
 	local role = lply.SubRole or ""
 	if role == "" then return "traitor_default" end
 
+	role = MODE.NormalizeTraitorSubRole and MODE.NormalizeTraitorSubRole(role) or role
 	role = string.gsub(role, "_soe$", "")
 	return hmcd_traitor_self_tip_openers[role] and role or "traitor_default"
 end
@@ -926,6 +1020,27 @@ function MODE:RenderScreenspaceEffects()
 
 		surface.SetDrawColor(0, 0, 0, 255 * fade)
 		surface.DrawRect(-1, -1, ScrW() + 1, ScrH() + 1 )
+	end
+
+	maniacFuryFeedback = Lerp(FrameTime() * 5, maniacFuryFeedback, isLocalManiacFuryActive() and 1 or 0)
+	if maniacFuryFeedback > 0.01 then
+		local pulse = 0.55 + math.sin(CurTime() * 7.5) * 0.45
+		local strength = maniacFuryFeedback * (0.55 + pulse * 0.45)
+
+		DrawColorModify({
+			["$pp_colour_addr"] = 0.025 * strength,
+			["$pp_colour_addg"] = -0.006 * strength,
+			["$pp_colour_addb"] = -0.008 * strength,
+			["$pp_colour_brightness"] = -0.01 * strength,
+			["$pp_colour_contrast"] = 1 + 0.06 * strength,
+			["$pp_colour_colour"] = 1 + 0.04 * strength,
+			["$pp_colour_mulr"] = 0,
+			["$pp_colour_mulg"] = 0,
+			["$pp_colour_mulb"] = 0
+		})
+
+		surface.SetDrawColor(160, 0, 0, 18 * strength)
+		surface.DrawRect(0, 0, ScrW(), ScrH())
 	end
 end
 

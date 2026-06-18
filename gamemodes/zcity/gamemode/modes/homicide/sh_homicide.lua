@@ -19,6 +19,22 @@ function MODE.IsThiefRole(subrole)
 	return subrole == "traitor_thief" or subrole == "traitor_thief_soe"
 end
 
+function MODE.IsChemistRole(subrole)
+	return subrole == "traitor_chemist" or subrole == "traitor_chemist_soe"
+end
+
+function MODE.IsAssassinRole(subrole)
+	return subrole == "traitor_assassin" or subrole == "traitor_assassin_soe"
+		or subrole == "traitor_assasin" or subrole == "traitor_assasin_soe"
+end
+
+function MODE.NormalizeTraitorSubRole(subrole)
+	if subrole == "traitor_assasin" then return "traitor_assassin" end
+	if subrole == "traitor_assasin_soe" then return "traitor_assassin_soe" end
+
+	return subrole
+end
+
 if SERVER then
 	function MODE.MarkThiefStartInventory(ply)
 		if not IsValid(ply) then return end
@@ -206,17 +222,18 @@ Equipped with a walkie-talkie for State of Emergency coordination.]],
 	--==//
 
 	--==\\
-	["traitor_assasin"] = {
-		Name = "Assasin",
+	["traitor_assassin"] = {
+		Name = "Assassin",
 		Description = [[Can quickly disarm people from any angle.
 Disarms faster from behind.
 Disarms faster from front if the victim is in ragdoll.
 Proficient in shooting from guns.
 Has additional stamina (+ 80 units compared to other traitors).
-Equipped with walkie-talkie.
+Equipped with walkie-talkie and a katana as last resort melee weapon.
 For people who like to play checkers.]],
 		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
 		SpawnFunction = function(ply)
+			ply:Give("weapon_katana")
 			-- ply:Give("weapon_sogknife")	
 			-- ply:Give("weapon_adrenaline")
 			-- ply:Give("weapon_hg_smokenade_tpik")
@@ -226,22 +243,25 @@ For people who like to play checkers.]],
 			ply.organism.stamina.max = 300
 			-- local inv = ply:GetNetVar("Inventory", {})
 			-- inv["Weapons"]["hg_flashlight"] = true
+			local inv = ply:GetNetVar("Inventory", {})
+			inv["Weapons"]["hg_sling"] = true
 			
 			ply:SetNetVar("Inventory", inv)
 		end,
 	},
-	["traitor_assasin_soe"] = {
-		Name = "Assasin",
+	["traitor_assassin_soe"] = {
+		Name = "Assassin",
 		Description = [[Can quickly disarm people from any angle.
 Disarms faster from behind.
 Disarms faster from front if the victim is in ragdoll.
+Equipped with a katana as last resort melee weapon.
 Proficient in shooting from guns.
 Has additional stamina (+ 80 units compared to other traitors).
-Equipped with walkie-talkie, knife, epipen and flashlight.
+Equipped with walkie-talkie, knife, epipen, flashlight and a katana as last resort melee weapon.
 For people who like to play checkers.]],
 		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
 		SpawnFunction = function(ply)
-			ply:Give("weapon_sogknife")	
+			ply:Give("weapon_katana")	
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_walkie_talkie")
 			ply:Give("weapon_zc_fiberwire_standalone")
@@ -252,6 +272,8 @@ For people who like to play checkers.]],
 			ply.organism.stamina.max = 300
 			--local inv = ply:GetNetVar("Inventory", {})
 			--inv["Weapons"]["hg_flashlight"] = true
+			local inv = ply:GetNetVar("Inventory", {})
+			inv["Weapons"]["hg_sling"] = true
 			
 			ply:SetNetVar("Inventory", inv)
 		end,
@@ -296,6 +318,7 @@ Can detect presence and potency of chemical agents in the air.]],
 			Objective = "You're a chemist who decided to use his knowledge to hurt others. Poison everything.",
 			SpawnFunction = function(ply)
 				ply:Give("weapon_sogknife")
+				ply:Give("weapon_walkie_talkie")
 				ply:Give("weapon_adrenaline")
 				ply:Give("weapon_traitor_poison1")
 				ply:Give("weapon_traitor_poison2")
@@ -320,7 +343,7 @@ Can detect presence and potency of chemical agents in the air.]],
 	["traitor_shadow"] = {
 		Name = "Shadow",
 		Description = [[A master of silent elimination.
-Can camouflage when standing still next to a wall for 5 seconds while upright.
+Can camouflage when standing still next to a wall for a few seconds while upright, with a short slip window after leaving cover.
 Equipped with concealed weapons that won't be visible on your body.
 Uses tranquilizer gun, tetrodoxin, handcuffs and a disguise.
 Enhanced stealth capabilities with increased stamina. (+40 units)
@@ -339,6 +362,7 @@ For those who prefer to kill from the shadows.]],
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_handcuffs")
 			ply:Give("weapon_hg_smokenade_tpik")
+			ply:Give("weapon_hg_decoynade_tpik")
 			ply:Give("weapon_zc_fiberwire_standalone")
 			
 			ply.organism.stamina.max = 260
@@ -354,7 +378,7 @@ For those who prefer to kill from the shadows.]],
 	["traitor_shadow_soe"] = {
 		Name = "Shadow",
 		Description = [[A master of silent elimination.
-Can camouflage when standing still next to a wall for 5 seconds while upright.
+Can camouflage when standing still next to a wall for a few seconds while upright, with a short slip window after leaving cover.
 Equipped with concealed weapons that won't be visible on your body.
 Uses tranquilizer gun, tetrodoxin, handcuffs and a disguise.
 Enhanced stealth capabilities with increased stamina. (+40 units)
@@ -376,6 +400,7 @@ For those who prefer to kill from the shadows.]],
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_handcuffs")
 			ply:Give("weapon_hg_smokenade_tpik")
+			ply:Give("weapon_hg_decoynade_tpik")
 			ply:Give("weapon_zc_fiberwire_standalone")
 			
 			ply.organism.stamina.max = 260
@@ -392,8 +417,9 @@ For those who prefer to kill from the shadows.]],
 		Name = "Maniac",
 		Description = [[A blood-crazed butcher who lives for close-range slaughter.
 Armed with a vicious fire axe and brutal backup weapons, you thrive in chaos and panic.
-You have massively increased stamina and extra health, allowing you to keep pushing long after others would fall.]],
-		Objective = "You are a Maniac. Charge into the chaos and butcher your victims up close.",
+You have massively increased stamina and extra health, allowing you to keep pushing long after others would fall.
+The first serious wound you take triggers permanent adrenaline and fentanyl-like pain suppression without overdose risk.]],
+		Objective = "You are a Maniac. Charge into the chaos, survive your first serious wound, and butcher your victims up close.",
 		SpawnFunction = function(ply)
 			-- Axe that will be poisonous and holsterable
 			local axe = ply:Give("weapon_hg_fireaxe")
@@ -416,6 +442,8 @@ You have massively increased stamina and extra health, allowing you to keep push
 			ply:SetHealth(maniacHealth)
 			local inv = ply:GetNetVar("Inventory", {})
 			inv["Weapons"]["hg_flashlight"] = true
+			inv["Weapons"]["hg_sling"] = true
+			
 			
 			ply:SetNetVar("Inventory", inv)
 		end,
@@ -424,8 +452,9 @@ You have massively increased stamina and extra health, allowing you to keep push
 		Name = "Maniac",
 		Description = [[A blood-crazed butcher who lives for close-range slaughter.
 Armed with a vicious fire axe and brutal backup weapons, you thrive in chaos and panic.
-You have massively increased stamina and extra health, allowing you to keep pushing long after others would fall.]],
-		Objective = "You are a Maniac. Charge into the chaos and butcher your victims up close.",
+You have massively increased stamina and extra health, allowing you to keep pushing long after others would fall.
+The first serious wound you take triggers permanent adrenaline and fentanyl-like pain suppression without overdose risk.]],
+		Objective = "You are a Maniac. Charge into the chaos, survive your first serious wound, and butcher your victims up close.",
 		SpawnFunction = function(ply)
 			local axe = ply:Give("weapon_hg_fireaxe")
 			if IsValid(axe) then
@@ -448,6 +477,7 @@ You have massively increased stamina and extra health, allowing you to keep push
 			ply:SetHealth(maniacHealth)
 			local inv = ply:GetNetVar("Inventory", {})
 			inv["Weapons"]["hg_flashlight"] = true
+			inv["Weapons"]["hg_sling"] = true
 
 			ply:SetNetVar("Inventory", inv)
 		end,
@@ -535,6 +565,48 @@ Pick your shots carefully, stay calm under pressure and make sure you are the on
 			local inv = ply:GetNetVar("Inventory", {})
 			inv["Weapons"]["hg_sling"] = true
 			inv["Weapons"]["hg_brassknuckles"] = true
+			inv["Weapons"]["hg_flashlight"] = true
+
+			ply:SetNetVar("Inventory", inv)
+		end,
+	},
+	["traitor_stalker"] = {
+		Name = "Stalker",
+		Description = [[A sonar hunter who reads the living by their pulse.
+Look at victims for a few seconds to mark up to 3 of them.
+Marked victims emit a subtle color pulse through walls in rhythm with their heartbeat.
+Your first hit against each marked victim causes a light stun.]],
+		Objective = "You are the Stalker. Mark victims, track their heartbeat through cover and strike when they split from the crowd.",
+		SpawnFunction = function(ply)
+			ply:Give("weapon_sogknife")
+			ply:Give("weapon_adrenaline")
+			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_smokenade_tpik")
+
+			ply.organism.stamina.max = 260
+			local inv = ply:GetNetVar("Inventory", {})
+			inv["Weapons"]["hg_flashlight"] = true
+
+			ply:SetNetVar("Inventory", inv)
+		end,
+	},
+	["traitor_stalker_soe"] = {
+		Name = "Stalker",
+		Description = [[A sonar hunter who reads the living by their pulse.
+Look at victims for a few seconds to mark up to 3 of them.
+Marked victims emit a subtle color pulse through walls in rhythm with their heartbeat.
+Your first hit against each marked victim causes a light stun.]],
+		Objective = "You are the Stalker. Mark victims, track their heartbeat through cover and strike when they split from the crowd.",
+		SpawnFunction = function(ply)
+			ply:Give("weapon_sogknife")
+			ply:Give("weapon_walkie_talkie")
+			ply:Give("weapon_adrenaline")
+			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_smokenade_tpik")
+
+			ply.organism.recoilmul = 1
+			ply.organism.stamina.max = 260
+			local inv = ply:GetNetVar("Inventory", {})
 			inv["Weapons"]["hg_flashlight"] = true
 
 			ply:SetNetVar("Inventory", inv)
@@ -749,10 +821,11 @@ MODE.RoleChooseRoundTypes = {
 			["traitor_chemist"] = true,
 			["traitor_thief"] = true,
 			["traitor_shadow"] = true,
-			["traitor_assasin"] = true,
+			["traitor_assassin"] = true,
 			["traitor_maniac"] = true, 	-- maniac killer
 			["traitor_terrorist"] = true,
 			["traitor_lastmanstanding"] = true,
+			["traitor_stalker"] = true,
 		},
 		Professions = {
 			["medic"] = {
@@ -787,7 +860,7 @@ MODE.RoleChooseRoundTypes = {
 			["traitor_default"] = true,
 			["traitor_infiltrator"] = true,
 			["traitor_chemist"] = true,
-			--["traitor_assasin"] = true,	there's no gunman so why have an assassin?
+			--["traitor_assassin"] = true,	there's no gunman so why have an assassin?
 			--["traitor_maniac"] = true,	having a maniac in gfz is crazy
 		},
 		Professions = {
@@ -822,10 +895,11 @@ MODE.RoleChooseRoundTypes = {
 			["traitor_chemist_soe"] = true,
 			["traitor_thief_soe"] = true,
 			["traitor_shadow_soe"] = true,
-			["traitor_assasin_soe"] = true,
+			["traitor_assassin_soe"] = true,
 			["traitor_maniac_soe"] = true,
 			["traitor_terrorist_soe"] = true,
 			["traitor_lastmanstanding_soe"] = true,
+			["traitor_stalker_soe"] = true,
 			-- ["traitor_demoman_soe"] = true,
 		},
 		Professions = {

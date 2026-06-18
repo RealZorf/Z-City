@@ -163,6 +163,16 @@ local function getLocalFakeRagdoll()
 	return IsValid(ragdoll) and ragdoll or nil
 end
 
+local function getScaledRagdollPoint(ent, pos)
+	if not IsValid(ent) or not isvector(pos) then return pos end
+	if not ent.GetNWFloat then return pos end
+
+	local scale = math.Clamp(ent:GetNWFloat("ZCModelScale", 1), 0.1, 10)
+	if scale == 1 then return pos end
+
+	return ent:GetPos() + (pos - ent:GetPos()) * scale
+end
+
 local function isLocalSpectatorFreecam()
 	local ply = LocalPlayer()
 	if not IsValid(ply) or ply:Alive() then return false end
@@ -400,7 +410,7 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 	
 	if IsValid(ply.OldRagdoll) then DrawPlayerRagdoll(follow, ply) end
 
-	local pos = hg.eye(ply, 10, follow, att_Ang, att.Pos)
+	local pos = hg.eye(ply, 10, follow, att_Ang, getScaledRagdollPoint(follow, att.Pos))
 
 	--local dot = ang:Forward():Dot((pos - att.Pos):GetNormalized())
 	

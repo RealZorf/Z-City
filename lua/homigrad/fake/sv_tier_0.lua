@@ -105,6 +105,28 @@ hg.CacheFakeRagdollData = cacheFakeRagdollData
 
 local IdealMassPlayer = hg.IdealMassPlayer
 
+function hg.ApplyRagdollPhysicsScale(ragdoll, scale)
+	if not IsValid(ragdoll) or not ragdoll.GetPhysicsObjectCount then return end
+
+	scale = math.Clamp(tonumber(scale) or 1, 0.1, 10)
+	ragdoll.ZCPhysicsModelScale = scale
+	ragdoll.ZCOriginalPhysMasses = ragdoll.ZCOriginalPhysMasses or {}
+
+	local mass_mul = math.Clamp(scale * scale * scale, 0.05, 8)
+
+	for phys_id = 0, ragdoll:GetPhysicsObjectCount() - 1 do
+		local phys = ragdoll:GetPhysicsObjectNum(phys_id)
+		if not IsValid(phys) then continue end
+
+		if not ragdoll.ZCOriginalPhysMasses[phys_id] then
+			ragdoll.ZCOriginalPhysMasses[phys_id] = phys:GetMass()
+		end
+
+		phys:SetMass(math.max(1, ragdoll.ZCOriginalPhysMasses[phys_id] * mass_mul))
+		phys:Wake()
+	end
+end
+
 local fixbones = {
 	["ValveBiped.Bip01_Pelvis"] = true,
 	["ValveBiped.Bip01_L_Thigh"] = true,
@@ -123,12 +145,15 @@ function hg.Ragdoll_Create(ply)
 	ragdoll:SetAngles(ply:GetAngles())
 	--ragdoll:SetVelocity(ply:GetVelocity())
 	ragdoll:SetModel(ply:GetModel())
-	ragdoll:SetModelScale(ply:GetModelScale(), 0)
+	local model_scale = hg.GetPlayerModelScale and hg.GetPlayerModelScale(ply) or ply:GetModelScale()
+	ragdoll:SetNWFloat("ZCModelScale", model_scale)
+	ragdoll:SetModelScale(1, 0)
 	ragdoll.CurAppearance = table.Copy(ply.CurAppearance)
 
 	local bodygroups = ply:GetBodyGroups()
 	ragdoll:Spawn()
 	ragdoll:Activate()
+	ragdoll:SetModelScale(1, 0)
 	hg.ApplySetCollisionGroupNow(ragdoll, COLLISION_GROUP_WEAPON)
 	ragdoll:AddEFlags(EFL_NO_DAMAGE_FORCES + EFL_DONTBLOCKLOS)
 	--ragdoll:AddFlags(FL_NOTARGET)
@@ -297,10 +322,14 @@ function hg.Ragdoll_Create(ply)
 
 					timer.Simple(0.1, function()
 						if IsValid(ragdoll) then
-							for physNum = 0, ragdoll:GetPhysicsObjectCount() - 1 do
-								local phys = ragdoll:GetPhysicsObjectNum(physNum)
-								local bone = ragdoll:TranslatePhysBoneToBone(physNum)
-								phys:SetMass(IdealMassPlayer[ragdoll:GetBoneName(bone)] or 4)
+							if hg.ApplyRagdollPhysicsScale then
+								hg.ApplyRagdollPhysicsScale(ragdoll, ragdoll:GetNWFloat("ZCModelScale", 1))
+							else
+								for physNum = 0, ragdoll:GetPhysicsObjectCount() - 1 do
+									local phys = ragdoll:GetPhysicsObjectNum(physNum)
+									local bone = ragdoll:TranslatePhysBoneToBone(physNum)
+									phys:SetMass(IdealMassPlayer[ragdoll:GetBoneName(bone)] or 4)
+								end
 							end
 						end
 					end)
@@ -377,6 +406,7 @@ function hg.Ragdoll_Create(ply)
 	end]]
 
 	hook_Run("Ragdoll_Create", ply, ragdoll)
+	hg.ApplyRagdollPhysicsScale(ragdoll, model_scale)
 	
 	ragdoll.ply = ply
 	ApplyAppearanceRagdoll(ragdoll, ply)
@@ -735,6 +765,10 @@ function hg.Fake(ply, huyragdoll, no_freemove, force)
 	NET_Fake(ragdoll, ply)
 	
 	ply.FakeRagdoll = ragdoll
+
+	if hg.ApplyPlayerModelScale then
+		hg.ApplyPlayerModelScale(ply)
+	end
 	
 	if IsValid(ply.FakeRagdollOld) then
 		ply.FakeRagdollOld:Remove()
@@ -804,11 +838,15 @@ function hg.SetFreemove(ply, set)
 		ply.lastFake = CurTime() + ply.lastFakeTime
 		//ply:SetNetVar("lastFake", ply.lastFake)
 		ply:SetMoveType(MOVETYPE_WALK)
-		local hull = Vector(5,5,5)
-		ply:SetHull(-Vector(hull,hull,0),Vector(hull,hull,72))
-		ply:SetHullDuck(-Vector(hull,hull,0),Vector(hull,hull,36))
-		ply:SetViewOffset(Vector(0,0,64))
-		ply:SetViewOffsetDucked(Vector(0,0,34))
+		if hg.ApplyScaledPlayerHull then
+			hg.ApplyScaledPlayerHull(ply, true)
+		else
+			local hull = Vector(5,5,5)
+			ply:SetHull(-Vector(hull,hull,0),Vector(hull,hull,72))
+			ply:SetHullDuck(-Vector(hull,hull,0),Vector(hull,hull,36))
+			ply:SetViewOffset(Vector(0,0,64))
+			ply:SetViewOffsetDucked(Vector(0,0,34))
+		end
 	else
 		ply.lastFake = 0
 		ply.lastFakeTime = 0
@@ -817,12 +855,16 @@ function hg.SetFreemove(ply, set)
 			//ply:SetMoveType(ply:InVehicle() and MOVETYPE_NOCLIP or MOVETYPE_NONE)
 		//end
 		ply:SetMoveType(MOVETYPE_NOCLIP)
-		local hull = Vector(1, 1, 1)
-		local hull2 = Vector(1, 1, 0)
-		ply:SetHull(-hull2, hull)
-		ply:SetHullDuck(-hull2, hull)
-		ply:SetViewOffset(vector_up)
-		ply:SetViewOffsetDucked(vector_up)
+		if hg.ApplyScaledPlayerHull then
+			hg.ApplyScaledPlayerHull(ply, false)
+		else
+			local hull = Vector(1, 1, 1)
+			local hull2 = Vector(1, 1, 0)
+			ply:SetHull(-hull2, hull)
+			ply:SetHullDuck(-hull2, hull)
+			ply:SetViewOffset(vector_up)
+			ply:SetViewOffsetDucked(vector_up)
+		end
 	end
 end
 

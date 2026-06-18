@@ -253,7 +253,8 @@ hook.Add("Think", "Fake", function()
 		
 		local power = org.pain and ((org.pain > 50 or org.blood < 2900 or org.o2[1] < 5) and 0.3) or ((org.pain > 20 or org.blood < 4200 or org.o2[1] < 10) and 0.5) or 1
 		power = power * org.consciousness
-		ragdoll.power = power
+		local model_scale = ragdoll.GetNWFloat and math.Clamp(ragdoll:GetNWFloat("ZCModelScale", 1), 0.1, 10) or 1
+		ragdoll.power = power * math.Clamp(model_scale, 0.35, 2)
 
 		local inmove = false
 		

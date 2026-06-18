@@ -9,21 +9,31 @@ MODE.DisarmReach = 90
 MODE.NoDisarmWeapons = {
 	["weapon_hands_sh"] = true,
 }
-MODE.ShadowCamouflageChargeTime = 5
-MODE.ShadowCamouflageWallDistance = 34
-MODE.ShadowCamouflageMoveSpeed = 10
-MODE.ShadowCamouflageGraceTime = 0.35
-MODE.ShadowCamouflageAlpha = 96
-MODE.ShadowCamouflageTint = Color(110, 120, 132, 96)
-MODE.ShadowCamouflageBlend = 0.34
+MODE.ShadowCamouflageChargeTime = 4
+MODE.ShadowCamouflageWallDistance = 25
+MODE.ShadowCamouflageMoveSpeed = 15
+MODE.ShadowCamouflageGraceTime = 1
+MODE.ShadowCamouflageAlpha = 82
+MODE.ShadowCamouflageTint = Color(190, 205, 220, 82)
+MODE.ShadowCamouflageBlend = 0.52
 MODE.ShadowCamouflageColorModulation = {
-	0.42,
-	0.45,
-	0.5
+	0.78,
+	0.84,
+	0.94
 }
+MODE.StalkerMarkMax = 3
+MODE.StalkerMarkTime = 1.6
+MODE.StalkerMarkDistance = 2800
+MODE.StalkerMarkAngleCos = math.cos(math.rad(14))
+MODE.StalkerMarkAssistDistance = 56
+MODE.StalkerFirstHitStunTime = 1
 
 function MODE.IsShadowRole(subrole)
 	return subrole == "traitor_shadow" or subrole == "traitor_shadow_soe"
+end
+
+function MODE.IsStalkerRole(subrole)
+	return subrole == "traitor_stalker" or subrole == "traitor_stalker_soe"
 end
 
 --\\

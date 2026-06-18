@@ -293,6 +293,49 @@ hg.ConVars = hg.ConVars or {}
 	local ViewOffsetDucked = Vector(0, 0, 38)
 	local Pos32 = Vector(0, 0, 32)
 
+	function hg.GetEntityModelScale(ent)
+		if not IsValid(ent) then return 1 end
+
+		if ent.GetNWFloat then
+			return math.Clamp(ent:GetNWFloat("ZCModelScale", 1), 0.1, 10)
+		end
+
+		return 1
+	end
+
+	function hg.ApplyScaledPlayerHull(ply, fake_state)
+		if not IsValid(ply) then return end
+
+		local scale = hg.GetEntityModelScale(ply)
+
+		if fake_state == false then
+			local fake_hull = math.max(1, scale)
+			local hull_min = Vector(-fake_hull, -fake_hull, 0)
+			local hull_max = Vector(fake_hull, fake_hull, math.max(1, scale))
+
+			ply:SetHull(hull_min, hull_max)
+			ply:SetHullDuck(hull_min, hull_max)
+			ply:SetViewOffset(Vector(0, 0, math.max(1, scale)))
+			ply:SetViewOffsetDucked(Vector(0, 0, math.max(1, scale)))
+			return
+		end
+
+		local radius = math.max(2, hull * scale)
+		local height = math.max(12, 72 * scale)
+		local duck_height = math.max(8, 36 * scale)
+		local view_height = math.max(8, 64 * scale)
+		local duck_view_height = math.max(6, 38 * scale)
+
+		local mins = Vector(-radius, -radius, 0)
+		local maxs = Vector(radius, radius, height)
+		local duck_maxs = Vector(radius, radius, duck_height)
+
+		ply:SetHull(mins, maxs)
+		ply:SetHullDuck(mins, duck_maxs)
+		ply:SetViewOffset(Vector(0, 0, view_height))
+		ply:SetViewOffsetDucked(Vector(0, 0, duck_view_height))
+	end
+
 	local gridsize = 24
 	local tpGrid = hg.spiralGrid(gridsize)
 	local cell_size = 50
@@ -430,10 +473,7 @@ hg.ConVars = hg.ConVars or {}
 
 			ply:SetJumpPower(DEFAULT_JUMP_POWER)
 
-			ply:SetHull(HullMins, HullMaxs)
-			ply:SetHullDuck(HullDuckMins, HullDuckMaxs)
-			ply:SetViewOffset(ViewOffset)
-			ply:SetViewOffsetDucked(ViewOffsetDucked)
+			hg.ApplyScaledPlayerHull(ply, true)
 
 			ply:SetSlowWalkSpeed(60)
 			ply:SetLadderClimbSpeed(150)
@@ -459,10 +499,7 @@ hg.ConVars = hg.ConVars or {}
 
 		-- if CLIENT and ply:Alive() then ply:BoneScaleChange() end
 
-		ply:SetHull(HullMins, HullMaxs)
-		ply:SetHullDuck(HullDuckMins, HullDuckMaxs)
-		ply:SetViewOffset(ViewOffset)
-		ply:SetViewOffsetDucked(ViewOffsetDucked)
+		hg.ApplyScaledPlayerHull(ply, true)
 
 		ply:DrawShadow(true)
 		ply:SetRenderMode(RENDERMODE_NORMAL)
@@ -1464,10 +1501,7 @@ local IsValid = IsValid
 --//
 --\\ set hull
 	hook.Add("Player Activate","SetHull",function(ply)
-		ply:SetHull(HullMins, HullMaxs)
-		ply:SetHullDuck(HullDuckMins, HullDuckMaxs)
-		ply:SetViewOffset(ViewOffset)
-		ply:SetViewOffsetDucked(ViewOffsetDucked)
+		hg.ApplyScaledPlayerHull(ply, true)
 	end)
 
 	hook.Add("Player Spawn","SetHull",function(ply)

@@ -670,10 +670,14 @@ players : 1 humans, 0 bots (20 max)
 		hook.Add("OnRequestFullUpdate","SetHull",function()
 			local ply = LocalPlayer()
 			if not IsValid(ply) then return end
-			ply:SetHull(HullMins, HullMaxs)
-			ply:SetHullDuck(HullDuckMins, HullDuckMaxs)
-			ply:SetViewOffset(ViewOffset)
-			ply:SetViewOffsetDucked(ViewOffsetDucked)
+			if hg.ApplyScaledPlayerHull then
+				hg.ApplyScaledPlayerHull(ply, true)
+			else
+				ply:SetHull(HullMins, HullMaxs)
+				ply:SetHullDuck(HullDuckMins, HullDuckMaxs)
+				ply:SetViewOffset(ViewOffset)
+				ply:SetViewOffsetDucked(ViewOffsetDucked)
+			end
 		end)
 
 		hook.Add("PlayerStartVoice","huy_CheckVoice",function(ply)

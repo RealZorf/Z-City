@@ -68,6 +68,17 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 	local ARMOR_RENDER_DIST_SQR = 1450 * 1450
 	local DETAIL_RENDER_DIST_SQR = 2000 * 2000
 	local angfuck = Angle()
+	local function updateRenderBoundsForScale(ent, scale)
+		if not ent.SetRenderBounds or not ent.OBBMins or not ent.OBBMaxs then return end
+
+		local boundScale = math.max(scale, 1)
+		local pad = 48 * boundScale
+		local mins = ent:OBBMins() * boundScale - Vector(pad, pad, pad)
+		local maxs = ent:OBBMaxs() * boundScale + Vector(pad, pad, pad)
+
+		ent:SetRenderBounds(mins, maxs)
+	end
+
 	local function cachedRenderHeadBone(ent)
 		if not IsValid(ent) or not ent.LookupBone then return end
 
@@ -87,6 +98,59 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 	end
 
 	local hg_no_camera_in_cars = CreateConVar("hg_no_camera_in_cars","0",FCVAR_ARCHIVE + FCVAR_REPLICATED, "disables camera in cars", 0, 1)
+	local function prepareRenderModelScale(ent, ply)
+		if SERVER then return 1 end
+		if not IsValid(ent) then return 1 end
+		if not ent.IsRagdoll or not ent:IsRagdoll() then return 1 end
+
+		local scale = 1
+		if IsValid(ply) and ply.GetNWFloat then
+			scale = ply:GetNWFloat("ZCModelScale", scale)
+		end
+
+		if scale == 1 and ent.GetNWFloat then
+			scale = ent:GetNWFloat("ZCModelScale", scale)
+		end
+
+		scale = math_Clamp(tonumber(scale) or 1, 0.1, 10)
+		if ent.ZCLastRenderModelScale == scale and ent.ZCLastRenderModelScaleMode == "bones" then return scale end
+
+		ent.ZCLastRenderModelScale = scale
+		ent.ZCLastRenderModelScaleMode = "bones"
+		updateRenderBoundsForScale(ent, scale)
+
+		if ent.DisableMatrix then
+			ent:DisableMatrix("RenderMultiply")
+		end
+
+		return scale
+	end
+
+	local function applyBoneRenderScale(ent, scale)
+		scale = tonumber(scale) or 1
+		if scale == 1 or not ent.GetBoneCount or not ent.GetBoneMatrix or not ent.SetBoneMatrix then return end
+
+		local origin = ent:GetPos()
+		local scale_vector = Vector(scale, scale, scale)
+
+		for bone = 0, ent:GetBoneCount() - 1 do
+			local mat = ent:GetBoneMatrix(bone)
+			if not mat then continue end
+
+			local pos = mat:GetTranslation()
+			mat:SetTranslation(origin + (pos - origin) * scale)
+
+			local current_scale = mat:GetScale()
+			if current_scale then
+				mat:SetScale(current_scale * scale)
+			else
+				mat:SetScale(scale_vector)
+			end
+
+			ent:SetBoneMatrix(bone, mat)
+		end
+	end
+
 	function DrawPlayerRagdoll(ent, ply) --// actually not only ragdoll render but player too
 		if ply.prevragdoll_index != nil and ply.prevragdoll_index != ply.ragdoll_index and ply.ragdoll_index == 0 then
 			//print(ply.ragdoll_index, ply.prevragdoll_index, Entity(ply.ragdoll_index))
@@ -101,11 +165,12 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 
 		local lkp = cachedRenderHeadBone(ent)
 		if !ent.GetManipulateBoneScale or !lkp then return end
+		local renderModelScale = prepareRenderModelScale(ent, ply)
 
 		local smoothingUnfake = IsValid(ply.OldRagdoll) and ply.gettingup and (ply.gettingup + 1 - CurTime()) > 0
 		local distSqr = EyePos():DistToSqr(ent:GetPos())
 		local criticalView = ply == lply or GetViewEntity() == ply or follow == ent or smoothingUnfake
-		local fullPoseRender = criticalView or distSqr <= FULL_POSE_RENDER_DIST_SQR
+		local fullPoseRender = criticalView or renderModelScale ~= 1 or distSqr <= FULL_POSE_RENDER_DIST_SQR
 		local armorRender = criticalView or distSqr <= ARMOR_RENDER_DIST_SQR
 		local detailRender = distSqr <= DETAIL_RENDER_DIST_SQR
 		if smoothingUnfake then
@@ -127,6 +192,7 @@ local IsValid, math_Clamp = IsValid, math.Clamp
 		end
 
 		if ply:GetNetVar("handcuffed", false) and fullPoseRender then hg.CuffedAnim(ent, ply) end
+		if fullPoseRender then applyBoneRenderScale(ent, renderModelScale) end
 
 		if fullPoseRender and IsValid(wep) then
 			//if wep.isTPIKBase then hg.RenderTPIKBase(ent, ply, wep) end
