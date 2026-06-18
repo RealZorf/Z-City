@@ -88,7 +88,7 @@ if SERVER then
 		local entOwner = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
 
 		local injected = math.min(FrameTime() * 1, self.modeValues[1])
-		org.analgesiaAdd = math.min(org.analgesiaAdd + injected, 4)
+		org.analgesiaAdd = math.min(org.analgesiaAdd + injected * 2, 4)
 		self.modeValues[1] = math.max(self.modeValues[1] - injected, 0)
 
 		owner.injectedinto = owner.injectedinto or {}
