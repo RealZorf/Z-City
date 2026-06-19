@@ -7,10 +7,13 @@ SWEP.Spawnable = true
 SWEP.AdminOnly = false
 
 SWEP.WorldModel = "models/hmc/weapons/w_fibrewire.mdl"
-SWEP.WorldModelReal = "models/hmc/weapons/v_fibrewire.mdl"
+SWEP.WorldModelReal = "models/hmc/weapons/v_fibrewire_test.mdl"
+SWEP.WorldModelExchange = false
 SWEP.ViewModel = ""
 
 SWEP.HoldType = "melee"
+
+SWEP.ForceIdleAfterDeploy = false
 
 SWEP.HoldPos = Vector(-6,0,0)
 
@@ -54,7 +57,7 @@ SWEP.AttackLen1 = 70
 SWEP.AttackLen2 = 40
 
 SWEP.AnimList = {
-    ["idle"] = "idle_1",
+    ["idle"] = "idle_2",
     ["idle2"] = "idle_2",
     ["deploy"] = "draw",
     ["attack"] = "Swing",
@@ -88,6 +91,112 @@ local function IsFromBehind(attacker, target)
     return true
 end
 
+local function GetStrangleTrace(owner, dist)
+    local filter = {owner}
+    local fr = owner.FakeRagdoll
+    if IsValid(fr) then filter[#filter + 1] = fr end
+    return util.QuickTrace(owner:GetShootPos(), owner:GetAimVector() * (dist or 100), filter)
+end
+
+local function IsChokeZoneHit(ent, tr)
+    if not IsValid(ent) then return false end
+
+    if ent:IsNPC() then
+        if tr.HitGroup == HITGROUP_HEAD or tr.HitGroup == HITGROUP_NECK or tr.HitGroup == HITGROUP_CHEST then
+            return true
+        end
+    end
+
+    if ent:IsPlayer() then
+        if tr.HitGroup == HITGROUP_HEAD or tr.HitGroup == HITGROUP_NECK or tr.HitGroup == HITGROUP_CHEST then
+            return true
+        end
+        local headBone = ent:LookupBone("ValveBiped.Bip01_Head1")
+        if headBone and tr.HitPos then
+            local pos = ent:GetBonePosition(headBone)
+            if pos and pos:Distance(tr.HitPos) <= 28 then return true end
+        end
+        return false
+    end
+
+    if ent:IsRagdoll() then
+        -- Any ragdoll should be a valid choke target (including spawned prop_ragdoll).
+        if tr.Entity == ent then return true end
+
+        -- Extra proximity fallback around neck/chest for humanoid ragdolls.
+        if tr.HitPos then
+            local checkBones = {10, 9, 1, 2}
+            for _, bone in ipairs(checkBones) do
+                local physIdx = hg.realPhysNum(ent, bone)
+                if physIdx ~= nil and physIdx >= 0 then
+                    local obj = ent:GetPhysicsObjectNum(physIdx)
+                    if IsValid(obj) and obj:GetPos():Distance(tr.HitPos) <= 40 then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+
+    return false
+end
+
+local function ResolveStrangleTarget(self, ent)
+    if not IsValid(ent) then return nil end
+
+    if ent:IsPlayer() then
+        if hg and hg.Fake then hg.Fake(ent) end
+        return ent.FakeRagdoll or ent
+    end
+
+    return ent
+end
+
+local function FindModeNPCRagdoll(npcPos, npcModel, existing)
+    local best, bestDist
+    for _, ent in ipairs(ents.FindInSphere(npcPos, 220)) do
+        if ent:IsRagdoll() and not existing[ent] then
+            local sameModel = (ent:GetModel() == npcModel)
+            local dist = ent:GetPos():DistToSqr(npcPos)
+            if sameModel then dist = dist * 0.6 end
+            if not best or dist < bestDist then
+                best = ent
+                bestDist = dist
+            end
+        end
+    end
+    return best
+end
+
+local function PrepNPCDeathRagdoll(rag)
+    if not IsValid(rag) or not rag:IsRagdoll() then return end
+
+    -- remember original group so StopStrangle can restore it correctly
+    rag._fiberwire_spawn_colgroup = rag:GetCollisionGroup()
+    rag:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+
+    for i = 0, rag:GetPhysicsObjectCount() - 1 do
+        local phys = rag:GetPhysicsObjectNum(i)
+        if IsValid(phys) then
+            phys:SetVelocity(vector_origin)
+            phys:AddAngleVelocity(-phys:GetAngleVelocity())
+        end
+    end
+end
+
+-- Same gate unconscious chat/voice uses (organism.otrub), without setting otrub early.
+local function IsFiberwireStrangled(ply)
+    if not IsValid(ply) or not ply:IsPlayer() then return false end
+
+    if SERVER then
+        local rag = ply.FakeRagdoll
+        return IsValid(rag) and rag.StrangleLocked == true
+    end
+
+    return ply:GetNetVar("fiberwireStrangled", false)
+end
+
 -- Start strangling: ragdoll victim and weld our ragdoll hands to their head
 local function StartStrangle(self, victim)
     if CLIENT then return end
@@ -96,6 +205,42 @@ local function StartStrangle(self, victim)
 
     -- if we are in fake mode, do not allow strangling
     if IsValid(owner.FakeRagdoll) then return end
+
+    -- NPC support: use ZCity's own death ragdoll entity instead of creating a copy.
+    if IsValid(victim) and victim:IsNPC() then
+        local npc = victim
+        local npcPos = npc:WorldSpaceCenter()
+        local npcModel = npc:GetModel()
+        local existing = {}
+        for _, ent in ipairs(ents.FindInSphere(npcPos, 150)) do
+            if ent:IsRagdoll() then existing[ent] = true end
+        end
+
+        local dmg = DamageInfo()
+        dmg:SetDamage(math.max(npc:Health(), 1000))
+        dmg:SetAttacker(owner)
+        dmg:SetInflictor(IsValid(self) and self or owner)
+        dmg:SetDamageType(DMG_SLASH)
+        dmg:SetDamageForce(vector_origin)
+        dmg:SetDamagePosition(npcPos)
+        npc:TakeDamageInfo(dmg)
+
+        local timerId = "FiberwireNPCRag_" .. self:EntIndex() .. "_" .. npc:EntIndex()
+        timer.Create(timerId, 0.05, 8, function()
+            if not IsValid(self) then timer.Remove(timerId) return end
+            if self:GetStrangling() then timer.Remove(timerId) return end
+            local ownerNow = self:GetOwner()
+            if not IsValid(ownerNow) or not ownerNow:IsPlayer() or IsValid(ownerNow.FakeRagdoll) then timer.Remove(timerId) return end
+
+            local rag = FindModeNPCRagdoll(npcPos, npcModel, existing)
+            if IsValid(rag) then
+                PrepNPCDeathRagdoll(rag)
+                timer.Remove(timerId)
+                StartStrangle(self, rag)
+            end
+        end)
+        return
+    end
 
     -- Make sure the victim is ragdolled; do not ragdoll attacker
     local rag = victim
@@ -113,12 +258,30 @@ local function StartStrangle(self, victim)
     -- Mark strangling state
     self:SetStrangling(true)
     self.StrangleRag = rag
+
+    -- === НОВОЕ: инициализация звуков ===
+    self.nextBreathSound = CurTime() + math.Rand(3, 5)
+    self.breathStage = 0        -- 0 = вдохи, 1 = агональное дыхание
+    self.inhaleCount = 0
+
     rag.Strangler = owner -- link for other systems
     rag.StrangleLocked = true -- lock fake controls & get-up
     self.NoIdleLoop = true -- prevent idle from overwriting the loop
     -- disable collisions during choke to avoid knocking down strangler
-    rag._oldCollisionGroup = rag:GetCollisionGroup()
+    rag._oldCollisionGroup = rag._fiberwire_spawn_colgroup or rag:GetCollisionGroup()
+    rag._fiberwire_spawn_colgroup = nil
     rag:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+
+    -- FIX: Сохраняем исходную регенерацию кислорода жертвы
+    local ragPly = hg.RagdollOwner(rag)
+    if IsValid(ragPly) and ragPly:IsPlayer() and ragPly.organism and ragPly.organism.o2 then
+        ragPly._fiberwire_old_o2regen = ragPly.organism.o2.regen
+        ragPly.organism.o2.regen = 0
+        ragPly:SetNetVar("fiberwireStrangled", true)
+    -- === НОВОЕ: уведомление жертве ===
+        ragPly:Notify("I feel something suddenly and forcefully pull around my neck from my back. I can't breathe...", true, "fiberwire_strangle_start", 3)
+    end
+
     self._fw_looping = false
     self._fw_loop_at = CurTime() + 0.6
     self._fw_lock_until = CurTime() + 1
@@ -158,18 +321,37 @@ local function StopStrangle(self)
     if CLIENT then return end
     local owner = self:GetOwner()
     if not IsValid(owner) then return end
-    if IsValid(self.StrangleRag) then
-        self.StrangleRag.Strangler = nil
-        self.StrangleRag.StrangleLocked = nil -- unlock
-        -- restore ragdoll collision group
-        if self.StrangleRag._oldCollisionGroup then
-            self.StrangleRag:SetCollisionGroup(self.StrangleRag._oldCollisionGroup)
-            self.StrangleRag._oldCollisionGroup = nil
+
+     -- FIX: Восстанавливаем регенерацию кислорода у жертвы
+    local rag = self.StrangleRag
+    if IsValid(rag) then
+        -- FIX: Восстанавливаем регенерацию кислорода
+        local ragPly = hg.RagdollOwner(rag)
+        if IsValid(ragPly) and ragPly:IsPlayer() and ragPly.organism and ragPly.organism.o2 then
+            if ragPly._fiberwire_old_o2regen ~= nil then
+                ragPly.organism.o2.regen = ragPly._fiberwire_old_o2regen
+                ragPly._fiberwire_old_o2regen = nil
+            end
+            ragPly:SetNetVar("fiberwireStrangled", false)
+        end
+
+        rag.Strangler = nil
+        rag.StrangleLocked = nil
+        if rag._oldCollisionGroup then
+            rag:SetCollisionGroup(rag._oldCollisionGroup)
+            rag._oldCollisionGroup = nil
         end
     end
+
     self:SetStrangling(false)
     self.StrangleRag = nil
     self.NoIdleLoop = nil -- allow idle again
+
+    -- === НОВОЕ: сброс звуковых переменных ===
+    self.nextBreathSound = nil
+    self.breathStage = nil
+    self.inhaleCount = nil
+
     -- Back to idle after breaking the choke
     if CLIENT or (IsValid(owner) and owner:IsPlayer()) then
         -- return to idle on all clients
@@ -220,6 +402,9 @@ end
 -- make sure re-equip returns to idle with LH IK off
 function SWEP:Deploy()
     local ok = self.BaseClass.Deploy(self)
+
+    self.ForceIdleAfterDeploy = true
+
     if CLIENT then
         timer.Simple(0.04, function()
             if not IsValid(self) then return end
@@ -227,9 +412,7 @@ function SWEP:Deploy()
             if not IsValid(owner) then return end
             if owner:GetActiveWeapon() ~= self then return end
             if self.GetStrangling and self:GetStrangling() then return end
-            -- kick into idle to apply LH off state
-            self:PlayAnim("idle", 10, true)
-            -- Hide dummy bone after deployment
+            self:PlayAnim("idle2", 10, true)
             self:HideDummyBone()
         end)
     end
@@ -246,7 +429,6 @@ function SWEP:Holster(target)
     return true
 end
 
-
 if CLIENT then
 	SWEP.WepSelectIcon = Material("vgui/wep_jack_hmcd_fibrewire")
 	SWEP.IconOverride = "vgui/wep_jack_hmcd_fibrewire"
@@ -261,8 +443,6 @@ SWEP.holsteredPos = Vector(6, -1.5, -6) -- Adjust position
 SWEP.holsteredAng = Angle(65, 0, 0) -- Adjust rotation
 SWEP.Concealed = false -- wont show up on the body
 SWEP.HolsterIgnored = false -- the holster system will ignore
-
-
 
 SWEP.AttackHit = "Plastic_Box.ImpactHard"
 SWEP.Attack2Hit = "Plastic_Box.ImpactHard"
@@ -335,57 +515,32 @@ function SWEP:CustomAttack()
     -- block strangling while attacker is in fake mode
     if IsValid(owner.FakeRagdoll) then return true end
 
-    -- Resolve potential target with a short forward trace; ignore own ragdoll
-    local filter = {owner}
-    local fr = owner.FakeRagdoll
-    if IsValid(fr) then filter[#filter+1] = fr end
-    local tr = util.QuickTrace(owner:GetShootPos(), owner:GetAimVector() * 80, filter)
+    local tr = GetStrangleTrace(owner, 100)
     local hitEnt = tr.Entity
     if not IsValid(hitEnt) then return true end
 
-    local isRagdoll = hitEnt:IsRagdoll()
-    local isPlayer = hitEnt:IsPlayer()
-
-    local headHit = false
-    if isRagdoll and tr.PhysicsBone then
-        headHit = (tr.PhysicsBone == hg.realPhysNum(hitEnt, 10))
-    else
-        headHit = (tr.HitGroup == 1 or tr.HitGroup == 2)
-    end
-    -- fallback for ragdolls when PhysicsBone isn’t reported by trace
-    if isRagdoll and not headHit then
-        local headIdx = hg.realPhysNum(hitEnt, 10)
-        local headObj = hitEnt:GetPhysicsObjectNum(headIdx)
-        if IsValid(headObj) and tr.HitPos then
-            if headObj:GetPos():Distance(tr.HitPos) <= 18 then
-                headHit = true
-            end
-        end
-    end
-
+    local zoneOK = IsChokeZoneHit(hitEnt, tr)
     local angleOK = true
-    if headHit and angleOK then
-        local ragTarget = hitEnt
-        if isPlayer then
-            if hg and hg.Fake then hg.Fake(hitEnt) end
-            ragTarget = hitEnt.FakeRagdoll or ragTarget
-        end
-
-        StartStrangle(self, ragTarget)
-
+    if zoneOK and angleOK then
+        local target = ResolveStrangleTarget(self, hitEnt)
+        StartStrangle(self, target)
         -- animations are handled inside StartStrangle()
-
         -- Cancel the default attack/damage flow
         self:SetInAttack(false)
         return true
     end
-
     -- No blunt damage: always cancel base attack flow
     return true
 end
 
 -- Keep victim's head close and stable in front while strangling
 function SWEP:CustomThink()
+
+    if self.ForceIdleAfterDeploy then
+        self.ForceIdleAfterDeploy = false
+        self:PlayAnim("idle2", 10, true)
+    end
+
     if self.BaseClass and self.BaseClass.CustomThink then
         self.BaseClass.CustomThink(self)
     end
@@ -393,8 +548,31 @@ function SWEP:CustomThink()
     if CLIENT then return end
     local owner = self:GetOwner()
     if not IsValid(owner) or not owner:IsPlayer() then return end
+
+    if IsValid(owner.FakeRagdoll) then
+        StopStrangle(self)
+        return
+    end
+
     local rag = self.StrangleRag
     if not self:GetStrangling() then return end
+
+        if IsValid(self.NPCVictim) then
+        local npc = self.NPCVictim
+        if not npc:Alive() then
+            StopStrangle(self)
+            return
+        end
+
+        local targetPos = owner:GetShootPos() + owner:GetAimVector() * 55
+        npc:SetLastPosition(targetPos)
+        npc:SetSchedule(SCHED_FORCED_GO_RUN)
+
+        if npc:Health() > 0 then
+            npc:SetHealth(math.max(npc:Health() - FrameTime() * 12, 0))
+        end
+        return
+    end
 
     -- stop if ragdoll vanished
     if not IsValid(rag) or not rag:IsRagdoll() then
@@ -402,15 +580,55 @@ function SWEP:CustomThink()
         return
     end
 
-    -- stop if attacker or victim died
-    local ragPlyAlive
-    do
-        local rp = hg.RagdollOwner and hg.RagdollOwner(rag) or nil
-        ragPlyAlive = IsValid(rp) and rp:IsPlayer() and rp:Alive()
-    end
-    if not owner:Alive() or not ragPlyAlive then
+    -- stop if attacker died; dead victims/ragdolls are allowed targets by design
+    if not owner:Alive() then
         StopStrangle(self)
         return
+    end
+
+        -- === НОВОЕ: звуки жертвы ===
+    if IsValid(rag) then
+        local ragPly = hg.RagdollOwner and hg.RagdollOwner(rag)
+        if IsValid(ragPly) and ragPly:IsPlayer() then
+            -- Проверяем, функционируют ли лёгкие (если нет – звуки не проигрываем)
+            if not (ragPly.organism and ragPly.organism.lungsfunction == false) then
+                if CurTime() >= (self.nextBreathSound or 0) then
+                    local soundToPlay
+                    -- Определяем пол жертвы (функция ThatPlyIsFemale должна быть доступна глобально)
+                    local isFemale = false
+                    if ThatPlyIsFemale then
+                        isFemale = ThatPlyIsFemale(ragPly)
+                    end
+
+                    if self.breathStage == 0 then
+                        -- Вдохи (inhale)
+                        if isFemale then
+                            local r = math.random(1, 5)
+                            soundToPlay = "breathing/inhale/female/inhale_0" .. r .. ".wav"
+                        else
+                            local r = math.random(1, 4)
+                            soundToPlay = "breathing/inhale/male/inhale_0" .. r .. ".wav"
+                        end
+                        self.inhaleCount = (self.inhaleCount or 0) + 1
+                        if self.inhaleCount >= 5 then
+                            self.breathStage = 1   -- после пяти вдохов переключаемся на агональное дыхание
+                        end
+                    else
+                        -- Агональное дыхание (общие звуки)
+                        local r = math.random(1, 13)
+                        soundToPlay = "breathing/agonalbreathing_" .. r .. ".wav"
+                    end
+
+                    if soundToPlay then
+                        -- Проигрываем звук от регдолла жертвы с невысокой громкостью (уровень 50)
+                        rag:EmitSound(soundToPlay, 50, 100)
+                    end
+
+                    -- Устанавливаем следующий интервал (3-5 секунд)
+                    self.nextBreathSound = CurTime() + math.Rand(3, 5)
+                end
+            end
+        end
     end
 
     -- Average hands position as target
@@ -445,11 +663,12 @@ function SWEP:CustomThink()
     hg.ShadowControl(rag, 1, 0.2, nil, nil, nil, spinePos, 500, 120)
     hg.ShadowControl(rag, 2, 0.2, nil, nil, nil, spinePos, 500, 120)
 
-    -- Make victim show struggle: hands try to hold the neck using bullet-hit pattern
+    -- Make victim show struggle only while a living player is being choked.
     local ragPly2 = hg.RagdollOwner and hg.RagdollOwner(rag) or nil
     local ragOrg = ragPly2 and ragPly2.organism or nil
     local knockedOut = ragOrg and ragOrg.otrub == true
-    if not knockedOut then
+    local allowStruggle = IsValid(ragPly2) and ragPly2:IsPlayer() and ragPly2:Alive() and not knockedOut
+    if allowStruggle then
         local headPhys = rag:GetPhysicsObjectNum(hg.realPhysNum(rag, 10))
         local lhandPhys = rag:GetPhysicsObjectNum(hg.realPhysNum(rag, 5))
         local rhandPhys = rag:GetPhysicsObjectNum(hg.realPhysNum(rag, 7))
@@ -466,14 +685,23 @@ function SWEP:CustomThink()
         end
     end
 
+         -- FIX: Принудительно блокируем регенерацию кислорода, пока длится удушье
+    local ragPly = hg.RagdollOwner(rag)
+    
+    --[[
+    if IsValid(ragPly) and ragPly:IsPlayer() and ragPly.organism and ragPly.organism.o2 then
+        ragPly.organism.o2.curregen = 0   -- <-каждый параметр будет обнулен
+    end
+    ]]
+
     -- drain oxygen and stamina while choking (server-side)
     local ragPly = hg.RagdollOwner(rag)
     if IsValid(ragPly) and ragPly:IsPlayer() and ragPly.organism then
         local org = ragPly.organism
         local dt = FrameTime()
-        -- light, continuous choke effects
+        org.choking = true
         if org.o2 and org.o2[1] then
-            org.o2[1] = math.max(org.o2[1] - 6 * dt, 0)
+            org.o2[1] = math.max(org.o2[1] - 1 * dt, 0)
         end
         if org.stamina and org.stamina.subadd ~= nil then
             org.stamina.subadd = org.stamina.subadd + 6 * dt
@@ -486,7 +714,6 @@ function SWEP:CustomThink()
         self:PlayAnim("strangle_loop", 4.0, true, nil, false, true)
         self._fw_looping = true
     end
-    
     -- Always hide dummy bone during gameplay
     self:HideDummyBone()
 end
@@ -500,46 +727,17 @@ function SWEP:PrimaryAttackAdd(ent, trace)
     -- do not allow starting strangulation while in fake mode
     if IsValid(owner.FakeRagdoll) then return end
 
-    -- Recompute hit using QuickTrace to get HitGroup info like HMCD; ignore own ragdoll
-    local filter = {owner}
-    local fr = owner.FakeRagdoll
-    if IsValid(fr) then filter[#filter+1] = fr end
-    local tr = util.QuickTrace(owner:GetShootPos(), owner:GetAimVector() * 80, filter)
+    local tr = GetStrangleTrace(owner, 100)
     local hitEnt = tr.Entity
     if not IsValid(hitEnt) then return end
 
-    local isRagdoll = hitEnt:IsRagdoll()
-    local isPlayer = hitEnt:IsPlayer()
-
-    local headHit = false
-    if isRagdoll and tr.PhysicsBone then
-        headHit = (tr.PhysicsBone == hg.realPhysNum(hitEnt, 10))
-    else
-        -- HMCD-style: treat 1 or 2 as valid choke zones
-        headHit = (tr.HitGroup == 1 or tr.HitGroup == 2)
-    end
-    -- fallback for ragdolls when PhysicsBone isn’t reported by trace
-    if isRagdoll and not headHit then
-        local headIdx = hg.realPhysNum(hitEnt, 10)
-        local headObj = hitEnt:GetPhysicsObjectNum(headIdx)
-        if IsValid(headObj) and tr.HitPos then
-            if headObj:GetPos():Distance(tr.HitPos) <= 18 then
-                headHit = true
-            end
-        end
-    end
-
+    local zoneOK = IsChokeZoneHit(hitEnt, tr)
+    
     if self:GetStrangling() then return end
     local angleOK2 = true
-    if headHit and angleOK2 then
-        -- Ragdoll player targets before starting choke
-        local ragTarget = hitEnt
-        if isPlayer then
-            if hg and hg.Fake then hg.Fake(hitEnt) end
-            ragTarget = hitEnt.FakeRagdoll or ragTarget
-        end
-
-        StartStrangle(self, ragTarget)
+    if zoneOK and angleOK2 then
+        local target = ResolveStrangleTarget(self, hitEnt)
+        StartStrangle(self, target)
 
         -- animation handled inside StartStrangle
 
@@ -562,6 +760,24 @@ end
 -- No custom Think needed; base melee handles attack ticks
 
 if SERVER then
+    -- Prevent the currently strangled ragdoll from physically colliding with the strangler.
+    hook.Add("ShouldCollide", "FiberwireNoCollideStranglerAndVictim", function(ent1, ent2)
+        if not IsValid(ent1) or not IsValid(ent2) then return end
+
+        local rag, ply
+        if ent1:IsRagdoll() and ent2:IsPlayer() then
+            rag, ply = ent1, ent2
+        elseif ent2:IsRagdoll() and ent1:IsPlayer() then
+            rag, ply = ent2, ent1
+        else
+            return
+        end
+
+        if rag.Strangler == ply then
+            return false
+        end
+    end)
+
     -- block fake controls while strangled
     hook.Add("CanControlFake", "FiberwireStrangleLock", function(ply, rag)
         local r = ply and ply.FakeRagdoll
@@ -585,6 +801,38 @@ if SERVER then
         if wep:GetClass() ~= "weapon_hg_fiberwire" then return end
         if wep.GetStrangling and wep:GetStrangling() then
             cmd:RemoveKey(IN_SPEED)
+        end
+    end)
+
+    -- prevent text chat while strangled
+    hook.Add("HG_PlayerSay", "FiberwireStrangleMute", function(ply, txtTbl)
+        if IsFiberwireStrangled(ply) then
+            txtTbl[1] = ""
+        end
+    end)
+
+    -- prevent voice while strangled
+    hook.Add("HG_PlayerCanHearPlayersVoice", "FiberwireStrangleMute", function(listener, speaker)
+        if IsFiberwireStrangled(speaker) then return false, false end
+    end)
+
+    hook.Add("HG_PlayerCanSeePlayersChat", "FiberwireStrangleMute", function(listener, speaker)
+        if IsFiberwireStrangled(speaker) then return false end
+    end)
+
+    -- prevent phrases while strangled
+    hook.Add("HG_CanDoPhrase", "FiberwireStrangleMute", function(ply)
+        if IsFiberwireStrangled(ply) then return true end
+    end)
+end
+
+if CLIENT then
+    hook.Add("PlayerBindPress", "FiberwireStrangleMute", function(client, bind, pressed)
+        if client ~= LocalPlayer() or not pressed then return end
+
+        bind = bind:lower()
+        if bind:find("messagemode") and IsFiberwireStrangled(client) then
+            return true
         end
     end)
 end

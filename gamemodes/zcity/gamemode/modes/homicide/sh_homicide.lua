@@ -75,7 +75,7 @@ You are equipped with various weapons, poisons and explosives, grenades and your
 			ply:Give("weapon_traitor_poison1")
 			ply:Give("weapon_traitor_suit")
 			ply:Give("weapon_hg_jam")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			-- ply:Give("weapon_traitor_poison2")
 			-- ply:Give("weapon_traitor_poison3")
 			
@@ -107,7 +107,7 @@ You are equipped with various weapons, poisons and explosives, grenades and your
 			ply:Give("weapon_traitor_ied")
 			ply:Give("weapon_traitor_poison2")
 			ply:Give("weapon_traitor_poison3")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.recoilmul = 1
 			ply.organism.stamina.max = 220
@@ -131,7 +131,7 @@ For people who like to play chess.]],
 			ply:Give("weapon_sogknife")
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_hg_smokenade_tpik")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.stamina.max = 220
 			local inv = ply:GetNetVar("Inventory", {})
@@ -156,7 +156,7 @@ For people who like to play chess.]],
 			ply:Give("weapon_walkie_talkie")
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_hg_smokenade_tpik")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.recoilmul = 1
 			ply.organism.stamina.max = 220
@@ -264,7 +264,7 @@ For people who like to play checkers.]],
 			ply:Give("weapon_katana")	
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_walkie_talkie")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			-- ply:Give("weapon_hg_smokenade_tpik")
 			-- ply:Give("weapon_hg_shuriken")
 			
@@ -296,7 +296,7 @@ Can detect presence and potency of chemical agents in the air.]],
 			ply:Give("weapon_traitor_poison4")
 			ply:Give("weapon_traitor_poison_consumable")
 			ply:Give("weapon_traitor_sleepcanister")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.stamina.max = 220
 			local inv = ply:GetNetVar("Inventory", {})
@@ -326,7 +326,7 @@ Can detect presence and potency of chemical agents in the air.]],
 				ply:Give("weapon_traitor_poison4")
 				ply:Give("weapon_traitor_poison_consumable")
 				ply:Give("weapon_traitor_sleepcanister")
-				ply:Give("weapon_zc_fiberwire_standalone")
+				ply:Give("weapon_hg_fiberwire")
 			
 				ply.organism.stamina.max = 220
 				local inv = ply:GetNetVar("Inventory", {})
@@ -363,7 +363,7 @@ For those who prefer to kill from the shadows.]],
 			ply:Give("weapon_handcuffs")
 			ply:Give("weapon_hg_smokenade_tpik")
 			ply:Give("weapon_hg_decoynade_tpik")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.stamina.max = 260
 			local inv = ply:GetNetVar("Inventory", {})
@@ -401,7 +401,7 @@ For those who prefer to kill from the shadows.]],
 			ply:Give("weapon_handcuffs")
 			ply:Give("weapon_hg_smokenade_tpik")
 			ply:Give("weapon_hg_decoynade_tpik")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.stamina.max = 260
 			local inv = ply:GetNetVar("Inventory", {})
@@ -434,7 +434,7 @@ The first serious wound you take triggers permanent adrenaline and fentanyl-like
 			ply:Give("weapon_traitor_poison4")
 			ply:Give("weapon_traitor_suit")
 			ply:Give("weapon_adrenaline")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			
 			ply.organism.stamina.max = 440
 			local maniacHealth = math.max(120, math.Round((ply:GetMaxHealth() > 0 and ply:GetMaxHealth() or 100) * 1.2))
@@ -468,7 +468,7 @@ The first serious wound you take triggers permanent adrenaline and fentanyl-like
 			ply:Give("weapon_traitor_poison4")
 			ply:Give("weapon_traitor_suit")
 			ply:Give("weapon_adrenaline")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 
 			ply.organism.recoilmul = 1
 			ply.organism.stamina.max = 440
@@ -580,7 +580,7 @@ Your first hit against each marked victim causes a light stun.]],
 		SpawnFunction = function(ply)
 			ply:Give("weapon_sogknife")
 			ply:Give("weapon_adrenaline")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			ply:Give("weapon_hg_smokenade_tpik")
 
 			ply.organism.stamina.max = 260
@@ -601,7 +601,7 @@ Your first hit against each marked victim causes a light stun.]],
 			ply:Give("weapon_sogknife")
 			ply:Give("weapon_walkie_talkie")
 			ply:Give("weapon_adrenaline")
-			ply:Give("weapon_zc_fiberwire_standalone")
+			ply:Give("weapon_hg_fiberwire")
 			ply:Give("weapon_hg_smokenade_tpik")
 
 			ply.organism.recoilmul = 1
