@@ -86,8 +86,6 @@ end
 SWEP.setlh = true
 SWEP.setrh = true
 SWEP.TwoHanded = true
-SWEP.BlockTier = 3
-
 
 SWEP.AttackHit = "Canister.ImpactHard"
 SWEP.Attack2Hit = "Canister.ImpactHard"
