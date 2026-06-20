@@ -3,8 +3,6 @@ local blackList = {
     ["weapon_zombclaws"] = true
 }
 
-local vecZero = Vector(0, 0, 0)
-
 local META = getmetatable("PLAYER")
 META.inventory = {
     Weapons = {},
@@ -206,12 +204,10 @@ function hg.RenewInv(ply, isDead, deathRagdoll)
             inv.Weapons[wep:GetClass()] = wep--wep.GetInfo and wep:GetInfo() or true
         else
             ply.nohook = true
+            ply:DropWeapon(wep)
+
             wep:SetNoDraw(true)
             wep:DrawShadow(false)
-            wep:AddSolidFlags(FSOLID_NOT_SOLID)
-            hg.SafeSetCollisionGroup(wep, COLLISION_GROUP_DEBRIS)
-            ply:DropWeapon(wep, hg.GetSafeDeathDropPos(ply, wep), vecZero)
-
             wep:AddSolidFlags(FSOLID_NOT_SOLID)
 
             local rag = IsValid(deathRagdoll) and deathRagdoll or ply:GetNWEntity("RagdollDeath")
@@ -302,53 +298,7 @@ hook.Add("PlayerAmmoChanged", "homigrad-inventory", function(ply,ammoID,oldcount
     end
 end)
 
-local deathDropOffsets = {
-    Vector(0, 0, 48),
-    Vector(24, 0, 42),
-    Vector(-24, 0, 42),
-    Vector(0, 24, 42),
-    Vector(0, -24, 42),
-    Vector(32, 32, 48),
-    Vector(-32, -32, 48),
-    Vector(0, 0, 72)
-}
-
-function hg.GetSafeDeathDropPos(subject, wep)
-    if not IsValid(subject) then return vector_origin end
-
-    local rag = subject.GetNWEntity and subject:GetNWEntity("RagdollDeath")
-    local ent = IsValid(rag) and rag or ((subject:IsPlayer() and hg.GetCurrentCharacter) and hg.GetCurrentCharacter(subject) or subject)
-    if not IsValid(ent) then ent = subject end
-
-    local basePos = ent.WorldSpaceCenter and ent:WorldSpaceCenter() or ent:GetPos()
-    local filter = {subject, ent, wep}
-
-    for i = 1, #deathDropOffsets do
-        local pos = basePos + deathDropOffsets[i]
-        local tr = util.TraceHull({
-            start = pos,
-            endpos = pos,
-            mins = Vector(-8, -8, -4),
-            maxs = Vector(8, 8, 8),
-            mask = MASK_SOLID,
-            filter = filter
-        })
-
-        if not tr.StartSolid and not tr.Hit then
-            return pos
-        end
-    end
-
-    local fallback = util.TraceLine({
-        start = basePos + Vector(0, 0, 96),
-        endpos = basePos + Vector(0, 0, 16),
-        mask = MASK_SOLID,
-        filter = filter
-    })
-
-    return fallback.Hit and (fallback.HitPos + fallback.HitNormal * 12) or (basePos + Vector(0, 0, 64))
-end
-
+local vecZero = Vector(0, 0, 0)
 hook.Add("PlayerDropWeapon", "homigrad-inventory", function(ply)
     local wep = ply:GetActiveWeapon()
     if not IsValid(wep) or wep.NoDrop then return end
@@ -360,9 +310,8 @@ hook.Add("PlayerDropWeapon", "homigrad-inventory", function(ply)
     if wep.RemoveFake then wep:RemoveFake() end
     hg.SafeSetCollisionGroup(wep, COLLISION_GROUP_WORLD)
     hg.SafeCollisionRulesChanged(wep)
-    local dropPos = hg.GetSafeDeathDropPos(ply, wep)
-    ply:DropWeapon(wep, dropPos, vecZero)
-    wep:SetPos(dropPos)
+    ply:DropWeapon(wep, ply:EyePos(), vecZero)
+    wep:SetPos(ply:EyePos())
     ply.inventory.Weapons[wep:GetClass()] = nil
     ply:SetNetVar("Inventory", ply.inventory)
     ply:SetActiveWeapon(NULL)
@@ -490,14 +439,13 @@ local functions = {
         --print(weaponIsEnt)
         if not weaponIsEnt then
             weapon = ents.Create(wep)
-            if not IsValid(weapon) then return end
             weapon.DontEquipInstantly = (not weapon.NoHolster) and (weapon.weaponInvCategory != 1)
             weapon.IsSpawned = true
             weapon.init = true
             --weapon.init = true--<^разве это не одно и то же?
-            weapon:SetPos(hg.GetSafeDeathDropPos(ent, weapon))
-            weapon:SetAngles(ent:GetAngles())
             weapon:Spawn()
+            weapon:SetPos(ent:GetPos())
+            weapon:SetAngles(ent:GetAngles())
             
             local tbl = ent.inventory.Weapons[wep]
             if weapon.SetInfo then weapon:SetInfo(tbl) end
@@ -511,8 +459,6 @@ local functions = {
             weapon:SetNoDraw( false )
             weapon:DrawShadow( true )
             weapon:RemoveSolidFlags(FSOLID_NOT_SOLID)
-            hg.SafeSetCollisionGroup(weapon, COLLISION_GROUP_WEAPON)
-            hg.SafeCollisionRulesChanged(weapon)
             --
 
             --local tbl = ent.inventory.Weapons[wep]
