@@ -6,7 +6,7 @@ SWEP.Category = "Weapons - Melee"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
 
-SWEP.WorldModel = "models/weapons/w_knife_swch.mdl"
+SWEP.WorldModel = "models/surgeon simulator 2013/scalpel_1.mdl"
 SWEP.WorldModelReal = "models/weapons/salat/reanim/c_s&wch0014.mdl"
 SWEP.WorldModelExchange = "models/surgeon simulator 2013/scalpel_1.mdl"
 
