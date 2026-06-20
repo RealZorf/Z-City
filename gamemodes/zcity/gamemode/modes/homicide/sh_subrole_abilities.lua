@@ -114,6 +114,9 @@ end
 
 --\\Neck Break
 function MODE.CanPlayerBreakOtherNeck(ply, aim_ent)
+	local wep = ply:GetActiveWeapon()
+    if not IsValid(wep) or wep:GetClass() ~= "weapon_hands_sh" then return false end
+
 	if(aim_ent:IsRagdoll())then
 		local bone_id = aim_ent:LookupBone("ValveBiped.Bip01_Head1")
 		
