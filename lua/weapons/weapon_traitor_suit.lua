@@ -194,6 +194,33 @@ if CLIENT then
 
         local scroll = vgui.Create("DScrollPanel", self.CostumeMenu)
         scroll:Dock(FILL)
+        local vbar = scroll:GetVBar()
+
+        vbar.Paint = function(self, w, h)
+            draw.RoundedBox(6, 0, 0, w, h, Color(25, 0, 0, 120))
+            draw.RoundedBox(6, 2, 2, w - 4, h - 4, Color(40, 0, 0, 80))
+        end
+
+        vbar.btnUp.Paint = function(self, w, h)
+            draw.RoundedBox(4, 0, 0, w, h, Color(80, 0, 0, 180))
+            surface.SetDrawColor(120, 0, 0, 220)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+        end
+
+        vbar.btnDown.Paint = function(self, w, h)
+            draw.RoundedBox(4, 0, 0, w, h, Color(80, 0, 0, 180))
+            surface.SetDrawColor(120, 0, 0, 220)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+        end
+
+        vbar.btnGrip.Paint = function(self, w, h)
+            local hover = self:IsHovered()
+            local col = hover and Color(220, 30, 30, 220) or Color(160, 0, 0, 200)
+
+            draw.RoundedBox(6, 2, 0, w - 4, h, col)
+            surface.SetDrawColor(255, 60, 60, hover and 180 or 120)
+            surface.DrawOutlinedRect(1, 0, w - 2, h, 1)
+        end
         scroll:DockMargin(10, 35, 10, 10) -- leave room for title bar
 
         local grid = vgui.Create("DGrid", scroll)
