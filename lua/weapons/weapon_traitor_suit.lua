@@ -52,6 +52,34 @@ SWEP.AvailableCostumes = {
         Description = "Stop fucking in my lake!",
         Color = Color(255, 255, 255),
         Attachments = {}
+    },
+    {
+        Name = "Darth Vader",
+        Model = "models/player/darth_vader.mdl",
+        Description = "Breathing heavily since 1977",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "Spy",
+        Model = "models/gman_spy/spy_04.mdl",
+        Description = "Could be anyone. Could even be you",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "NAVS Operator",
+        Model = "models/vpc_flk_whitecom_pms/pms/wcomexp/vp_flk_wcomexp.mdl",
+        Description = "Solves issues by increasing the number of issues",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "Security Guard",
+        Model = "models/vpc_flk_whitecom_pms/pms/wcomsec/vp_flk_wcomsec.mdl",
+        Description = "Mall cop energy included",
+        Color = Color(255, 255, 255),
+        Attachments = {}
     }
     --;; К слову можно добавить донатные костюмы
 }
@@ -164,12 +192,15 @@ if CLIENT then
         self.CostumeMenu.lblTitle:SetTextColor(color_white)
         
 
-        local grid = vgui.Create("DGrid", self.CostumeMenu)
-        grid:Dock(FILL)
-        grid:DockMargin(10, 10, 10, 10)
+        local scroll = vgui.Create("DScrollPanel", self.CostumeMenu)
+        scroll:Dock(FILL)
+        scroll:DockMargin(10, 35, 10, 10) -- leave room for title bar
+
+        local grid = vgui.Create("DGrid", scroll)
+        grid:Dock(TOP)
         grid:SetCols(2)
         grid:SetColWide(280)
-        grid:SetRowHeight(350) 
+        grid:SetRowHeight(350)
         
         for i, costume in ipairs(self.AvailableCostumes) do
             local costumePanel = vgui.Create("DPanel")
