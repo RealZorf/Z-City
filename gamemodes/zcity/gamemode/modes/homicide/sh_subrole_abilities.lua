@@ -21,7 +21,7 @@ MODE.ShadowCamouflageColorModulation = {
 	0.84,
 	0.94
 }
-MODE.FiberwireHeadSawTime = 4
+MODE.FiberwireHeadSawTime = 3.5
 MODE.StalkerMarkMax = 3
 MODE.StalkerMarkTime = 1.15
 MODE.StalkerMarkDistance = 2800
@@ -54,16 +54,26 @@ function MODE.IsPlayerUsingFiberwire(ply)
 	return IsValid(MODE.GetActiveFiberwire(ply))
 end
 
-function MODE.CanPlayerSawHeadWithFiberwire(ply, aim_ent, other_ply)
+function MODE.GetFiberwireSawTarget(ply)
 	local wep = MODE.GetActiveFiberwire(ply)
-	if not IsValid(wep) or not wep.GetStrangling or not wep:GetStrangling() then return false end
+	if not IsValid(wep) or not wep.GetStrangling or not wep:GetStrangling() then return nil end
 
 	local rag = wep.StrangleRag
-	if not IsValid(rag) or not rag:IsRagdoll() then return false end
-	if IsValid(aim_ent) and aim_ent ~= rag then return false end
+	if not IsValid(rag) or not rag:IsRagdoll() then return nil end
 
-	local victim = hg.RagdollOwner and hg.RagdollOwner(rag) or nil
-	return IsValid(victim) and victim == other_ply and victim:Alive()
+	local victim = (hg and hg.RagdollOwner and hg.RagdollOwner(rag)) or rag.ply
+	if not IsValid(victim) or not victim:IsPlayer() or not victim:Alive() then return nil end
+
+	return wep, rag, victim
+end
+
+function MODE.CanPlayerSawHeadWithFiberwire(ply, aim_ent, other_ply)
+	local _, rag, victim = MODE.GetFiberwireSawTarget(ply)
+	if not IsValid(rag) or not IsValid(victim) then return false end
+	if IsValid(aim_ent) and aim_ent ~= rag and aim_ent ~= victim then return false end
+	if IsValid(other_ply) and other_ply ~= victim then return false end
+
+	return true
 end
 
 function MODE.GetNeckBreakAction(ply)
@@ -304,12 +314,25 @@ end
 function MODE.ContinueBreakingOtherNeck(ply)
 	local break_data = ply.Ability_NeckBreak
 	local victim = break_data.Victim
-	local aim_ent, other_ply, trace = MODE.GetPlayerTraceToOtherVictim(ply, victim)
+	local action = break_data.Action or "neck_break"
+	local aim_ent, other_ply, trace
+
+	if action == "saw_head" then
+		local _, rag, saw_victim = MODE.GetFiberwireSawTarget(ply)
+		aim_ent, other_ply = rag, saw_victim
+	else
+		aim_ent, other_ply, trace = MODE.GetPlayerTraceToOtherVictim(ply, victim)
+	end
 	
 	if(IsValid(aim_ent) and (aim_ent:IsPlayer() or aim_ent:IsRagdoll()))then
-		local action = break_data.Action or "neck_break"
-		local using_fiberwire = action ~= "saw_head" or MODE.CanPlayerSawHeadWithFiberwire(ply, aim_ent, other_ply)
-		if(IsValid(victim) and victim:Alive() and using_fiberwire and MODE.CanPlayerBreakOtherNeck(ply, aim_ent) and other_ply == victim)then
+		local can_continue = IsValid(victim) and victim:Alive() and other_ply == victim
+		if action == "saw_head" then
+			can_continue = can_continue and MODE.CanPlayerSawHeadWithFiberwire(ply, aim_ent, other_ply)
+		else
+			can_continue = can_continue and MODE.CanPlayerBreakOtherNeck(ply, aim_ent)
+		end
+
+		if(can_continue)then
 			local progress_speed = action == "saw_head" and (100 / MODE.FiberwireHeadSawTime) or 300
 			break_data.Progress = break_data.Progress + FrameTime() * progress_speed
 
