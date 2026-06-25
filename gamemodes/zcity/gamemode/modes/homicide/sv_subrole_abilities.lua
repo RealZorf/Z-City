@@ -1114,19 +1114,32 @@ function MODE.FinishJuggernautStomp(ply, rag, victim)
 	if not MODE.IsJuggernautRole or not MODE.IsJuggernautRole(ply.SubRole) then return end
 	if not victim.organism or victim.organism.otrub ~= true then return end
 	if ply:GetShootPos():DistToSqr(rag:WorldSpaceCenter()) > ((MODE.JuggernautStompReach or 105) + 45) ^ 2 then return end
+	local owner = hg and hg.RagdollOwner and hg.RagdollOwner(rag) or nil
+	if IsValid(owner) and owner ~= victim then return end
+	if not IsValid(owner) and victim.FakeRagdoll ~= rag and victim:GetNWEntity("FakeRagdoll", NULL) ~= rag then return end
+
+	local now = CurTime()
+	if (victim.HMCD_JuggernautStompFinalizing or 0) > now or (rag.HMCD_JuggernautStompFinalizing or 0) > now then return end
+	victim.HMCD_JuggernautStompFinalizing = now + 2
+	rag.HMCD_JuggernautStompFinalizing = now + 2
+
+	victim.FakeRagdoll = rag
+	victim:SetNWEntity("FakeRagdoll", rag)
+	victim:SetNWEntity("RagdollDeath", rag)
+	victim.RagdollDeath = rag
+	rag.ply = victim
+	rag:SetNWEntity("ply", victim)
 
 	local head = rag:LookupBone("ValveBiped.Bip01_Head1")
 	local head_pos = head and rag:GetBonePosition(head) or rag:WorldSpaceCenter()
 	local force = Vector(0, 0, -900) + ply:GetAimVector() * 180
 
-	local dmg = DamageInfo()
-	dmg:SetAttacker(ply)
-	dmg:SetInflictor(ply:GetActiveWeapon())
-	dmg:SetDamage(250)
-	dmg:SetDamageType(DMG_CLUB)
-	dmg:SetDamageForce(force)
-	dmg:SetDamagePosition(head_pos)
-	rag:TakeDamageInfo(dmg)
+	local phys_bone = head and rag:TranslateBoneToPhysBone(head) or -1
+	local phys = phys_bone and phys_bone >= 0 and rag:GetPhysicsObjectNum(phys_bone) or rag:GetPhysicsObject()
+	if IsValid(phys) then
+		phys:ApplyForceOffset(force * math.max(phys:GetMass(), 1) * 3, head_pos)
+		phys:Wake()
+	end
 
 	if victim.organism then
 		victim.organism.brain = 1
@@ -1148,7 +1161,6 @@ function MODE.FinishJuggernautStomp(ply, rag, victim)
 	util.Decal("Blood", head_pos + Vector(0, 0, 12), head_pos - Vector(0, 0, 38), rag)
 
 	if head then
-		local phys_bone = rag:TranslateBoneToPhysBone(head)
 		if Gib_Input then
 			Gib_Input(rag, head, force)
 		elseif Gib_RemoveBone and phys_bone and phys_bone >= 0 then
@@ -1157,6 +1169,14 @@ function MODE.FinishJuggernautStomp(ply, rag, victim)
 			rag:RemoveInternalConstraint(phys_bone)
 			rag:ManipulateBoneScale(head, vector_origin)
 		end
+	end
+
+	if zb and zb.HarmDone then
+		local harm = math.max(tonumber(zb.MaximumHarm) or 100, 100)
+		zb.HarmDone[victim] = zb.HarmDone[victim] or {}
+		zb.HarmDone[victim][ply] = math.max(zb.HarmDone[victim][ply] or 0, harm)
+		zb.HarmAttacked[ply] = (zb.HarmAttacked[ply] or 0) + harm
+		hook.Run("HarmDone", ply, victim, harm)
 	end
 
 	victim:Kill()
