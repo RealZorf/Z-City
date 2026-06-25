@@ -543,6 +543,7 @@ Press ALT + E over an unconscious victim's head to stomp their skull.]],
 		Objective = "You are the Juggernaut. Overpower smaller victims, strangle them while lifted.",
 		SpawnFunction = function(ply)
 			ply:Give("weapon_adrenaline")
+			ply:Give("weapon_traitor_suit")
 			ply:Give("weapon_hg_smokenade_tpik")
 			MODE.GiveJuggernautCrowbar(ply)
 
@@ -567,6 +568,7 @@ Press ALT + E over an unconscious victim's head to stomp their skull.]],
 		SpawnFunction = function(ply)
 			ply:Give("weapon_walkie_talkie")
 			ply:Give("weapon_adrenaline")
+			ply:Give("weapon_traitor_suit")
 			ply:Give("weapon_hg_smokenade_tpik")
 			MODE.GiveJuggernautCrowbar(ply)
 
@@ -600,6 +602,7 @@ For people who enjoy aggressive and high-risk gameplay.]],
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_hg_smokenade_tpik")
 			ply:Give("weapon_hg_fiberwire")
+			ply:Give("weapon_traitor_suit")
 
 			ply.organism.stamina.range = 240
 			ply.organism.stamina.max = 240
@@ -631,6 +634,7 @@ For people who enjoy aggressive and high-risk gameplay.]],
 			ply:Give("weapon_adrenaline")
 			ply:Give("weapon_hg_smokenade_tpik")
 			ply:Give("weapon_hg_fiberwire")
+			ply:Give("weapon_traitor_suit")
 
 			ply.organism.recoilmul = 1
 			ply.organism.stamina.range = 240
@@ -854,6 +858,7 @@ MODE.Professions = {
 			"weapon_painkillers",
 			"weapon_needle",
 			"weapon_bloodbag",
+			"weapon_mannitol",
 			"weapon_tourniquet",
 		},
 		SpawnFunction = function(ply)
