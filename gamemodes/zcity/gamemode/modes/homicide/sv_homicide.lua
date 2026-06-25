@@ -38,8 +38,6 @@ MODE.LootTable = {
 		{2,"weapon_medkit_sh"},
 
 		{1,"weapon_matches"},
-		{1,"weapon_zippo_tpik"},
-		{1,"weapon_pepperspray_tpik"},
 
 		{0.2,"weapon_morphine"},
 		{0.2,"weapon_mannitol"},
@@ -159,8 +157,6 @@ MODE.LootTableStandard = {
 		{5,"weapon_bloodbag"},
 		{4,"hg_flashlight"},
 		{1,"weapon_matches"},--for dumbasses
-		{1,"weapon_zippo_tpik"},
-		{1,"weapon_pepperspray_tpik"},
 	}},
 	{35, {
 		{1,"weapon_hammer"},
