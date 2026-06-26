@@ -101,6 +101,34 @@ local function ResetKarmaAfterLowKarmaBan(ply)
     ply:SetNetVar("Karma", ply.Karma)
 end
 
+local function HandleStoredLowKarmaOnJoin(ply, storedValue)
+    storedValue = tonumber(storedValue)
+    if not storedValue or storedValue >= 0 then return end
+
+    ResetKarmaAfterLowKarmaBan(ply)
+
+    local function applyJoinBan()
+        if not IsValid(ply) then return end
+        if IsBanImmune(ply) then return end
+        if ply.GuiltAutoBanSent then return end
+        ply.GuiltAutoBanSent = true
+
+        ApplyGuiltEscalatingBan(ply, ply:Name(), "low_karma")
+    end
+
+    local KarmaBan = zb.KarmaBan
+    if KarmaBan and KarmaBan.ShouldJoinBanForLowKarma then
+        KarmaBan.ShouldJoinBanForLowKarma(ply:SteamID64(), ply:SteamID(), function(shouldBan)
+            if shouldBan then
+                applyJoinBan()
+            end
+        end)
+        return
+    end
+
+    applyJoinBan()
+end
+
 local function IsRefundableWrongKill(attacker, victim, rnd)
     if not IsValid(attacker) or not attacker:IsPlayer() then return false end
     if not IsValid(victim) or not victim:IsPlayer() then return false end
@@ -140,18 +168,7 @@ end)
 hook.Add("HG_PlayerDBLoaded", "ZB_Guilt_OnLoad", function(ply, storeId, data)
     if storeId ~= "guilt" or not IsValid(ply) then return end
 
-    if (tonumber(data.value) or 100) < 0 then
-        ResetKarmaAfterLowKarmaBan(ply)
-
-        timer.Simple(0, function()
-            if not IsValid(ply) then return end
-            if IsBanImmune(ply) then return end
-            if ply.GuiltAutoBanSent then return end
-            ply.GuiltAutoBanSent = true
-
-            ApplyGuiltEscalatingBan(ply, ply:Name(), "low_karma")
-        end)
-    end
+    HandleStoredLowKarmaOnJoin(ply, data.value)
 end)
 
 hook.Add( "PlayerInitialSpawn","ZB_GuiltSQL", function( ply )
@@ -177,19 +194,7 @@ hook.Add( "PlayerInitialSpawn","ZB_GuiltSQL", function( ply )
                 ply.Karma = ply:guilt_GetValue()
                 ply:SetNetVar("Karma", ply.Karma)
 
-                if zb.GuiltSQL.PlayerInstances[steamID64].value < 0 then
-                    ResetKarmaAfterLowKarmaBan(ply)
-
-                    timer.Simple(0, function()
-                        if not IsValid(ply) then return end
-
-                        if IsBanImmune(ply) then return end
-                        if ply.GuiltAutoBanSent then return end
-                        ply.GuiltAutoBanSent = true
-
-                        ApplyGuiltEscalatingBan(ply, ply:Name(), "low_karma")
-                    end)
-                end
+                HandleStoredLowKarmaOnJoin(ply, zb.GuiltSQL.PlayerInstances[steamID64].value)
 			else
 				local insertQuery = mysql:Insert("zb_guilt")
 					insertQuery:Insert("steamid", steamID64)
