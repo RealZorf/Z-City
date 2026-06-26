@@ -6,7 +6,7 @@ zb.KarmaBan = zb.KarmaBan or {}
 local KarmaBan = zb.KarmaBan
 
 KarmaBan.BASE_MINUTES = zb.KarmaBanBaseMinutes or 45
-KarmaBan.REASON_TAG = "[ZB-GB]"
+KarmaBan.REASON_TAG = "[KARMA BAN]"
 KarmaBan.LEGACY_REASON_TAG = "[ZB-KB]"
 KarmaBan.FALLBACK_FILE = "zbattle/karma_ban_escalation.json"
 KarmaBan.TABLE_NAME = "zb_karma_ban"
@@ -62,16 +62,15 @@ function KarmaBan.ResolveBanLevel(storedLevel, storedMonth, monthKey)
 	return storedLevel + 1
 end
 
-function KarmaBan.MakeToken(steamID64, banLevel, monthKey)
-	monthKey = monthKey or KarmaBan.GetMonthKey()
-	return string.format(
-		"%s%s-%s-L%d-%d",
-		KarmaBan.REASON_TAG,
-		steamID64,
-		monthKey,
-		banLevel,
-		os.time()
-	)
+function KarmaBan.MakeToken(_, banLevel)
+    local issued = os.date("!%Y-%m-%d %H:%M UTC")
+
+    return string.format(
+        "%s [Strike: %d | Issued: %s]",
+        KarmaBan.REASON_TAG,
+        banLevel,
+        issued
+    )
 end
 
 function KarmaBan.ReasonHasTag(reason)
@@ -88,7 +87,7 @@ end
 function KarmaBan.ParseTokenLevel(reason)
 	if not KarmaBan.ReasonHasTag(reason) then return nil end
 
-	local level = string.match(reason, "L(%d+)")
+	local level = string.match(reason, "Strike:%s+(%d+)")
 	return tonumber(level)
 end
 
