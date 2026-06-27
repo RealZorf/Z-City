@@ -1051,6 +1051,7 @@ local function buildPerfusionDiagnosis(org, countedBPM)
 	local arterialBleed = tonumber(org.arterialBleed) or 0
 	local venousBleed = tonumber(org.venousBleed) or tonumber(org.bleed) or 0
 	local blood = tonumber(org.blood) or 5000
+	local bodyposition = tostring(org.bodyposition or "")
 
 	if pulse >= 105 and (bloodpressure < 0.55 or perfusion < 0.5 or shock > 20) then
 		messages[#messages + 1] = "Pulse is fast and weak."
@@ -1074,6 +1075,16 @@ local function buildPerfusionDiagnosis(org, countedBPM)
 
 	if bloodpressure < 0.25 or perfusion < 0.22 or arterialBleed > 3 or venousBleed > 12 then
 		messages[#messages + 1] = "Blood pressure is crashing."
+	end
+
+	if bodyposition == "recovery" then
+		messages[#messages + 1] = "They are on their side; the airway can drain."
+	elseif bodyposition == "face_down" then
+		messages[#messages + 1] = "They are face down; breathing may be restricted."
+	elseif bodyposition == "legs_elevated" then
+		messages[#messages + 1] = "Their legs are elevated, helping circulation."
+	elseif (bodyposition == "standing" or bodyposition == "walking") and (arterialBleed > 0.5 or venousBleed > 4) then
+		messages[#messages + 1] = "Being upright is worsening the bleeding."
 	end
 
 	return messages

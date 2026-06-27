@@ -163,6 +163,9 @@ function PLAYER:LegAttack()
                     dmginfo:SetDamageForce(normal * dmg)
                     dmginfo:SetDamageType((ent:GetClass() == "func_breakable_surf") and DMG_SLASH or DMG_CLUB)
                     dmginfo:SetDamagePosition(tr.HitPos)
+                    if dmginfo.SetDamageCustom then
+                        dmginfo:SetDamageCustom(9201)
+                    end
 
                     PenetrationGlobal = 1
 					MaxPenLenGlobal = 1

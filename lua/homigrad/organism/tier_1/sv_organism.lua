@@ -85,6 +85,11 @@ hook.Add("Org Clear", "Main", function(org)
 	org.throatCutSeverity = 0
 	org.throatCutPressureShock = 0
 	org.neckBrainOxygenPenalty = 0
+	org.bodyposition = "standing"
+	org.bodyPositionPressureBonus = 0
+	org.bodyPositionBleedMul = 1
+	org.bodyPositionBreathingMul = 1
+	org.bodyPositionThroatDrainMul = 1
 
 	org.assimilated = 0
 	org.berserk = 0
@@ -149,6 +154,121 @@ local function approachVitals(current, target, timeValue)
 	return math.Approach(current, target, (timeValue or engine.TickInterval()) * rate)
 end
 
+local function getBonePositionSafe(ent, boneName)
+	if not IsValid(ent) or not ent.LookupBone then return nil end
+
+	local bone = ent:LookupBone(boneName)
+	if not bone then return nil end
+
+	local pos = ent:GetBonePosition(bone)
+	return isvector(pos) and pos or nil
+end
+
+local function getBodySideZ(ent)
+	if not IsValid(ent) or not ent.LookupBone then return nil end
+
+	local bone = ent:LookupBone("ValveBiped.Bip01_Head1") or ent:LookupBone("ValveBiped.Bip01_Spine2")
+	if not bone then return nil end
+
+	local matrix = ent:GetBoneMatrix(bone)
+	if not matrix then return nil end
+
+	return matrix:GetAngles():Right().z
+end
+
+function hg.organism.UpdateBodyPosition(owner, org, timeValue)
+	if not IsValid(owner) or not org then return end
+
+	local ent = (hg.GetCurrentCharacter and hg.GetCurrentCharacter(owner)) or owner
+	if not IsValid(ent) then ent = owner end
+
+	local isRagdoll = ent:IsRagdoll()
+	local velocity = IsValid(ent) and ent:GetVelocity() or vector_origin
+	local speed = velocity:Length()
+	local position = "standing"
+	local pressureBonus = 0
+	local bleedMul = 1
+	local breathingMul = 1
+	local throatDrainMul = 1
+	local shockRelief = 0
+
+	if owner:IsPlayer() and not isRagdoll and not org.fake and not org.otrub then
+		if speed > 125 then
+			position = "walking"
+			bleedMul = 1.18
+		else
+			position = "standing"
+			bleedMul = 1.07
+		end
+	else
+		local headPos = getBonePositionSafe(ent, "ValveBiped.Bip01_Head1")
+		local pelvisPos = getBonePositionSafe(ent, "ValveBiped.Bip01_Pelvis") or ent:WorldSpaceCenter()
+		local lFoot = getBonePositionSafe(ent, "ValveBiped.Bip01_L_Foot")
+		local rFoot = getBonePositionSafe(ent, "ValveBiped.Bip01_R_Foot")
+		local sideZ = getBodySideZ(ent) or 0
+
+		local footZ
+		if lFoot and rFoot then
+			footZ = (lFoot.z + rFoot.z) * 0.5
+		elseif lFoot or rFoot then
+			footZ = (lFoot or rFoot).z
+		end
+
+		local headZ = headPos and headPos.z or pelvisPos.z
+		local torsoZ = pelvisPos.z
+		local legsElevated = footZ and footZ > math.max(headZ, torsoZ) + 8
+		local lyingFlat = math.abs(headZ - torsoZ) < 22 or isRagdoll
+		local faceDown = sideZ < -0.35
+		local onSide = math.abs(sideZ) <= 0.35
+
+		if legsElevated then
+			pressureBonus = 0.035
+			shockRelief = 0.24
+		end
+
+		if faceDown then
+			position = "face_down"
+			pressureBonus = math.max(pressureBonus, 0.015)
+			bleedMul = 0.97
+			breathingMul = org.otrub and 0.74 or 0.86
+			throatDrainMul = 0.75
+		elseif onSide then
+			position = "recovery"
+			pressureBonus = math.max(pressureBonus, 0.03)
+			bleedMul = 0.95
+			breathingMul = 1.06
+			throatDrainMul = 0.55
+		elseif legsElevated then
+			position = "legs_elevated"
+			pressureBonus = 0.075
+			bleedMul = 0.96
+			breathingMul = 1
+			throatDrainMul = 0.9
+		elseif lyingFlat then
+			position = "lying_flat"
+			pressureBonus = 0.04
+			bleedMul = 0.96
+			breathingMul = 1
+			throatDrainMul = 0.9
+		else
+			position = "slumped"
+			bleedMul = 1.03
+			breathingMul = 0.92
+			throatDrainMul = 1
+		end
+	end
+
+	org.bodyposition = position
+	org.bodyPositionPressureBonus = pressureBonus
+	org.bodyPositionBleedMul = bleedMul
+	org.bodyPositionBreathingMul = breathingMul
+	org.bodyPositionThroatDrainMul = throatDrainMul
+
+	if shockRelief > 0 and (org.shock or 0) > 0 then
+		org.shock = math.max((org.shock or 0) - (timeValue or engine.TickInterval()) * shockRelief, 0)
+	end
+end
+
 function hg.organism.UpdatePerfusion(owner, org, timeValue)
 	if not org then return end
 
@@ -169,7 +289,8 @@ function hg.organism.UpdatePerfusion(owner, org, timeValue)
 	local throatCutPenalty = math.Clamp(org.throatCutPressureShock or 0, 0, 1)
 	local neckBrainOxygenPenalty = math.Clamp(org.neckBrainOxygenPenalty or 0, 0, 1)
 
-	local pressureTarget = math.Clamp(bloodFrac * heartFunc * pulseFunc - bleedPenalty - shockPenalty * 0.45 - throatCutPenalty * 0.22, 0, 1)
+	local positionPressureBonus = math.Clamp(org.bodyPositionPressureBonus or 0, 0, 0.1)
+	local pressureTarget = math.Clamp(bloodFrac * heartFunc * pulseFunc - bleedPenalty - shockPenalty * 0.45 - throatCutPenalty * 0.22 + positionPressureBonus, 0, 1)
 	local perfusionTarget = math.Clamp(pressureTarget * Lerp(oxygen, 0.55, 1), 0, 1)
 	local brainTarget = math.Clamp(perfusionTarget * Lerp(oxygen, 0.35, 1) * Lerp(throatCutPenalty, 1, 0.45) * Lerp(neckBrainOxygenPenalty, 1, 0.05), 0, 1)
 	local peripheralTarget = math.Clamp(perfusionTarget - shockPenalty * 0.35 - arterialPressurePenalty * 0.35 - venousPressurePenalty * 0.15 - throatCutPenalty * 0.2, 0, 1)
@@ -262,6 +383,7 @@ local function send_organism(org, ply)
 	sendtable.throatcut = org.throatcut
 	sendtable.throatCutUntil = org.throatCutUntil
 	sendtable.throatCutSeverity = org.throatCutSeverity
+	sendtable.bodyposition = org.bodyposition
 	sendtable.hurt = org.hurt
 	sendtable.pain = org.pain
 	sendtable.shock = org.shock
@@ -339,6 +461,7 @@ local function send_bareinfo(org)
 	sendtable.throatcut = org.throatcut
 	sendtable.throatCutUntil = org.throatCutUntil
 	sendtable.throatCutSeverity = org.throatCutSeverity
+	sendtable.bodyposition = org.bodyposition
 	sendtable.analgesia = org.analgesia
 	sendtable.o2 = org.o2
 	sendtable.timeValue = org.timeValue
@@ -481,6 +604,7 @@ hook.Add("Org Think", "Main", function(owner, org, timeValue)
 	org.timeValue = timeValue
 	org.incapacitated = false
 	org.critical = false
+	hg.organism.UpdateBodyPosition(owner, org, timeValue)
 
 	if isPly then
 		module.stamina[2](owner, org, timeValue)

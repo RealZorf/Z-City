@@ -28,8 +28,23 @@ local throat_cut_sounds = {
 local function getThroatCutGurgleSound(owner)
 	local gender = (ThatPlyIsFemale and ThatPlyIsFemale(owner)) and "female" or "male"
 	local sounds = throat_cut_sounds[gender] or throat_cut_sounds.male
+	local last = IsValid(owner) and owner.HG_LastThroatCutGurgleSound or nil
+	local snd = sounds[math.random(#sounds)]
 
-	return sounds[math.random(#sounds)]
+	if #sounds > 1 and snd == last then
+		for _, candidate in ipairs(sounds) do
+			if candidate ~= last then
+				snd = candidate
+				break
+			end
+		end
+	end
+
+	if IsValid(owner) then
+		owner.HG_LastThroatCutGurgleSound = snd
+	end
+
+	return snd
 end
 
 hg.organism.bloodtypes = {
@@ -98,6 +113,8 @@ local about_to_puke = {
 local vecZero = Vector(0, 0, 0)
 module[2] = function(owner, org, mulTime)
 	local adrenaline = math.min(org.adrenaline, 2)
+	local bodyBleedMul = math.Clamp(org.bodyPositionBleedMul or 1, 0.85, 1.25)
+	local throatDrainMul = math.Clamp(org.bodyPositionThroatDrainMul or 1, 0.45, 1.2)
 
 	if org.vomitInThroat then
 		local ent = hg.GetCurrentCharacter(owner)
@@ -106,7 +123,7 @@ module[2] = function(owner, org, mulTime)
 		local bone = ent:LookupBone(bon)
 		local mat = ent:GetBoneMatrix(bone)
 	
-		if mat and mat:GetAngles():Right()[3] < 0.25 then
+		if mat and (org.bodyposition == "recovery" or mat:GetAngles():Right()[3] < 0.25) then
 			org.vomitInThroat = nil
 
 			net.Start("bloodsquirt2", true)
@@ -149,7 +166,7 @@ module[2] = function(owner, org, mulTime)
 		for i, wound in pairs(org.wounds) do
 			local rand1 = math.Rand(4, 10) * 1
 			local rand2 = math.Rand(0.5, 1) * 1
-			local bleed = rand1 * wound[1] * mulTime * math.max(org.pulse, 20) / 70 * 2.0 * (1 - math.min(adrenaline / 6, 0.5)) * org.bleedingmul * 0.02
+			local bleed = rand1 * wound[1] * mulTime * math.max(org.pulse, 20) / 70 * 2.0 * (1 - math.min(adrenaline / 6, 0.5)) * org.bleedingmul * bodyBleedMul * 0.02
 			local coagulate = 2 * mulTime * rand2 * (adrenaline * 0.1 + 1) * 0.04-- / #org.wounds
 			bleedoutspeed = bleedoutspeed + bleed / rand1 * 3--we pray for the luck of it being in the center
 			coagulatespeed = coagulatespeed + coagulate / rand2 * 1
@@ -187,12 +204,12 @@ module[2] = function(owner, org, mulTime)
 	local hasCarotidWound = false
 	for i, wound in pairs(org.arterialwounds) do
 		if wound[7] == "arteria" then hasCarotidWound = true end
-		bleedoutspeed2 = bleedoutspeed2 + wound[1] * mulTime * 0.2 * math.max(org.pulse, 20) / 80
+		bleedoutspeed2 = bleedoutspeed2 + wound[1] * mulTime * 0.2 * math.max(org.pulse, 20) / 80 * bodyBleedMul
 
 		if wound[5] + next_arterypump * 2 < time then
 			local pos, ang = ent:GetBonePosition(ent:LookupBone(wound[4]))
 			wound[5] = time
-			org.blood = max(org.blood - wound[1] * mulTime * 4.5 * math.max(org.pulse, 20) / 80, 1)
+			org.blood = max(org.blood - wound[1] * mulTime * 4.5 * math.max(org.pulse, 20) / 80 * bodyBleedMul, 1)
 			if (owner:IsPlayer() and owner:Alive()) or not owner:IsPlayer() then
 				local dir = wound[6]
 				local len = dir:Length()
@@ -220,7 +237,7 @@ module[2] = function(owner, org, mulTime)
 		end
 
 		if org.o2 and org.o2[1] then
-			org.o2[1] = math.max(org.o2[1] - mulTime * 4.5 * severity, 0)
+			org.o2[1] = math.max(org.o2[1] - mulTime * 4.5 * severity * throatDrainMul, 0)
 		end
 
 		if (org.throatCutGurgleNext or 0) <= time and org.alive and not org.otrub and org.o2 and org.o2[1] > 0 then
