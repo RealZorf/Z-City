@@ -54,6 +54,34 @@ SWEP.AvailableCostumes = {
         Attachments = {}
     },
     {
+        Name = "Michael Myers",
+        Model = "models/player/dewobedil/mike_myers/default_p.mdl",
+        Description = "Walks slower than your sprint. Still wins.",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "Winnie the Pooh",
+        Model = "models/player/pooh.mdl",
+        Description = "Out of honey. Full of hate.",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "Art The Clown",
+        Model = "models/player/ndord/cod/arttheclown.mdl",
+        Description = "Silent. Smiling. Problem escalating.",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
+        Name = "Leatherface",
+        Model = "models/models/konnie/leatherface/leatherface.mdl",
+        Description = "Family dinner gets weird.",
+        Color = Color(255, 255, 255),
+        Attachments = {}
+    },
+    {
         Name = "Darth Vader",
         Model = "models/player/darth_vader.mdl",
         Description = "Breathing heavily since 1977",
@@ -64,20 +92,6 @@ SWEP.AvailableCostumes = {
         Name = "Spy",
         Model = "models/gman_spy/spy_04.mdl",
         Description = "Could be anyone. Could even be you",
-        Color = Color(255, 255, 255),
-        Attachments = {}
-    },
-    {
-        Name = "NAVS Operator",
-        Model = "models/vpc_flk_whitecom_pms/pms/wcomexp/vp_flk_wcomexp.mdl",
-        Description = "Problem solver (legally disputed)",
-        Color = Color(255, 255, 255),
-        Attachments = {}
-    },
-    {
-        Name = "Security Guard",
-        Model = "models/vpc_flk_whitecom_pms/pms/wcomsec/vp_flk_wcomsec.mdl",
-        Description = "Mall cop energy included",
         Color = Color(255, 255, 255),
         Attachments = {}
     }

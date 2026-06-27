@@ -30,24 +30,6 @@ local function IsHomicideRound(rnd)
     return rnd and (rnd.name == "hmcd" or rnd.name == "fear" or rnd.base == "hmcd")
 end
 
-local function GetKarmaRewards()
-    return zb.KarmaRewards or {}
-end
-
-function zb.GiveRoundSurvivalKarma()
-    local reward = GetKarmaRewards().RoundSurvival or 0
-    if reward <= 0 then return end
-
-    for _, ply in player.Iterator() do
-        if ply:Team() == TEAM_SPECTATOR then continue end
-        if ply.isTraitor or ply.isGunner or ply.isPolice then continue end
-        if not ply:Alive() or not ply.organism or ply.organism.incapacitated then continue end
-
-        ply:guilt_AddKarma(reward)
-        ply:ChatPrint("You earned " .. math.Round(reward, 2) .. " karma for surviving the round.")
-    end
-end
-
 local function GetPlayerKarmaCap(ply)
     if not IsValid(ply) or not ply:IsPlayer() then return zb.MaxKarma end
 
@@ -104,23 +86,6 @@ local function IsBanImmune(ply)
     return table.HasValue(IMMUNE_GROUPS, grp)
 end
 
-local function ApplyGuiltEscalatingBan(target, name, reasonKey)
-    local steamID = isstring(target) and target or target:SteamID()
-
-    if zb.KarmaBan and zb.KarmaBan.ApplyBan then
-        zb.KarmaBan.ApplyBan(steamID, name, reasonKey)
-        return
-    end
-
-    local fallbackReasons = {
-        low_karma = "Kicked and banned for having too low karma.",
-        team_damage = "Kicked and banned for dealing too much team damage.",
-        --karma_exploit = "Kicked and banned for trying to exploit karma system.",
-    }
-
-    ULib.addBan(steamID, zb.KarmaBanBaseMinutes or 45, fallbackReasons[reasonKey] or fallbackReasons.low_karma, name, "System")
-end
-
 local function IsRefundableWrongKill(attacker, victim, rnd)
     if not IsValid(attacker) or not attacker:IsPlayer() then return false end
     if not IsValid(victim) or not victim:IsPlayer() then return false end
@@ -154,33 +119,26 @@ local function ResetRoundRefundState(ply)
 end
 
 hook.Add("DatabaseConnected", "GuiltCreateData", function()
-    zb.GuiltSQL.Active = hg.PlayerDB and hg.PlayerDB.IsMySQL() or false
-end)
+	local query
 
-hook.Add("HG_PlayerDBLoaded", "ZB_Guilt_OnLoad", function(ply, storeId, data)
-    if storeId ~= "guilt" or not IsValid(ply) then return end
+	query = mysql:Create("zb_guilt")
+		query:Create("steamid", "VARCHAR(20) NOT NULL")
+		query:Create("steam_name", "VARCHAR(32) NOT NULL")
+		query:Create("value", "FLOAT NOT NULL")
+		query:PrimaryKey("steamid")
+	query:Execute()
 
-    if (tonumber(data.value) or 100) < 0 then
-        ply:guilt_SetValue(10)
-        ply.Karma = 10
-        zb.SyncPublicKarma(ply)
-
-        timer.Simple(0, function()
-            if not IsValid(ply) then return end
-            if IsBanImmune(ply) then return end
-            if ply.GuiltAutoBanSent then return end
-            ply.GuiltAutoBanSent = true
-
-            ApplyGuiltEscalatingBan(ply, ply:Name(), "low_karma")
-        end)
-    end
+    zb.GuiltSQL.Active = true
 end)
 
 hook.Add( "PlayerInitialSpawn","ZB_GuiltSQL", function( ply )
-    if hg.PlayerDB then return end
-
     local name = ply:Name()
 	local steamID64 = ply:SteamID64()
+
+    --if not zb.GuiltSQL.Active then
+    --    zb.GuiltSQL.PlayerInstances[steamID64] = {}
+    --    return
+    --end 
 
 	local query = mysql:Select("zb_guilt")
 		query:Select("value")
@@ -209,10 +167,9 @@ hook.Add( "PlayerInitialSpawn","ZB_GuiltSQL", function( ply )
                         if not IsValid(ply) then return end
 
                         if IsBanImmune(ply) then return end
-                        if ply.GuiltAutoBanSent then return end
-                        ply.GuiltAutoBanSent = true
 
-                        ApplyGuiltEscalatingBan(ply, ply:Name(), "low_karma")
+                        ply:Ban(5, false)
+                        ply:Kick("Your karma is too low: " .. math.Round(ply.Karma, 0) .. ". Try again in 5 minutes.")
                     end)
                 end
 			else
@@ -237,23 +194,19 @@ end)
 local plyMeta = FindMetaTable("Player")
 
 function plyMeta:guilt_GetValue()
-    if hg.PlayerDB then
-        return hg.PlayerDB.GetKarma(self:SteamID64())
-    end
 
     return zb.GuiltSQL.PlayerInstances[self:SteamID64()] and zb.GuiltSQL.PlayerInstances[self:SteamID64()].value or 100
+
 end
 
-function plyMeta:guilt_SetValue(zb_guilt)
+function plyMeta:guilt_SetValue( zb_guilt )
+
     local steamID64 = self:SteamID64()
-
-    zb.GuiltSQL.PlayerInstances[steamID64] = zb.GuiltSQL.PlayerInstances[steamID64] or {}
-    zb.GuiltSQL.PlayerInstances[steamID64].value = zb_guilt
-
-    if hg.PlayerDB then
-        hg.PlayerDB.SetKarma(steamID64, zb_guilt, self:Name())
-        return
-    end
+	
+	zb.GuiltSQL.PlayerInstances[self:SteamID64()] = zb.GuiltSQL.PlayerInstances[self:SteamID64()] or {}
+	zb.GuiltSQL.PlayerInstances[self:SteamID64()].value = zb.GuiltSQL.PlayerInstances[self:SteamID64()].value or 100
+	
+    zb.GuiltSQL.PlayerInstances[self:SteamID64()].value = zb_guilt
 
 	local updateQuery = mysql:Update("zb_guilt")
 		updateQuery:Update("value", zb_guilt)
@@ -444,7 +397,7 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     --[[if !IsValid(Attacker) and dmgInfo:GetInflictor().steamid then
         local steamid = dmgInfo:GetInflictor().steamid
         
-        ApplyGuiltEscalatingBan(steamid, steamid, "karma_exploit")
+        ULib.addBan( steamid, 60, "Kicked and banned for trying to exploit karma system.", steamid, "System" )
     end--]]
 
     if not IsValid(Attacker) or not Attacker:IsPlayer() then return end
@@ -559,11 +512,16 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     zb.HarmDoneKarma[Victim][Attacker] = zb.HarmDoneKarma[Victim][Attacker] + add
 
     if shouldBanGuilt and Attacker.Guilt >= 100 then
-        if Attacker.GuiltAutoBanSent then return end
-        if IsBanImmune(Attacker) then return end
-        Attacker.GuiltAutoBanSent = true
+        if Attacker.GuiltBanSent then return end 
+        Attacker.GuiltBanSent = true
 
-        ApplyGuiltEscalatingBan(Attacker, Attacker:Name(), "team_damage")
+        if not IsBanImmune(Attacker) then
+            ULib.addBan(Attacker:SteamID(), 30, "Kicked and banned for dealing too much team damage.", Attacker:Name(), "System")
+
+            PrintMessage(HUD_PRINTTALK,
+                "Player " .. Attacker:Name() .. " has been banned for 30 minutes for RDMing in a team based gamemode."
+            )
+        end
     end
 
     zb.SyncPublicKarma(Attacker)
@@ -573,17 +531,24 @@ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, har
     if Attacker.Karma <= 0 then
         local steamID = Attacker:SteamID()
         local name = Attacker:Name()
+        local karma = Attacker.Karma
 
         Attacker:guilt_SetValue( 10 )
 
         -- we wait one tick to make them pay for all the murders they've done
         -- also makes sure the message is displayed only once
         timer.Create("simplewaitforkarmadrop"..Attacker:EntIndex(), 0, 1, function()
-            if IsBanImmune(Attacker) then return end
-            if Attacker.GuiltAutoBanSent then return end
-            Attacker.GuiltAutoBanSent = true
+            if IsValid(Attacker) then -- if the player haven't left in that exact tick then we do him dirty
+                karma = Attacker.Karma
+            end
 
-            ApplyGuiltEscalatingBan(steamID, name, "low_karma")
+            local time = math.Round(60 - karma * 4, 0)
+
+			if not IsBanImmune(Attacker) then
+                ULib.addBan(steamID, 60, "Kicked and banned for having too low karma.", name, "System")
+
+                PrintMessage(HUD_PRINTTALK, "Player " .. name .. " has been banned for " .. time .. " minutes for having too low karma.")
+            end
         end)
     end
 end)
@@ -621,14 +586,11 @@ hook.Add("Player Spawn","SlowlyRestoreKarma",function(ply)
 end)
 
 hook.Add("Player Think", "karmagain", function(ply)
-    local rewards = GetKarmaRewards()
-
     if (ply.KarmaGainThink or 0) > CurTime() then return end
-    ply.KarmaGainThink = CurTime() + (rewards.PassiveInterval or 120)
+    ply.KarmaGainThink = CurTime() + 120
 
-    local gain = ply.Karma > 100 and (rewards.PassiveAboveCap or 0.25) or (ply.KarmaGain or rewards.PassiveBelowCap or 1.5)
-    ply.Karma = math.Clamp(ply.Karma + gain, 0, GetPlayerKarmaCap(ply))
-
+    ply.Karma = math.Clamp(ply.Karma + (ply.Karma > 100 and 0.1 or (ply.KarmaGain or 0.75)), 0, GetPlayerKarmaCap(ply))// * (1 + ply:HasPurchase("zpremium")), 0, zb.MaxKarma)
+    
     zb.SyncPublicKarma(ply)
     //ply:guilt_SetValue( ply.Karma or 100 )
 end)
@@ -698,16 +660,11 @@ end)
 hook.Add("ZB_StartRound","NO_HARM",function()
     zb.GuiltRoundId = (zb.GuiltRoundId or 0) + 1
 
-    local rewards = GetKarmaRewards()
-    local cleanRoundGainMin = rewards.CleanRoundGainMin or 1.5
-    local cleanRoundGainMax = rewards.CleanRoundGainMax or 3
-    local cleanRoundGainStep = rewards.CleanRoundGainStep or 0.5
-
     for i,ply in player.Iterator() do
         if (ply.Guilt or 0) < 1 then
-            ply.KarmaGain = math.Clamp((ply.KarmaGain or cleanRoundGainMin) + cleanRoundGainStep, cleanRoundGainMin, cleanRoundGainMax)
+            ply.KarmaGain = math.Clamp((ply.KarmaGain or 0.75) + 0.25, 0.75, 1.5)
         else
-            ply.KarmaGain = cleanRoundGainMin
+            ply.KarmaGain = 0.75
         end
 
         ResetRoundRefundState(ply)
@@ -843,33 +800,6 @@ hook.Add("Player Spawn", "GuiltKnown",function(ply)
         ply.GuiltKnownRoundStamp = roundStamp
         ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
     end
-end)
-
-hook.Add("Player_Death", "GuiltTraitorKillReward", function(victim)
-    if not IsValid(victim) or not victim:IsPlayer() then return end
-
-    local rnd = CurrentRound()
-    if not IsHomicideRound(rnd) then return end
-
-    timer.Simple(0.15, function()
-        if not IsValid(victim) or not victim.isTraitor then return end
-
-        local mostHarm, biggestAttacker = 0, nil
-
-        for attacker, attackerHarm in pairs(zb.HarmDone[victim] or {}) do
-            if IsValid(attacker) and mostHarm < attackerHarm then
-                mostHarm = attackerHarm
-                biggestAttacker = attacker
-            end
-        end
-
-        if not IsValid(biggestAttacker) or biggestAttacker == victim or biggestAttacker.isTraitor then return end
-
-        local reward = GetKarmaRewards().TraitorKill or 0
-        if reward <= 0 then return end
-
-        biggestAttacker:guilt_AddKarma(reward)
-    end)
 end)
 
 hook.Add("Player Spawn", "GuiltRefundReminder", function(ply)
